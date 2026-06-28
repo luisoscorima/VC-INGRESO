@@ -123,30 +123,13 @@ if (str_starts_with($uri, '/api/v1/')) {
         }
     }
 
-    // ==================== CATALOG (areas, salas, prioridad, stubs) ====================
+    // ==================== CATALOG (access_points, resumen dashboard) ====================
     if (str_starts_with($path, 'catalog/')) {
         require_once __DIR__ . '/controllers/CatalogController.php';
         if ($path === 'catalog/dashboard-summary' && $method === 'GET') { \Controllers\CatalogController::dashboardSummary(); exit; }
         if ($path === 'catalog/access-points' && $method === 'POST') { \Controllers\CatalogController::accessPointsStore(); exit; }
         if (preg_match('#^catalog/access-points/(\d+)$#', $path, $m) && $method === 'PUT') { \Controllers\CatalogController::accessPointsUpdate($m[1]); exit; }
         if ($path === 'catalog/areas' && $method === 'GET') { \Controllers\CatalogController::areas(); exit; }
-        if ($path === 'catalog/salas' && $method === 'GET') { \Controllers\CatalogController::salas(); exit; }
-        if ($path === 'catalog/prioridad' && $method === 'GET') { \Controllers\CatalogController::prioridad(); exit; }
-        if ($path === 'catalog/collaborator' && $method === 'GET') { \Controllers\CatalogController::collaboratorByUserId(); exit; }
-        if ($path === 'catalog/personal' && $method === 'GET') { \Controllers\CatalogController::personal(); exit; }
-        if ($path === 'catalog/payment-by-client' && $method === 'GET') { \Controllers\CatalogController::paymentByClientId(); exit; }
-        if ($path === 'catalog/activities-by-user' && $method === 'GET') { \Controllers\CatalogController::activitiesByUser(); exit; }
-        if ($path === 'catalog/machines' && $method === 'GET') { \Controllers\CatalogController::machines(); exit; }
-        if ($path === 'catalog/machine-by-rmt' && $method === 'GET') { \Controllers\CatalogController::machineByRmt(); exit; }
-        if ($path === 'catalog/problems-by-type' && $method === 'GET') { \Controllers\CatalogController::problemsByType(); exit; }
-        if ($path === 'catalog/solutions-by-type' && $method === 'GET') { \Controllers\CatalogController::solutionsByType(); exit; }
-        if ($path === 'catalog/areas-by-zone' && $method === 'GET') { \Controllers\CatalogController::areasByZone(); exit; }
-        if ($path === 'catalog/campus-by-zone' && $method === 'GET') { \Controllers\CatalogController::campusByZone(); exit; }
-        if ($path === 'catalog/inc-pendientes' && $method === 'GET') { \Controllers\CatalogController::incPendientes(); exit; }
-        if ($path === 'catalog/inc-proceso' && $method === 'GET') { \Controllers\CatalogController::incProceso(); exit; }
-        if ($path === 'catalog/inc-fin' && $method === 'GET') { \Controllers\CatalogController::incFin(); exit; }
-        if ($path === 'catalog/campus-by-id' && $method === 'GET') { \Controllers\CatalogController::campusById(); exit; }
-        if ($path === 'catalog/campus-active-by-id' && $method === 'GET') { \Controllers\CatalogController::campusActiveById(); exit; }
     }
 
     // ==================== REGISTRO PÚBLICO (sin login) ====================
@@ -552,6 +535,11 @@ if (str_starts_with($uri, '/api/v1/')) {
     if (str_starts_with($path, 'external-visits')) {
         require_once __DIR__ . '/controllers/ExternalVehicleController.php';
         $controller = new \Controllers\ExternalVehicleController();
+
+        if ($path === 'external-visits/lookup' && $method === 'GET') {
+            $controller->lookup();
+            exit;
+        }
         
         if (preg_match('#^external-visits(?:/(\d+))?#', $path, $matches)) {
             $id = $matches[1] ?? null;
@@ -641,6 +629,35 @@ if (str_starts_with($uri, '/api/v1/')) {
         }
     }
     
+    // ==================== ACCESS INCIDENTS ====================
+    if (str_starts_with($path, 'access-incidents')) {
+        require_once __DIR__ . '/db_connection.php';
+        require_once __DIR__ . '/controllers/AccessIncidentController.php';
+        $pdo = getDbConnection();
+        $incController = new \Controllers\AccessIncidentController($pdo);
+
+        if (preg_match('#^access-incidents/by-log/(-?\d+)$#', $path, $m) && $method === 'GET') {
+            $incController->byLog($m[1]);
+            exit;
+        }
+
+        if (preg_match('#^access-incidents/(\d+)$#', $path, $m)) {
+            if ($method === 'GET') {
+                $incController->show($m[1]);
+            }
+            exit;
+        }
+
+        if ($path === 'access-incidents') {
+            if ($method === 'GET') {
+                $incController->index();
+            } elseif ($method === 'POST') {
+                $incController->store();
+            }
+            exit;
+        }
+    }
+
     // ==================== ACCESS LOGS ====================
     if (str_starts_with($path, 'access-logs')) {
         require_once __DIR__ . '/db_connection.php';
@@ -656,28 +673,24 @@ if (str_starts_with($uri, '/api/v1/')) {
             exit;
         }
         
-        // access-logs/stats/daily
-        if (str_contains($path, 'stats/daily')) {
-            if ($method === 'GET') {
-                $controller->dailyStats();
-            }
-            exit;
-        }
-        
-        // Reportes (reemplazo legacy)
         if ($method === 'GET') {
-            if (str_contains($path, 'entrance-by-range')) { $controller->entranceByRange(); exit; }
             if (str_contains($path, 'history-by-date')) { $controller->historyByDate(); exit; }
             if (str_contains($path, 'history-by-range')) { $controller->historyByRange(); exit; }
             if (str_contains($path, 'history-by-client')) { $controller->historyByClient(); exit; }
-            if ($path === 'access-logs/aforo') { $controller->reportAforo(); exit; }
-            if ($path === 'access-logs/address') { $controller->reportAddress(); exit; }
-            if ($path === 'access-logs/total-month') { $controller->reportTotalMonth(); exit; }
-            if ($path === 'access-logs/total-month-new') { $controller->reportTotalMonthNew(); exit; }
-            if ($path === 'access-logs/hours') { $controller->reportHours(); exit; }
-            if ($path === 'access-logs/age') { $controller->reportAge(); exit; }
         }
         
+        // Registro ingreso visita externa (temporary_access_logs)
+        if ($path === 'access-logs/temporary/exit' && $method === 'POST') {
+            $controller->exitTemporary();
+            exit;
+        }
+
+        // Registro ingreso visita externa (temporary_access_logs)
+        if ($path === 'access-logs/temporary' && $method === 'POST') {
+            $controller->storeTemporary();
+            exit;
+        }
+
         // access-logs/:id
         if (preg_match('#^access-logs(?:/(\d+))?#', $path, $matches)) {
             $id = $matches[1] ?? null;
@@ -714,6 +727,10 @@ if (str_starts_with($uri, '/api/v1/')) {
         }
         if ($path === 'access-qr/scan' && $method === 'POST') {
             $qrController->scan();
+            exit;
+        }
+        if ($path === 'access-qr/scan-confirm' && $method === 'POST') {
+            $qrController->scanConfirm();
             exit;
         }
     }
@@ -844,11 +861,15 @@ echo json_encode([
             'PUT /api/v1/persons/:id/validate' => 'Cambiar estado validación',
             
             // External Vehicles
-            'GET /api/v1/external-visits' => 'Listar visitas externas',
+            'GET /api/v1/external-visits' => 'Listar visitas externas (global staff | activas por casa)',
+            'GET /api/v1/external-visits/lookup' => 'Buscar perfil global por placa/doc',
             'GET /api/v1/external-visits/:id' => 'Obtener visita externa',
-            'POST /api/v1/external-visits' => 'Crear visita externa',
+            'POST /api/v1/external-visits' => 'Registrar visita externa + asignación',
             'PUT /api/v1/external-visits/:id' => 'Actualizar visita externa',
-            'DELETE /api/v1/external-visits/:id' => 'Eliminar visita externa',
+            'DELETE /api/v1/external-visits/:id' => 'Eliminar perfil o cancelar asignación',
+            'POST /api/v1/access-qr/scan-confirm' => 'Confirmar casa en escaneo multi-casa',
+            'POST /api/v1/access-logs/temporary' => 'Registrar ingreso visita externa',
+            'POST /api/v1/access-logs/temporary/exit' => 'Registrar salida visita externa',
             
             // Pets (Mascotas)
             'GET /api/v1/pets' => 'Listar todas las mascotas',
@@ -865,7 +886,6 @@ echo json_encode([
             'GET /api/v1/access-logs/:id' => 'Obtener log por ID',
             'POST /api/v1/access-logs' => 'Crear registro de acceso',
             'GET /api/v1/access-logs/access-points' => 'Listar puntos de acceso',
-            'GET /api/v1/access-logs/stats/daily' => 'Estadísticas diarias',
 
             // Access QR (JWT ingreso; vecinos generan, staff valida/escanea)
             'POST /api/v1/access-qr/generate' => 'Generar token QR (person|vehicle)',

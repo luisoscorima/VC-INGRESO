@@ -14,10 +14,6 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { UsersService } from '../users.service';
-import { Session } from 'protractor';
-import { Area } from '../area';
-import { AccessPoint } from '../accessPoint';
-import { Payment } from '../payment';
 import { AuthService } from '../auth.service';
 
 
@@ -141,25 +137,9 @@ export class LoginComponent implements OnInit {
   }
 
   proceedAfterLogin(): void {
-    this.usersService.getPaymentByClientId(1).subscribe({
-      next: (resPay: Payment) => {
-        this.isloading = false;
-        if ((resPay as any)?.error) {
-          this.auth.clearAuthState();
-          this.toastr.error('Error al obtener la licencia: ' + (resPay as any).error);
-          this.router.navigateByUrl('/login', { replaceUrl: true });
-          return;
-        }
-        this.toastr.success('Inicio de sesión exitoso');
-        this.router.navigateByUrl('/', { replaceUrl: true });
-      },
-      error: (error) => {
-        this.isloading = false;
-        this.auth.clearAuthState();
-        this.toastr.error('Error al obtener la licencia: ' + error);
-        this.router.navigateByUrl('/login', { replaceUrl: true });
-      }
-    });
+    this.isloading = false;
+    this.toastr.success('Inicio de sesión exitoso');
+    this.router.navigateByUrl('/', { replaceUrl: true });
   }
 
   submitChangePassword(): void {

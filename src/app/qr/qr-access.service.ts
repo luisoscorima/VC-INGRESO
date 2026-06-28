@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ApiService, ApiResponse } from '../api.service';
+import { ExternalVisitAssignmentOption } from '../externalVehicle';
 
 /** Respuesta unificada de scan / validate (cuerpo `data` de la API). */
 export interface AccessQrScanResult {
@@ -14,12 +15,17 @@ export interface AccessQrScanResult {
   vehicle_id?: number | null;
   /** temporary_visits.temp_visit_id (vehículo externo / delivery). */
   temp_visit_id?: number | null;
+  assignment_id?: number | null;
+  house_id?: number | null;
   license_plate?: string | null;
   status_validated: string;
   allow_entry: boolean;
+  pending_house_selection?: boolean;
+  active_assignments?: ExternalVisitAssignmentOption[];
   is_birthday: boolean;
   birth_date?: string | null;
   message?: string;
+  operator_notes?: string | null;
 }
 
 export interface AccessQrPersonPublic {
@@ -68,6 +74,22 @@ export class QrAccessService {
         map((res: ApiResponse<AccessQrScanResult>) => {
           if (!res.success || res.data == null) {
             throw new Error(res.error || 'Error al escanear');
+          }
+          return res.data;
+        })
+      );
+  }
+
+  scanConfirm(tempVisitId: number, assignmentId: number): Observable<AccessQrScanResult> {
+    return this.api
+      .post<{ temp_visit_id: number; assignment_id: number }>('api/v1/access-qr/scan-confirm', {
+        temp_visit_id: tempVisitId,
+        assignment_id: assignmentId,
+      })
+      .pipe(
+        map((res: ApiResponse<AccessQrScanResult>) => {
+          if (!res.success || res.data == null) {
+            throw new Error(res.error || 'Error al confirmar ingreso');
           }
           return res.data;
         })

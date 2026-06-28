@@ -205,15 +205,28 @@ Solo tres familias; **todo lo demás se rechaza** (no es caso de uso):
 
 ---
 
-## Visitas externas (`temporary_visits`)
+## Visitas externas (`temporary_visits` + `temporary_visit_assignments`)
+
+Catálogo global reutilizable (placa **o** DNI) + asignaciones por casa con temporizador.
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/v1/external-visits` | Listar. |
-| GET | `/api/v1/external-visits/:id` | Uno. |
-| POST | `/api/v1/external-visits` | Crear. |
-| PUT | `/api/v1/external-visits/:id` | Actualizar. |
-| DELETE | `/api/v1/external-visits/:id` | Eliminar. |
+| GET | `/api/v1/external-visits` | Staff: catálogo global. Vecino: usar query `house_id` + `active=1`. |
+| GET | `/api/v1/external-visits?house_id=X&active=1` | Asignaciones vigentes en Mi casa (JOIN perfil + timer). |
+| GET | `/api/v1/external-visits/lookup?plate=&doc=` | Autocompletar perfil global (coincidencia placa o DNI). |
+| GET | `/api/v1/external-visits/:id` | Un perfil global. |
+| POST | `/api/v1/external-visits` | Lookup-or-create perfil + nueva asignación. Body: `house_id`, `duration_minutes` (30\|60\|120\|240), datos del visitante. |
+| PUT | `/api/v1/external-visits/:id` | Actualizar perfil. Staff puede `photo_url`, `operator_notes`. |
+| DELETE | `/api/v1/external-visits/:id` | Staff: elimina perfil. Vecino: `?assignment_id=` cancela asignación activa. |
+
+### Escaneo portería
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/v1/access-qr/scan` | Busca perfil + asignaciones vigentes. Multi-casa → `pending_house_selection: true`. |
+| POST | `/api/v1/access-qr/scan-confirm` | Body: `temp_visit_id`, `assignment_id` — confirma casa destino. |
+| POST | `/api/v1/access-logs/temporary` | Registra **entrada** en `temporary_access_logs` (staff). Body: `access_point_id`, `temp_visit_id`, `house_id?`, `assignment_id?`, `status_validated?`. Requiere asignación vigente; rechaza 409 si hay sesión abierta. Persiste `assignment_id`, `assignment_valid_until`, `authorized_duration_minutes`, `stay_deadline`. |
+| POST | `/api/v1/access-logs/temporary/exit` | Registra **salida** (cierra sesión abierta). Body: `access_point_id`, `temp_visit_id`, `house_id?`. Respuesta: `permanence_minutes`, `stay_exceeded`. 422 si no hay entrada abierta. |
 
 ---
 
@@ -240,17 +253,26 @@ Solo tres familias; **todo lo demás se rechaza** (no es caso de uso):
 | GET | `/api/v1/access-logs/:id` | Un registro. |
 | POST | `/api/v1/access-logs` | Crear ingreso/egreso. |
 | GET | `/api/v1/access-logs/access-points` | Puntos de acceso. |
-| GET | `/api/v1/access-logs/stats/daily` | Estadísticas diarias. |
-| GET | `/api/v1/access-logs/entrance-by-range` | Ingresos por rango de fechas (`date_init`, `date_end`, …). |
-| GET | `/api/v1/access-logs/history-by-date` | Por fecha y `access_point` (id o nombre; `sala` sigue aceptado por compatibilidad). |
-| GET | `/api/v1/access-logs/history-by-range` | Por rango. |
-| GET | `/api/v1/access-logs/history-by-client` | Por fecha, `access_point` y `doc` (documento). `sala` aceptado como alias de `access_point`. |
-| GET | `/api/v1/access-logs/aforo` | Reporte aforo. Filtro por `access_point` (id); `sala` como alias legado. |
-| GET | `/api/v1/access-logs/address` | Alias / variante de reporte (mismo uso que legacy). |
-| GET | `/api/v1/access-logs/total-month` | Total mensual. |
-| GET | `/api/v1/access-logs/total-month-new` | Total mensual (versión nueva). |
-| GET | `/api/v1/access-logs/hours` | Por hora. |
-| GET | `/api/v1/access-logs/age` | Por edad. |
+| GET | `/api/v1/access-logs/history-by-date` | Por fecha y `access_point` (unificado: `access_logs` + `temporary_access_logs`). |
+| GET | `/api/v1/access-logs/history-by-range` | Por rango (`fecha_inicial`, `fecha_final`, `access_point` opcional; unificado). |
+| GET | `/api/v1/access-logs/history-by-client` | Por fecha, `access_point` y `doc` (documento o placa en externas). |
+
+`GET /api/v1/access-logs/history-by-range` incluye `incident_count` por fila solo para staff con permiso **Ver** en módulo `incidents`.
+
+Columnas unificadas de historial (además de las ya existentes): `log_source` (`REGISTRY` \| `EXTERNAL`), `movement_type`, `assignment_valid_until`, `authorized_duration_minutes`, `stay_deadline`, `permanence_minutes`, `stay_exceeded`, `session_open` (solo relevantes en filas `EXTERNAL`).
+
+---
+
+## Access incidents (incidencias de garita)
+
+Solo **staff** con permiso **Ver** en módulo `incidents` (`nav_modules` / Ajustes → Permisos). Vecinos (USUARIO) no acceden.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/v1/access-incidents` | Listar. Query: `fecha_inicial`, `fecha_final`, `access_point_id?`, `source?` (`scan`\|`manual`). |
+| GET | `/api/v1/access-incidents/:id` | Detalle con `access_context` si hay log asociado. |
+| GET | `/api/v1/access-incidents/by-log/:logRef` | Incidencias de un registro (`id>0` → `access_logs`, `id<0` → `temporary_access_logs`). |
+| POST | `/api/v1/access-incidents` | Crear (`multipart/form-data`). Campos: `description` (req), `access_point_id` (req), `source` (`scan`\|`manual`), `photo?` (archivo). Modo `scan`: `access_log_id` o `temp_access_log_id` + snapshot opcional. Modo `manual`: sin IDs de log. |
 
 ---
 
@@ -277,32 +299,14 @@ Payload del JWT (referencia): `typ: vc_access_qr`, `k`: `person` \| `vehicle`, m
 
 ---
 
-## Catalog (stubs y catálogos)
+## Catalog
 
-Todas requieren token. Varias devuelven `[]` o `null` hasta integrar datos reales.
-
-| Método | Ruta |
-|--------|------|
-| GET | `/api/v1/catalog/areas` |
-| GET | `/api/v1/catalog/salas` |
-| GET | `/api/v1/catalog/prioridad` |
-| GET | `/api/v1/catalog/collaborator` |
-| GET | `/api/v1/catalog/personal` |
-| GET | `/api/v1/catalog/payment-by-client` |
-| GET | `/api/v1/catalog/activities-by-user` |
-| GET | `/api/v1/catalog/machines` |
-| GET | `/api/v1/catalog/machine-by-rmt` |
-| GET | `/api/v1/catalog/problems-by-type` |
-| GET | `/api/v1/catalog/solutions-by-type` |
-| GET | `/api/v1/catalog/areas-by-zone` |
-| GET | `/api/v1/catalog/campus-by-zone` |
-| GET | `/api/v1/catalog/inc-pendientes` |
-| GET | `/api/v1/catalog/inc-proceso` |
-| GET | `/api/v1/catalog/inc-fin` |
-| GET | `/api/v1/catalog/campus-by-id` |
-| GET | `/api/v1/catalog/campus-active-by-id` |
-
-Parámetros query según `CatalogController.php`.
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/v1/catalog/dashboard-summary` | Conteos globales (usuarios, casas, vehículos, mascotas). |
+| GET | `/api/v1/catalog/areas` | Lista de puntos de acceso (`access_points`). |
+| POST | `/api/v1/catalog/access-points` | Crear punto de acceso (admin). |
+| PUT | `/api/v1/catalog/access-points/:id` | Actualizar punto de acceso (admin). |
 
 ---
 

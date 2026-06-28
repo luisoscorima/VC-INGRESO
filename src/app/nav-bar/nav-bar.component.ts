@@ -2,7 +2,6 @@ import { Component, HostListener, OnInit } from '@angular/core';
 import { AppComponent } from '../app.component';
 import { ApiService } from '../api.service';
 import { AuthService } from '../auth.service';
-import { EntranceService } from '../entrance.service';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { UsersService } from '../users.service';
@@ -56,11 +55,10 @@ export class NavBarComponent extends AppComponent implements OnInit {
     router: Router,
     auth: AuthService,
     usersService: UsersService,
-    entranceService: EntranceService,
     toastr: ToastrService,
     api: ApiService
   ) {
-    super(router, auth, usersService, entranceService, toastr, api);
+    super(router, auth, usersService, toastr, api);
   }
 
   override ngOnInit(): void {

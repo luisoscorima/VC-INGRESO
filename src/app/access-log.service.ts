@@ -71,23 +71,7 @@ export class AccessLogService {
     return this.api.getRaw('api/v1/access-points', { ap_id });
   }
 
-  /**
-   * Estadísticas diarias (últimos 30 días por fecha y tipo)
-   */
-  getStatsDaily(): Observable<{ success: boolean; data: any[] }> {
-    return this.api.getRaw('api/v1/access-logs/stats/daily');
-  }
-
-  // ==================== LEGACY COMPATIBILITY ====================
-  // Métodos legacy que serán reemplazados
-
-  getEntranceByRange(date_init: string, date_end: string): Observable<any> {
-    return this.api.getRaw('api/v1/access-logs/entrance-by-range', { date_init, date_end });
-  }
-
-  getHistoryByDate(fecha: string, accessPoint: string): Observable<any> {
-    return this.api.getRaw('api/v1/access-logs/history-by-date', { fecha, access_point: accessPoint });
-  }
+  // ==================== HISTORIAL UNIFICADO ====================
 
   /** access_point vacío u omitido = todos los puntos (access_logs + temporary_access_logs). */
   getHistoryByRange(fecha_inicial: string, fecha_final: string, access_point?: string): Observable<any> {
@@ -105,35 +89,5 @@ export class AccessLogService {
       params['access_point'] = accessPoint;
     }
     return this.api.getRaw('api/v1/access-logs/history-by-client', params);
-  }
-
-  /** Estadísticas de aforo (dashboard) */
-  getAforoStat(accessPoint: string, fechaInicio: string, fechaFin: string, fechaMes: string, mes: string, dia: string, fecha1: string, fecha2: string, fecha3: string, fecha4: string, fecha5: string): Observable<any[]> {
-    return this.api.getRaw('api/v1/access-logs/aforo', { access_point: accessPoint, fechaInicio, fechaFin, fechaMes, mes, dia, fecha1, fecha2, fecha3, fecha4, fecha5 });
-  }
-
-  /** Estadísticas por distrito */
-  getAddressStat(accessPoint: string, fechaInicio: string, fechaFin: string, fechaMes: string, mes: string, dia: string, fecha1: string, fecha2: string, fecha3: string, fecha4: string, fecha5: string): Observable<any[]> {
-    return this.api.getRaw('api/v1/access-logs/address', { access_point: accessPoint, fechaInicio, fechaFin, fechaMes, mes, dia, fecha1, fecha2, fecha3, fecha4, fecha5 });
-  }
-
-  /** Total mensual */
-  getTotalMonth(accessPoint: string, fechaMes: string, mes: string, dia: string, fecha1: string, fecha2: string, fecha3: string, fecha4: string): Observable<any[]> {
-    return this.api.getRaw('api/v1/access-logs/total-month', { access_point: accessPoint, fechaMes, mes, dia, fecha1, fecha2, fecha3, fecha4 });
-  }
-
-  /** Total mensual (nuevo) */
-  getTotalMonthNew(accessPoint: string, fechaMes: string, mes: string, dia: string, fecha1: string, fecha2: string, fecha3: string, fecha4: string): Observable<any[]> {
-    return this.api.getRaw('api/v1/access-logs/total-month-new', { access_point: accessPoint, fechaMes, mes, dia, fecha1, fecha2, fecha3, fecha4 });
-  }
-
-  /** Estadísticas por hora */
-  getHourStat(accessPoint: string, fechaInicio: string, fechaFin: string, fechaMes: string, mes: string, dia: string, fecha1: string, fecha2: string, fecha3: string, fecha4: string, fecha5: string): Observable<any[]> {
-    return this.api.getRaw('api/v1/access-logs/hours', { access_point: accessPoint, fechaInicio, fechaFin, fechaMes, mes, dia, fecha1, fecha2, fecha3, fecha4, fecha5 });
-  }
-
-  /** Estadísticas por edad */
-  getAgeStat(accessPoint: string, fechaInicio: string, fechaFin: string, fechaMes: string, mes: string, dia: string, fecha1: string, fecha2: string, fecha3: string, fecha4: string, fecha5: string): Observable<any[]> {
-    return this.api.getRaw('api/v1/access-logs/age', { access_point: accessPoint, fechaInicio, fechaFin, fechaMes, mes, dia, fecha1, fecha2, fecha3, fecha4, fecha5 });
   }
 }

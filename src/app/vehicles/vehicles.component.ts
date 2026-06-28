@@ -3,7 +3,7 @@ import { Vehicle } from '../vehicle';
 import { House } from '../house';
 import { initFlowbite } from 'flowbite';
 import { EntranceService } from '../entrance.service';
-import { ExternalVehicle } from '../externalVehicle';
+import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS } from '../externalVehicle';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../api.service';
 import { AuthService } from '../auth.service';
@@ -58,6 +58,9 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   externalVehicleToAdd: ExternalVehicle = new ExternalVehicle('','','','','','','','');
   externalVehicleToEdit: ExternalVehicle = new ExternalVehicle('','','','','','','','');
   temp_visit_type:string[]=['DELIVERY','COLECTIVO','TAXI'];
+  readonly externalDurationOptions = EXTERNAL_VISIT_DURATION_OPTIONS;
+  externalDurationMinutes = 120;
+  externalStaffHouseId = 0;
 
   searchTerm: string = '';
   externalSearchTerm: string = '';
@@ -93,6 +96,10 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     const r = (this.auth.getUser()?.role_system ?? '').toString().trim().toUpperCase();
 
     return ['ADMINISTRADOR', 'OPERARIO'].includes(r);
+  }
+
+  get canEditExternalVisits(): boolean {
+    return this.showStaffExternalVehiclesTab;
   }
 
   get canManageVehiclesCrud(): boolean {
@@ -461,7 +468,36 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   
   //VEHÍCULOS EXTERNOS
   newExternalVehicle(){
+    this.externalDurationMinutes = 120;
+    this.externalStaffHouseId = 0;
+    this.externalVehicleToAdd = new ExternalVehicle('','','','','DELIVERY','PERMITIDO','','ACTIVO');
     document.getElementById('vehicles-new-external-vehicle-button')?.click();
+  }
+
+  lookupExternalVisitOnIdentifierBlur(forEdit = false): void {
+    const target = forEdit ? this.externalVehicleToEdit : this.externalVehicleToAdd;
+    const plate = (target.temp_visit_plate || '').trim();
+    const doc = (target.temp_visit_doc || '').trim();
+    if (!plate && !doc) {
+      return;
+    }
+    this.entranceService.lookupExternalVisit({ plate: plate || undefined, doc: doc || undefined }).subscribe({
+      next: (res: any) => {
+        const body = res?.data ?? res;
+        if (!body?.found || !body?.profile) {
+          return;
+        }
+        const p = body.profile;
+        if (p.temp_visit_name) target.temp_visit_name = p.temp_visit_name;
+        if (p.temp_visit_cel) target.temp_visit_cel = p.temp_visit_cel;
+        if (p.temp_visit_type) target.temp_visit_type = p.temp_visit_type;
+        if (p.temp_visit_plate && !plate) target.temp_visit_plate = p.temp_visit_plate;
+        if (p.temp_visit_doc && !doc) target.temp_visit_doc = p.temp_visit_doc;
+        if (forEdit && p.photo_url) target.photo_url = p.photo_url;
+        if (forEdit && p.operator_notes) target.operator_notes = p.operator_notes;
+        this.toastr.info('Datos reutilizados del registro global');
+      },
+    });
   }
 
   editExternalVehicle(externalVehicle: ExternalVehicle) {
@@ -507,13 +543,23 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     }
   
     this.externalVehicleToAdd.status_system = 'ACTIVO';
-  
-    // Asignar un valor predeterminado si no existe
+
     if (!this.externalVehicleToAdd.status_validated) {
       this.externalVehicleToAdd.status_validated = 'PERMITIDO';
     }
-  
-    this.entranceService.addExternalVehicle(this.externalVehicleToAdd).subscribe({
+
+    if (!this.externalStaffHouseId) {
+      this.toastr.error('Seleccione la casa destino');
+      return;
+    }
+
+    const payload = {
+      ...this.externalVehicleToAdd,
+      house_id: this.externalStaffHouseId,
+      duration_minutes: this.externalDurationMinutes,
+    } as ExternalVehicle;
+
+    this.entranceService.addExternalVehicle(payload).subscribe({
       next: (res: any) => {
         if (res.success) {
           this.toastr.success(res.message);

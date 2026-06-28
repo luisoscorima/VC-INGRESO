@@ -18,7 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { MatTableModule } from '@angular/material/table';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { DialogHistoryDetail, HistoryComponent } from './history/history.component';
+import { DialogHistoryDetail, DialogHistoryIncidents, HistoryComponent } from './history/history.component';
 import { MatDialogModule } from '@angular/material/dialog';
 import {MatSnackBarModule} from '@angular/material/snack-bar';
 import { MatDatepickerModule } from '@angular/material/datepicker';
@@ -30,7 +30,6 @@ import {ReactiveFormsModule} from '@angular/forms';
 import {MatPaginatorModule} from '@angular/material/paginator';
 import { MatSortModule } from '@angular/material/sort';
 //import { DialogRevisar } from './lista-activos/lista-activos.component';
-import { DialogRevalidar} from './dashboard/dashboard.component';
 import {MatCardModule} from '@angular/material/card';
 
 import { ToastrModule } from 'ngx-toastr';
@@ -39,7 +38,6 @@ import { HashLocationStrategy, LocationStrategy } from '@angular/common';
 import { DialogDatos, BirthdayComponent } from './birthday/birthday.component';
 
 import {MatGridListModule} from '@angular/material/grid-list';
-import { GoogleChartsModule } from 'angular-google-charts';
 
 import {MatTabsModule} from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -68,24 +66,20 @@ import { DocumentsComponent } from './readonly/documents.component';
 import { EmergencyContactsComponent } from './readonly/emergency-contacts.component';
 import { AnnouncementsComponent } from './announcements/announcements.component';
 import { SurveysComponent } from './surveys/surveys.component';
+import { IncidentsComponent } from './incidents/incidents.component';
 import { EventLogsComponent } from './event-logs/event-logs.component';
 
-import { NgChartsModule } from 'ng2-charts';
-import { Chart, registerables } from 'chart.js';
 import { authInterceptor } from './auth.interceptor';
 import { errorInterceptor } from './error.interceptor';
-
-Chart.register(...registerables);
-
 
 @NgModule({ declarations: [
         AppComponent,
         DashboardComponent,
         HistoryComponent,
         BirthdayComponent,
-        DialogRevalidar,
         DialogDatos,
         DialogHistoryDetail,
+        DialogHistoryIncidents,
         LoginComponent,
         LandingComponent,
         NavBarComponent,
@@ -105,6 +99,7 @@ Chart.register(...registerables);
         EmergencyContactsComponent,
         AnnouncementsComponent,
         SurveysComponent,
+        IncidentsComponent,
         EventLogsComponent,
     ],
     bootstrap: [AppComponent], imports: [BrowserModule,
@@ -132,12 +127,10 @@ Chart.register(...registerables);
         MatSortModule,
         MatCardModule,
         MatGridListModule,
-        GoogleChartsModule,
         MatTabsModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
         MatChipsModule,
-        NgChartsModule,
         ToastrModule.forRoot(),
         ReservationsComponent,
         QrScannerComponent,

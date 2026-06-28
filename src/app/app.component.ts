@@ -1,22 +1,16 @@
-import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { NavigationEnd, NavigationStart, Router, RouterLink } from '@angular/router';
-import { Area } from './area';
-import { AccessPoint } from './accessPoint';
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
+import { NavigationEnd, NavigationStart, Router } from '@angular/router';
 import { AuthService } from './auth.service';
-import { EntranceService } from './entrance.service';
 import { User } from './user';
 import { UsersService } from './users.service';
 import { MatSidenav } from '@angular/material/sidenav';
-import { Payment } from './payment';
 import { ToastrService } from 'ngx-toastr';
-import { Collaborator } from './collaborator';
 import { ApiService } from './api.service';
 
 import { initFlowbite } from 'flowbite';
 import {
   currentInternalPath,
   isPublicGuestPath,
-  skipLicenseBootstrapPath,
 } from './public-route.utils';
 
 @Component({
@@ -32,15 +26,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   user: User = new User('','','','','','','','','','','','','','',0,'','','','','','','','','','',0,'',0);
 
-  collaborator: Collaborator = new Collaborator(0,0,0,0,'','','','','','','','')
-
-  user_area: Area = new Area('',null,'');
-
-
-
-
-  user_campus: AccessPoint = new AccessPoint('','','','');
-
   user_id;
   logged;
 
@@ -55,7 +40,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private router: Router,
     protected auth: AuthService,
     private usersService: UsersService,
-    private entranceService: EntranceService,
     protected toastr: ToastrService,
     protected api: ApiService,
   ){}
@@ -94,8 +78,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const bootPath = currentInternalPath(this.router);
 
-    // Landing y registro: solo reflejan sesión ya cargada en storage; sin getPayment (no redirige a login).
-    if (skipLicenseBootstrapPath(bootPath)) {
+    if (isPublicGuestPath(bootPath)) {
       const storedUser = this.auth.getUser();
       this.logged = !!storedUser;
       if (storedUser) {
@@ -105,32 +88,16 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    // Si no hay sesión activa válida, no llames al backend: evita bucles de navegación.
     const storedUser = this.auth.getUser();
     if (!storedUser || !this.auth.isAuthenticated()) {
       this.logged = false;
-      if (!isPublicGuestPath(bootPath)) {
-        this.router.navigateByUrl('/login');
-      }
+      this.router.navigateByUrl('/login');
       return;
     }
 
-    this.usersService.getPaymentByClientId(1).subscribe((resPay: Payment) => {
-      if (resPay?.error) {
-        this.handleLicenseError(resPay.error);
-      } else {
-        const existing = this.auth.getUser();
-        if (existing) {
-          this.logged = true;
-          this.user = existing;
-          this.usersService.setUsr(existing);
-        } else {
-          this.router.navigateByUrl('/login');
-        }
-      }
-    }, (error) => {
-      this.handleLicenseError(error);
-    });
+    this.logged = true;
+    this.user = storedUser;
+    this.usersService.setUsr(storedUser);
   }
 
   ngAfterViewInit(): void {
@@ -295,15 +262,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     (toggleBtn as HTMLElement).style.removeProperty('display');
     (toggleBtn as HTMLElement).style.removeProperty('visibility');
     toggleBtn.removeAttribute('hidden');
-  }
-
-  private handleLicenseError(error: any): void {
-    this.auth.deleteToken("user_id");
-    this.auth.deleteToken("role_system");
-    this.auth.deleteToken('onSession');
-    console.error('Error al obtener la licencia:', error);
-    this.toastr.error('Error al obtener la licencia: ' + error);
-    this.router.navigateByUrl('/login');
   }
 
   onMenuItemClick() {

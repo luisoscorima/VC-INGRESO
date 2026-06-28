@@ -27,10 +27,12 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS `house_members`;
 DROP TABLE IF EXISTS `survey_responses`;
+DROP TABLE IF EXISTS `access_incidents`;
 DROP TABLE IF EXISTS `surveys`;
 DROP TABLE IF EXISTS `announcements`;
 DROP TABLE IF EXISTS `reservations`;
 DROP TABLE IF EXISTS `pets`;
+DROP TABLE IF EXISTS `temporary_visit_assignments`;
 DROP TABLE IF EXISTS `temporary_access_logs`;
 DROP TABLE IF EXISTS `access_logs`;
 DROP TABLE IF EXISTS `temporary_visits`;
@@ -192,7 +194,7 @@ CREATE TABLE `vehicles` (
 -- -----------------------------------------------------------------------------
 CREATE TABLE `temporary_visits` (
     `temp_visit_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `registered_by_user_id` INT UNSIGNED NULL DEFAULT NULL COMMENT 'Usuario que registró esta visita temporal',
+    `registered_by_user_id` INT UNSIGNED NULL DEFAULT NULL COMMENT 'Primer registrante (legado)',
     `temp_visit_name` VARCHAR(100) DEFAULT NULL,
     `temp_visit_doc` VARCHAR(15) DEFAULT NULL,
     `temp_visit_plate` VARCHAR(15) DEFAULT NULL,
@@ -201,9 +203,37 @@ CREATE TABLE `temporary_visits` (
     `status_validated` VARCHAR(50) DEFAULT NULL,
     `status_reason` VARCHAR(255) DEFAULT NULL,
     `status_system` VARCHAR(50) DEFAULT NULL,
+    `photo_url` VARCHAR(255) DEFAULT NULL,
+    `operator_notes` TEXT DEFAULT NULL,
+    `created_by_user_id` INT UNSIGNED NULL DEFAULT NULL,
+    `updated_by_user_id` INT UNSIGNED NULL DEFAULT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`temp_visit_id`),
-    KEY `idx_temporary_visits_registered_by` (`registered_by_user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Visitas temporales (taxi, delivery, etc.); anotadas por usuario';
+    KEY `idx_temporary_visits_registered_by` (`registered_by_user_id`),
+    KEY `idx_temp_visit_plate` (`temp_visit_plate`),
+    KEY `idx_temp_visit_doc` (`temp_visit_doc`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Catálogo global visitas externas (taxi, delivery, etc.)';
+
+-- -----------------------------------------------------------------------------
+-- 6b. ASIGNACIONES VISITAS EXTERNAS (casa + timer)
+-- -----------------------------------------------------------------------------
+CREATE TABLE `temporary_visit_assignments` (
+    `assignment_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `temp_visit_id` INT UNSIGNED NOT NULL,
+    `house_id` INT UNSIGNED NOT NULL,
+    `registered_by_user_id` INT UNSIGNED NULL DEFAULT NULL,
+    `valid_from` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `valid_until` DATETIME NOT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT 'ACTIVA' COMMENT 'ACTIVA|EXPIRADA|CANCELADA',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`assignment_id`),
+    KEY `idx_tva_temp_visit` (`temp_visit_id`),
+    KEY `idx_tva_house` (`house_id`),
+    KEY `idx_tva_status_until` (`status`, `valid_until`),
+    KEY `idx_tva_registered_by` (`registered_by_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Asignación temporal visita externa → casa';
 
 -- -----------------------------------------------------------------------------
 -- 7. REGISTROS DE ACCESO (access_logs) - Formato API (access_point_id, person_id, type)
@@ -235,6 +265,10 @@ CREATE TABLE `access_logs` (
 CREATE TABLE `temporary_access_logs` (
     `temp_access_log_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `temp_visit_id` INT UNSIGNED DEFAULT NULL,
+    `assignment_id` INT UNSIGNED DEFAULT NULL,
+    `assignment_valid_until` DATETIME DEFAULT NULL COMMENT 'Hasta cuando podía entrar (snapshot)',
+    `authorized_duration_minutes` SMALLINT UNSIGNED DEFAULT NULL COMMENT 'Minutos estadía autorizados (del vecino)',
+    `stay_deadline` DATETIME DEFAULT NULL COMMENT 'temp_entry_time + authorized_duration_minutes',
     `temp_entry_time` DATETIME NOT NULL,
     `temp_exit_time` DATETIME DEFAULT NULL,
     `access_point_id` INT UNSIGNED NOT NULL,
@@ -244,11 +278,44 @@ CREATE TABLE `temporary_access_logs` (
     `created_by_user_id` INT UNSIGNED DEFAULT NULL COMMENT 'user_id quien registró (reemplazo conceptual de operario_id)',
     PRIMARY KEY (`temp_access_log_id`),
     KEY `idx_temp_visit` (`temp_visit_id`),
+    KEY `idx_tal_assignment` (`assignment_id`),
+    KEY `idx_tal_entry_time` (`temp_entry_time`),
+    KEY `idx_tal_open_session` (`temp_visit_id`, `house_id`, `temp_exit_time`),
+    KEY `idx_tal_stay_deadline` (`stay_deadline`),
     KEY `idx_access_point` (`access_point_id`),
     KEY `idx_house` (`house_id`),
     KEY `idx_operario` (`operario_id`),
     KEY `idx_created_by_user` (`created_by_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- 8b. INCIDENCIAS DE ACCESO (access_incidents)
+-- -----------------------------------------------------------------------------
+CREATE TABLE `access_incidents` (
+    `incident_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `source` ENUM('scan', 'manual') NOT NULL DEFAULT 'manual',
+    `access_log_id` BIGINT UNSIGNED DEFAULT NULL,
+    `temp_access_log_id` INT UNSIGNED DEFAULT NULL,
+    `access_point_id` INT UNSIGNED NOT NULL,
+    `house_id` INT UNSIGNED DEFAULT NULL,
+    `person_id` INT UNSIGNED DEFAULT NULL,
+    `vehicle_id` INT UNSIGNED DEFAULT NULL,
+    `temp_visit_id` INT UNSIGNED DEFAULT NULL,
+    `doc_number` VARCHAR(20) DEFAULT NULL,
+    `license_plate` VARCHAR(20) DEFAULT NULL,
+    `status_validated` VARCHAR(50) DEFAULT NULL,
+    `description` TEXT NOT NULL,
+    `photo_url` VARCHAR(255) DEFAULT NULL,
+    `created_by_user_id` INT UNSIGNED DEFAULT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`incident_id`),
+    KEY `idx_ai_created_at` (`created_at`),
+    KEY `idx_ai_access_point` (`access_point_id`),
+    KEY `idx_ai_source` (`source`),
+    KEY `idx_ai_access_log` (`access_log_id`),
+    KEY `idx_ai_temp_access_log` (`temp_access_log_id`),
+    KEY `idx_ai_created_by` (`created_by_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Incidencias reportadas en garita';
 
 -- -----------------------------------------------------------------------------
 -- 9. MASCOTAS (pets)
@@ -378,9 +445,17 @@ ALTER TABLE `house_members`
     ADD CONSTRAINT `fk_house_members_house` FOREIGN KEY (`house_id`) REFERENCES `houses` (`house_id`) ON DELETE CASCADE ON UPDATE CASCADE,
     ADD CONSTRAINT `fk_house_members_person` FOREIGN KEY (`person_id`) REFERENCES `persons` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
--- temporary_visits -> users (quién registró la visita temporal)
+-- temporary_visits -> users
 ALTER TABLE `temporary_visits`
-    ADD CONSTRAINT `fk_temporary_visits_registered_by` FOREIGN KEY (`registered_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
+    ADD CONSTRAINT `fk_temporary_visits_registered_by` FOREIGN KEY (`registered_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_temp_visits_created_by` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_temp_visits_updated_by` FOREIGN KEY (`updated_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- temporary_visit_assignments -> temporary_visits, houses, users
+ALTER TABLE `temporary_visit_assignments`
+    ADD CONSTRAINT `fk_tva_temp_visit` FOREIGN KEY (`temp_visit_id`) REFERENCES `temporary_visits` (`temp_visit_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_tva_house` FOREIGN KEY (`house_id`) REFERENCES `houses` (`house_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_tva_registered_by` FOREIGN KEY (`registered_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- vehicles -> houses, users
 ALTER TABLE `vehicles`
@@ -399,9 +474,21 @@ ALTER TABLE `access_logs`
 ALTER TABLE `temporary_access_logs`
     ADD CONSTRAINT `fk_temp_access_logs_ap` FOREIGN KEY (`access_point_id`) REFERENCES `access_points` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
     ADD CONSTRAINT `fk_temp_access_logs_temp_visit` FOREIGN KEY (`temp_visit_id`) REFERENCES `temporary_visits` (`temp_visit_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_temp_access_logs_assignment` FOREIGN KEY (`assignment_id`) REFERENCES `temporary_visit_assignments` (`assignment_id`) ON DELETE SET NULL ON UPDATE CASCADE,
     ADD CONSTRAINT `fk_temp_access_logs_house` FOREIGN KEY (`house_id`) REFERENCES `houses` (`house_id`) ON DELETE SET NULL ON UPDATE CASCADE,
     ADD CONSTRAINT `fk_temp_access_logs_operario` FOREIGN KEY (`operario_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,
     ADD CONSTRAINT `fk_temp_access_logs_created_by` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- access_incidents -> logs, access_points, persons, vehicles, houses, users
+ALTER TABLE `access_incidents`
+    ADD CONSTRAINT `fk_ai_access_log` FOREIGN KEY (`access_log_id`) REFERENCES `access_logs` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_ai_temp_access_log` FOREIGN KEY (`temp_access_log_id`) REFERENCES `temporary_access_logs` (`temp_access_log_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_ai_access_point` FOREIGN KEY (`access_point_id`) REFERENCES `access_points` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_ai_house` FOREIGN KEY (`house_id`) REFERENCES `houses` (`house_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_ai_person` FOREIGN KEY (`person_id`) REFERENCES `persons` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_ai_vehicle` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles` (`vehicle_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_ai_temp_visit` FOREIGN KEY (`temp_visit_id`) REFERENCES `temporary_visits` (`temp_visit_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_ai_created_by` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- pets -> houses, persons (opcional), users
 ALTER TABLE `pets`

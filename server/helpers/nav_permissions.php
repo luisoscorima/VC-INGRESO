@@ -17,6 +17,7 @@ function npModuleKeys(): array
         'announcements',
         'surveys',
         'access_points',
+        'incidents',
     ];
 }
 
@@ -79,6 +80,7 @@ function npEnsureSchema(\PDO $pdo): void
         ['announcements', 'Comunicados', '/announcements', 'gestion', 50],
         ['surveys', 'Encuestas', '/surveys', 'gestion', 60],
         ['access_points', 'Puntos de acceso', '/access-points', 'admin', 70],
+        ['incidents', 'Incidencias', '/incidents', 'gestion', 65],
     ];
     $insMod = $pdo->prepare(
         'INSERT INTO nav_modules (module_key, label, route, section, sort_order, is_enabled)
@@ -97,10 +99,12 @@ function npEnsureSchema(\PDO $pdo): void
         ['ADMINISTRADOR', 'announcements', 1, 1],
         ['ADMINISTRADOR', 'surveys', 1, 1],
         ['ADMINISTRADOR', 'access_points', 1, 1],
+        ['ADMINISTRADOR', 'incidents', 1, 1],
         ['OPERARIO', 'users', 1, 0],
         ['OPERARIO', 'houses', 1, 0],
         ['OPERARIO', 'vehicles', 1, 0],
         ['OPERARIO', 'pets', 1, 0],
+        ['OPERARIO', 'incidents', 1, 0],
     ];
     $insPerm = $pdo->prepare(
         'INSERT INTO role_nav_permissions (role_system, module_key, can_view, can_manage)
@@ -129,7 +133,7 @@ function npDefaultResolvedForRole(string $roleSystem): array
             $out[$key] = ['view' => true, 'manage' => true];
         }
     } elseif ($role === 'OPERARIO') {
-        foreach (['users', 'houses', 'vehicles', 'pets'] as $key) {
+        foreach (['users', 'houses', 'vehicles', 'pets', 'incidents'] as $key) {
             $out[$key] = ['view' => true, 'manage' => false];
         }
     }

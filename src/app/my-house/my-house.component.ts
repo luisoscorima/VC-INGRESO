@@ -6,7 +6,7 @@ import { EntranceService } from '../entrance.service';
 import { AuthService } from '../auth.service';
 import { UsersService } from '../users.service';
 import { ApiService } from '../api.service';
-import { ExternalVehicle } from '../externalVehicle';
+import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS } from '../externalVehicle';
 import { Vehicle } from '../vehicle';
 import { ToastrService } from 'ngx-toastr';
 import { environment } from '../../environments/environment';
@@ -75,6 +75,9 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
   categories_visits: string[] = ['INVITADO'];
   types: string[] = [...VEHICLE_TYPE_VALUES];
   temp_visit_type:string[]=['DELIVERY','COLECTIVO','TAXI'];
+  readonly externalDurationOptions = EXTERNAL_VISIT_DURATION_OPTIONS;
+  externalDurationMinutes = 120;
+  externalLookupLoading = false;
   enableSystemAccessNew = false;
   enableSystemAccessEdit = false;
   
@@ -160,7 +163,7 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
         this.loadHouseMembers(houseId);
         this.loadPets(houseId);
         this.loadVehicles(houseId);
-        this.loadExternalVehicles();
+        this.loadExternalVehicles(houseId);
         this.loadAllHouses();
         setTimeout(() => initFlowbite(), 0);
       },
@@ -439,14 +442,69 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
     });
   }
 
-  private loadExternalVehicles(): void {
-    this.entranceService.getMyExternalVehicles().subscribe({
+  private loadExternalVehicles(houseId?: number): void {
+    const hid = houseId ?? (Number(this.userOnSes?.house_id) || 0);
+    if (hid <= 0) {
+      this.externalVehicles = [];
+      return;
+    }
+    this.entranceService.getActiveExternalVehiclesByHouse(hid).subscribe({
       next: (res: any) => {
         this.externalVehicles = this.safeDataArray(res);
       },
       error: () => {
         this.externalVehicles = [];
       }
+    });
+  }
+
+  formatExternalValidUntil(ev: ExternalVehicle): string {
+    const raw = ev.valid_until;
+    if (!raw) {
+      return '—';
+    }
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) {
+      return raw;
+    }
+    return d.toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  lookupExternalVisitOnIdentifierBlur(): void {
+    const plate = (this.externalVehicleToAdd.temp_visit_plate || '').trim();
+    const doc = (this.externalVehicleToAdd.temp_visit_doc || '').trim();
+    if (!plate && !doc) {
+      return;
+    }
+    this.externalLookupLoading = true;
+    this.entranceService.lookupExternalVisit({ plate: plate || undefined, doc: doc || undefined }).subscribe({
+      next: (res: any) => {
+        this.externalLookupLoading = false;
+        const body = res?.data ?? res;
+        if (!body?.found || !body?.profile) {
+          return;
+        }
+        const p = body.profile;
+        if (p.temp_visit_name) {
+          this.externalVehicleToAdd.temp_visit_name = p.temp_visit_name;
+        }
+        if (p.temp_visit_cel) {
+          this.externalVehicleToAdd.temp_visit_cel = p.temp_visit_cel;
+        }
+        if (p.temp_visit_type) {
+          this.externalVehicleToAdd.temp_visit_type = p.temp_visit_type;
+        }
+        if (p.temp_visit_plate && !plate) {
+          this.externalVehicleToAdd.temp_visit_plate = p.temp_visit_plate;
+        }
+        if (p.temp_visit_doc && !doc) {
+          this.externalVehicleToAdd.temp_visit_doc = p.temp_visit_doc;
+        }
+        this.toastr.info('Datos reutilizados del registro global');
+      },
+      error: () => {
+        this.externalLookupLoading = false;
+      },
     });
   }
 
@@ -1425,6 +1483,8 @@ saveNewVehicle(): void {
 
   //EXTERNAL VEHICLE
   newExternalVehicle(){
+    this.externalDurationMinutes = 120;
+    this.externalVehicleToAdd = new ExternalVehicle('','','','','DELIVERY','PERMITIDO','','ACTIVO');
     document.getElementById('myhouse-new-external-vehicle-button')?.click();
   }
 
@@ -1471,13 +1531,19 @@ saveNewVehicle(): void {
     }
   
     this.externalVehicleToAdd.status_system = 'ACTIVO';
-  
-    // Asignar un valor predeterminado si no existe
+
     if (!this.externalVehicleToAdd.status_validated) {
       this.externalVehicleToAdd.status_validated = 'PERMITIDO';
     }
-  
-    this.entranceService.addExternalVehicle(this.externalVehicleToAdd).subscribe({
+
+    const houseId = Number(this.userOnSes.house_id) || 0;
+    const payload = {
+      ...this.externalVehicleToAdd,
+      house_id: houseId,
+      duration_minutes: this.externalDurationMinutes,
+    } as ExternalVehicle;
+
+    this.entranceService.addExternalVehicle(payload).subscribe({
       next: (res: any) => {
         if (res.success) {
           this.toastr.success(res.message);

@@ -4,7 +4,6 @@ import { AppComponent } from '../app.component';
 import { AuthService } from '../auth.service';
 import { ApiService } from '../api.service';
 import { UsersService } from '../users.service';
-import { EntranceService } from '../entrance.service';
 import { ToastrService } from 'ngx-toastr';
 import { NavPermissionService } from '../nav-permission.service';
 import { NavModuleDef } from '../nav-modules.config';
@@ -25,12 +24,11 @@ export class SideNavComponent extends AppComponent implements OnInit {
     router: Router,
     auth: AuthService,
     usersService: UsersService,
-    entranceService: EntranceService,
     toastr: ToastrService,
     api: ApiService,
     private navPerm: NavPermissionService
   ) {
-    super(router, auth, usersService, entranceService, toastr, api);
+    super(router, auth, usersService, toastr, api);
   }
 
   ngOnInit(): void {

@@ -7,6 +7,9 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
 import { ToastrService } from 'ngx-toastr';
 import { EntranceService } from '../entrance.service';
 import { AuthService } from '../auth.service';
+import { NavPermissionService } from '../nav-permission.service';
+import { AccessIncident, AccessIncidentService } from '../incidents/access-incident.service';
+import { ApiService } from '../api.service';
 import { todayYmdInAppTimeZone } from '../app-date.util';
 import * as XLSX from 'xlsx';
 import {
@@ -61,10 +64,14 @@ export class HistoryComponent implements OnInit {
   /** Columna documento: solo personal (admin/operario), no vecinos USUARIO. */
   showDocColumn = true;
 
+  showIncidentsColumn = false;
+
   expandedHistoryRowId: ExpandableRowId = null;
 
   get historyTableColspan(): number {
-    return this.showDocColumn ? 12 : 11;
+    let cols = this.showDocColumn ? 13 : 12;
+    if (this.showIncidentsColumn) cols += 1;
+    return cols;
   }
 
   constructor(
@@ -72,7 +79,10 @@ export class HistoryComponent implements OnInit {
     private entranceService: EntranceService,
     public dialog: MatDialog,
     private toastr: ToastrService,
-    private auth: AuthService
+    private auth: AuthService,
+    private navPerm: NavPermissionService,
+    private incidentService: AccessIncidentService,
+    private api: ApiService
   ) {}
 
   get filteredRows(): HistoryRow[] {
@@ -147,6 +157,35 @@ export class HistoryComponent implements OnInit {
     this.onDateRangeChange();
   }
 
+  get hasExternalRows(): boolean {
+    return this.filteredRows.some((r) => String(r['log_source'] ?? '').toUpperCase() === 'EXTERNAL');
+  }
+
+  isExternalRow(r: HistoryRow): boolean {
+    return String(r['log_source'] ?? '').toUpperCase() === 'EXTERNAL';
+  }
+
+  formatPermanence(r: HistoryRow): string {
+    if (!this.isExternalRow(r)) {
+      return '—';
+    }
+    const mins = r['permanence_minutes'];
+    if (mins == null || mins === '') {
+      return '—';
+    }
+    const n = Number(mins);
+    if (!Number.isFinite(n)) {
+      return '—';
+    }
+    const open = Number(r['session_open']) === 1;
+    const exceeded = Number(r['stay_exceeded']) === 1;
+    let label = open ? `Aún dentro — ${n} min` : `${n} min`;
+    if (exceeded) {
+      label += ' (excedió)';
+    }
+    return label;
+  }
+
   onFilterInput(value: string): void {
     this.filterQuery = value;
     this.pageIndex = 0;
@@ -213,6 +252,7 @@ export class HistoryComponent implements OnInit {
       PUNTO_ACCESO: r['access_point_name'],
       INGRESO: r['date_entry'],
       SALIDA: r['date_exit'],
+      ...(this.hasExternalRows ? { PERMANENCIA_MIN: this.formatPermanence(r) } : {}),
       RESULTADO: r['obs'],
       OPERARIO: r['operator'],
     }));
@@ -287,6 +327,9 @@ export class HistoryComponent implements OnInit {
 
   ngOnInit(): void {
     this.showDocColumn = this.auth.isStaff();
+    this.navPerm.load().subscribe(() => {
+      this.showIncidentsColumn = this.auth.isStaff() && this.navPerm.canView('incidents');
+    });
     const ymd = todayYmdInAppTimeZone();
     const [y, m, d] = ymd.split('-').map((n) => Number(n));
     const today = new Date(y, m - 1, d);
@@ -325,12 +368,81 @@ export class HistoryComponent implements OnInit {
       .subscribe(() => {});
   }
 
+  rowIncidentCount(row: HistoryRow): number {
+    return Number(row['incident_count'] ?? 0) || 0;
+  }
+
+  viewIncidents(row: HistoryRow): void {
+    const logRef = Number(row['id'] ?? 0);
+    if (!logRef) {
+      return;
+    }
+    this.dialog.open(DialogHistoryIncidents, {
+      width: 'min(560px, 96vw)',
+      maxHeight: '90vh',
+      data: { logRef },
+    });
+  }
+
   canOpenDayDetail(row: HistoryRow): boolean {
     if (!this.showDocColumn) {
       return false;
     }
     const doc = String(row?.['doc_number'] ?? '').trim();
     return doc.length > 0 && doc !== '—';
+  }
+}
+
+@Component({
+  selector: 'dialog-history-incidents',
+  template: `
+    <h2 mat-dialog-title class="!text-lg !font-semibold">Incidencias del registro</h2>
+    <mat-dialog-content>
+      <div *ngIf="loading" class="py-6 text-center text-sm text-gray-500">Cargando…</div>
+      <div *ngIf="!loading && !rows.length" class="py-4 text-sm text-gray-600">Sin incidencias ligadas.</div>
+      <div *ngFor="let inc of rows" class="mb-4 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+        <p class="text-xs text-gray-500">{{ inc.created_at | date : 'dd/MM/yyyy HH:mm' }} · {{ inc.created_by_username }}</p>
+        <p class="mt-2 text-sm whitespace-pre-wrap">{{ inc.description }}</p>
+        <img
+          *ngIf="photoUrl(inc.photo_url)"
+          [src]="photoUrl(inc.photo_url)!"
+          alt=""
+          class="mt-2 max-h-40 rounded object-contain" />
+      </div>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button type="button" mat-button (click)="dialogRef.close()">Cerrar</button>
+    </mat-dialog-actions>
+  `,
+})
+export class DialogHistoryIncidents implements OnInit {
+  rows: AccessIncident[] = [];
+  loading = false;
+
+  constructor(
+    public dialogRef: MatDialogRef<DialogHistoryIncidents>,
+    @Inject(MAT_DIALOG_DATA) public data: { logRef: number },
+    private incidentService: AccessIncidentService,
+    private api: ApiService,
+    private toastr: ToastrService
+  ) {}
+
+  ngOnInit(): void {
+    this.loading = true;
+    this.incidentService.getByLogId(this.data.logRef).subscribe({
+      next: (rows) => {
+        this.rows = rows;
+        this.loading = false;
+      },
+      error: (e: Error) => {
+        this.loading = false;
+        this.toastr.error(e.message || 'No se pudieron cargar las incidencias');
+      },
+    });
+  }
+
+  photoUrl(path: string | null | undefined): string | null {
+    return this.api.getPhotoUrl(path ?? null);
   }
 }
 

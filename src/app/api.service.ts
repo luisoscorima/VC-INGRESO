@@ -91,6 +91,15 @@ export class ApiService {
   }
 
   /**
+   * POST multipart/form-data (sin Content-Type manual; el navegador añade boundary).
+   */
+  postFormData<T = unknown>(endpoint: string, form: FormData): Observable<ApiResponse<T>> {
+    return this.http.post<ApiResponse<T>>(`${this.baseUrl}/${endpoint}`, form).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  /**
    * Subir foto de perfil del usuario autenticado (POST multipart).
    * Requiere token. Devuelve { success, data: usuario actualizado }.
    */

@@ -86,14 +86,6 @@ export class UsersService {
     return this.api.put('api/v1/users/me/person', data).pipe(map((r) => r?.data ?? r));
   }
 
-  getCollaboratorByUserId(user_id: number): Observable<any> {
-    return this.api.getRaw('api/v1/catalog/collaborator', { user_id });
-  }
-
-  getPersonal(area_id: number): Observable<any> {
-    return this.api.getRaw('api/v1/catalog/personal', { area_id });
-  }
-
   addUser(u: User): Observable<any> {
     return this.api.post('api/v1/users', u);
   }
@@ -102,22 +94,7 @@ export class UsersService {
     return this.api.put(`api/v1/users/${(u as any).user_id}`, u);
   }
 
-  getAreas(): Observable<any> {
-    return this.api.getRaw('api/v1/catalog/areas');
-  }
-
-  /** Catálogo de puntos/áreas (ruta API histórica `catalog/salas`). */
-  getAccessPointCatalog(): Observable<any> {
-    return this.api.getRaw('api/v1/catalog/salas');
-  }
-
-  getPrioridad(): Observable<any> {
-    return this.api.getRaw('api/v1/catalog/prioridad');
-  }
-
-  // ==================== PERSONS UNIFICADO ====================
-  // Métodos consolidados de ClientesService + PersonalService
-  // Usa endpoints /api/v1/users con filtros de status
+  // ==================== PERSONS ====================
 
   /**
    * Lista todas las personas (persons, para mascotas/residentes) con filtros opcionales.
@@ -196,50 +173,6 @@ export class UsersService {
     return this.api.delete(`api/v1/users/${user_id}`);
   }
 
-  // ==================== LEGACY COMPATIBILITY ====================
-  // Métodos que serán eliminados después de la refactorización
-
-  getPersonsByBirthdayFilter(fecha_cumple: string): Observable<any> {
-    return this.api.getRaw('api/v1/persons', { fecha_cumple }).pipe(map((r) => r?.data ?? r));
-  }
-
-  getPersonsByBirthdayOnDate(fecha_cumple: string): Observable<any> {
-    return this.api.getRaw('api/v1/users/by-birthday', { fecha_cumple }).pipe(map((r) => r?.data ?? r));
-  }
-
-  getHistoryByDate(fecha: string, accessPoint: string): Observable<any> {
-    return this.api.getRaw('api/v1/access-logs/history-by-date', { fecha, access_point: accessPoint });
-  }
-
-  getHistoryByDocumentDay(fecha: string, accessPoint: string, docNumber: string): Observable<any> {
-    return this.api.getRaw('api/v1/access-logs/history-by-client', {
-      fecha,
-      access_point: accessPoint,
-      doc: docNumber,
-    });
-  }
-
-  getDestacados(): Observable<any> {
-    return this.api.getRaw('api/v1/persons/destacados');
-  }
-
-  /** Persona registrada en `persons` por DNI (distinto de búsqueda vía users). */
-  getRegisteredPersonByDocNumber(doc_number: string): Observable<any> {
-    return this.api.getRaw('api/v1/persons/by-doc-number', { doc_number }).pipe(map((r) => r?.data ?? r));
-  }
-
-  createPersonRecord(person: any): Observable<any> {
-    return this.api.post('api/v1/persons', person);
-  }
-
-  deletePersonRecord(cliente: any): Observable<any> {
-    return this.api.delete(`api/v1/persons/${cliente?.id ?? cliente?.person_id}`);
-  }
-
-  updatePersonRecord(person: any): Observable<any> {
-    return this.api.put(`api/v1/persons/${person?.id ?? person?.person_id}`, person);
-  }
-
   // ==================== RENIEC ====================
 
   /**
@@ -249,11 +182,5 @@ export class UsersService {
     const reniecToken = environment.reniecApiToken || '';
     const url = `${this.reniecApiUrl}/${doc_number}?api_token=${reniecToken}`;
     return this.http.get(url);
-  }
-
-  // ==================== PAYMENTS ====================
-
-  getPaymentByClientId(client_id: number): Observable<any> {
-    return this.api.getRaw('api/v1/catalog/payment-by-client', { client_id });
   }
 }

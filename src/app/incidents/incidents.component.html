@@ -1,0 +1,156 @@
+<div class="vc-page min-h-screen">
+  <div class="relative vc-page-inner vc-card bg-white p-4 dark:bg-gray-900/50 sm:p-6">
+    <div
+      *ngIf="loading"
+      class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/80 dark:bg-gray-900/80">
+      <svg class="h-10 w-10 animate-spin text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+    </div>
+
+    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Incidencias</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Reportes de garita desde el escáner o registro manual.
+        </p>
+      </div>
+      <button
+        *ngIf="canCreate"
+        type="button"
+        (click)="openCreate()"
+        class="vc-btn-primary inline-flex items-center gap-2 px-4 py-2.5">
+        <mat-icon class="!h-5 !w-5">add</mat-icon>
+        Nueva incidencia
+      </button>
+    </div>
+
+    <div class="mb-4 vc-filter-row lg:flex-wrap lg:items-end">
+      <div class="min-w-[140px] flex-1">
+        <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Desde</label>
+        <input type="date" [(ngModel)]="fechaInicial" (change)="loadRows()" class="vc-field w-full" />
+      </div>
+      <div class="min-w-[140px] flex-1">
+        <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Hasta</label>
+        <input type="date" [(ngModel)]="fechaFinal" (change)="loadRows()" class="vc-field w-full" />
+      </div>
+      <div class="min-w-[180px] flex-1">
+        <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Punto de acceso</label>
+        <select [(ngModel)]="accessPointId" (ngModelChange)="loadRows()" class="vc-select-sm w-full">
+          <option [ngValue]="null">Todos</option>
+          <option *ngFor="let p of accessPointOptions" [ngValue]="p.id">{{ p.label }}</option>
+        </select>
+      </div>
+      <div class="min-w-[140px] flex-1">
+        <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Origen</label>
+        <select [(ngModel)]="sourceFilter" (ngModelChange)="loadRows()" class="vc-select-sm w-full">
+          <option value="">Todos</option>
+          <option value="scan">Escaneo</option>
+          <option value="manual">Manual</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="vc-table-wrap">
+      <table class="vc-table text-left text-gray-600 dark:text-gray-300">
+        <thead>
+          <tr class="vc-thead-row">
+            <th class="vc-th">Fecha</th>
+            <th class="vc-th">Origen</th>
+            <th class="vc-th">Punto</th>
+            <th class="vc-th">Descripción</th>
+            <th class="vc-th">Operario</th>
+            <th class="vc-th">Foto</th>
+            <th class="vc-th"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of rows" class="vc-tbody-row border-b bg-white dark:bg-gray-900/40">
+            <td class="vc-td whitespace-nowrap">{{ row.created_at | date : 'dd/MM/yyyy HH:mm' }}</td>
+            <td class="vc-td">
+              <span
+                class="rounded-full px-2 py-0.5 text-xs font-medium"
+                [class.bg-teal-100]="row.source === 'scan'"
+                [class.text-teal-800]="row.source === 'scan'"
+                [class.bg-gray-100]="row.source !== 'scan'"
+                [class.text-gray-700]="row.source !== 'scan'">
+                {{ sourceLabel(row.source) }}
+              </span>
+            </td>
+            <td class="vc-td">{{ row.access_point_name || '—' }}</td>
+            <td class="vc-td max-w-[280px] truncate" [title]="row.description">{{ row.description }}</td>
+            <td class="vc-td">{{ row.created_by_username || '—' }}</td>
+            <td class="vc-td">
+              <img
+                *ngIf="photoUrl(row.photo_url); else noPhoto"
+                [src]="photoUrl(row.photo_url)!"
+                alt=""
+                class="h-10 w-10 rounded object-cover" />
+              <ng-template #noPhoto>—</ng-template>
+            </td>
+            <td class="vc-td text-right">
+              <button type="button" (click)="openDetail(row)" class="vc-action-btn vc-action-btn--view" title="Ver detalle">
+                <mat-icon class="!h-5 !w-5">visibility</mat-icon>
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="!rows.length && !loading">
+            <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+              No hay incidencias en el rango seleccionado.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="selected" class="photo-view-overlay" (click)="closeDetail()">
+  <div class="photo-view-modal incident-detail-modal" (click)="$event.stopPropagation()">
+    <div class="photo-view-header">
+      <h3>Detalle de incidencia #{{ selected.incident_id }}</h3>
+      <button type="button" (click)="closeDetail()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div *ngIf="detailLoading" class="py-8 text-center text-sm text-gray-500">Cargando…</div>
+
+    <ng-container *ngIf="!detailLoading && selected">
+      <p class="text-sm text-gray-600 dark:text-gray-300">
+        {{ selected.created_at | date : 'dd/MM/yyyy HH:mm' }} · {{ sourceLabel(selected.source) }} ·
+        {{ selected.access_point_name || 'Punto #' + selected.access_point_id }}
+      </p>
+      <p class="mt-3 whitespace-pre-wrap text-sm text-gray-900 dark:text-gray-100">{{ selected.description }}</p>
+
+      <img
+        *ngIf="photoUrl(selected.photo_url)"
+        [src]="photoUrl(selected.photo_url)!"
+        alt="Foto incidencia"
+        class="mt-4 max-h-64 w-full rounded-lg object-contain" />
+
+      <div
+        *ngIf="selected.has_access_context && selected.access_context as ctx"
+        class="mt-4 rounded-lg border border-teal-200 bg-teal-50/80 p-3 text-sm dark:border-teal-900 dark:bg-teal-950/30">
+        <h4 class="mb-2 font-semibold text-teal-900 dark:text-teal-100">Contexto del acceso</h4>
+        <p><strong>Nombre / ref.:</strong> {{ ctx.name || '—' }}</p>
+        <p *ngIf="ctx.doc_number"><strong>Documento:</strong> {{ ctx.doc_number }}</p>
+        <p *ngIf="ctx.license_plate"><strong>Placa:</strong> {{ ctx.license_plate }}</p>
+        <p *ngIf="ctx.house_address"><strong>Domicilio:</strong> {{ ctx.house_address }}</p>
+        <p><strong>Movimiento:</strong> {{ ctx.movement_type || '—' }}</p>
+        <p *ngIf="ctx.status_validated"><strong>Estado:</strong> {{ ctx.status_validated }}</p>
+        <p *ngIf="ctx.entry_time"><strong>Hora acceso:</strong> {{ ctx.entry_time | date : 'dd/MM/yyyy HH:mm' }}</p>
+        <p *ngIf="ctx.observation"><strong>Observación log:</strong> {{ ctx.observation }}</p>
+      </div>
+
+      <p
+        *ngIf="!selected.has_access_context"
+        class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+        Sin registro de acceso asociado.
+      </p>
+
+      <p class="mt-3 text-xs text-gray-500">Registrado por: {{ selected.created_by_username || '—' }}</p>
+    </ng-container>
+  </div>
+</div>

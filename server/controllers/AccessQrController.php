@@ -7,6 +7,7 @@ namespace Controllers;
 
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/license_plate.php';
+require_once __DIR__ . '/../helpers/temporary_visit.php';
 require_once __DIR__ . '/../token.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../utils/Response.php';
@@ -207,15 +208,8 @@ class AccessQrController
                 return;
             }
 
-            // Doc. responsable de vehículo externo (temporary_visits), mismo criterio numérico
-            $stmtTvDoc = $this->pdo->prepare(
-                'SELECT * FROM temporary_visits
-                 WHERE REPLACE(REPLACE(REPLACE(REPLACE(TRIM(temp_visit_doc), \' \', \'\'), \'-\', \'\'), \'.\', \'\'), \'/\', \'\') = ?
-                 ORDER BY temp_visit_id DESC
-                 LIMIT 1'
-            );
-            $stmtTvDoc->execute([$normalized]);
-            $tempByDoc = $stmtTvDoc->fetch(\PDO::FETCH_ASSOC);
+            // Doc. responsable de vehículo externo (temporary_visits)
+            $tempByDoc = find_temp_visit_profile($this->pdo, null, $normalized);
             if ($tempByDoc) {
                 $data = $this->buildUnifiedFromTemporaryVisit($tempByDoc, 'manual');
                 Response::success($data, 'OK');
@@ -262,15 +256,8 @@ class AccessQrController
             return;
         }
 
-        // Vehículos externos (Mi casa → Vehículos externos): tabla temporary_visits
-        $stmtTv = $this->pdo->prepare(
-            "SELECT * FROM temporary_visits
-             WHERE temp_visit_plate IS NOT NULL AND temp_visit_plate <> ''
-               AND REGEXP_REPLACE(UPPER(TRIM(temp_visit_plate)), '[^A-Z0-9]', '') = ?
-             ORDER BY temp_visit_id DESC LIMIT 1"
-        );
-        $stmtTv->execute([$plateNorm]);
-        $tempVisit = $stmtTv->fetch(\PDO::FETCH_ASSOC);
+        // Vehículos externos: catálogo global + asignaciones vigentes
+        $tempVisit = find_temp_visit_profile($this->pdo, $plateNorm, null);
         if ($tempVisit) {
             $data = $this->buildUnifiedFromTemporaryVisit($tempVisit, 'manual');
             Response::success($data, 'OK');
@@ -288,6 +275,50 @@ class AccessQrController
             'is_birthday' => false,
             'message' => 'Placa no registrada',
         ], 'OK');
+    }
+
+    /**
+     * Confirmar ingreso de visita externa cuando hay varias casas activas.
+     */
+    public function scanConfirm(): void
+    {
+        $auth = requireAuth();
+        if (!isStaffRole($auth)) {
+            Response::error('Solo personal autorizado puede confirmar ingreso', 403);
+            return;
+        }
+
+        expire_temp_visit_assignments($this->pdo);
+
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $assignmentId = isset($body['assignment_id']) ? (int) $body['assignment_id'] : 0;
+        $tempVisitId = isset($body['temp_visit_id']) ? (int) $body['temp_visit_id'] : 0;
+
+        if ($assignmentId <= 0 || $tempVisitId <= 0) {
+            Response::error('assignment_id y temp_visit_id requeridos', 400);
+            return;
+        }
+
+        $assignment = fetch_temp_visit_assignment_by_id($this->pdo, $assignmentId);
+        if (!$assignment || (int) $assignment['temp_visit_id'] !== $tempVisitId) {
+            Response::error('Asignación no válida', 404);
+            return;
+        }
+        if (!temp_visit_assignment_is_active($assignment)) {
+            Response::error('La autorización de visita externa no está vigente', 422);
+            return;
+        }
+
+        $stmt = $this->pdo->prepare('SELECT * FROM temporary_visits WHERE temp_visit_id = ? LIMIT 1');
+        $stmt->execute([$tempVisitId]);
+        $tv = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$tv) {
+            Response::error('Visita externa no encontrada', 404);
+            return;
+        }
+
+        $data = $this->buildUnifiedFromTemporaryVisit($tv, 'manual', $assignment);
+        Response::success($data, 'OK');
     }
 
     private function looksLikeJwt(string $s): bool
@@ -429,8 +460,10 @@ class AccessQrController
      * @param array<string,mixed> $tv
      * @return array<string,mixed>
      */
-    private function buildUnifiedFromTemporaryVisit(array $tv, string $source): array
+    private function buildUnifiedFromTemporaryVisit(array $tv, string $source, ?array $selectedAssignment = null): array
     {
+        expire_temp_visit_assignments($this->pdo);
+
         $status = strtoupper(trim((string) ($tv['status_validated'] ?? 'PERMITIDO')));
         if ($status === '') {
             $status = 'PERMITIDO';
@@ -439,7 +472,33 @@ class AccessQrController
         if ($sys !== '' && $sys !== 'ACTIVO') {
             $status = 'DENEGADO';
         }
+
+        $tempVisitId = isset($tv['temp_visit_id']) ? (int) $tv['temp_visit_id'] : 0;
+        $activeAssignments = $tempVisitId > 0 ? fetch_active_temp_visit_assignments($this->pdo, $tempVisitId) : [];
+
+        $pendingHouseSelection = false;
+        $assignmentId = null;
+        $houseId = null;
+        $message = null;
         $allow = $status !== 'DENEGADO';
+
+        if ($selectedAssignment !== null) {
+            $assignmentId = (int) ($selectedAssignment['assignment_id'] ?? 0);
+            $houseId = (int) ($selectedAssignment['house_id'] ?? 0);
+        } elseif ($allow) {
+            if ($activeAssignments === []) {
+                $allow = false;
+                $status = 'DENEGADO';
+                $message = 'Visita externa sin autorización vigente';
+            } elseif (count($activeAssignments) === 1) {
+                $assignmentId = (int) $activeAssignments[0]['assignment_id'];
+                $houseId = (int) $activeAssignments[0]['house_id'];
+            } else {
+                $pendingHouseSelection = true;
+                $allow = false;
+                $message = 'Seleccione la casa destino antes de registrar el ingreso';
+            }
+        }
 
         $plate = normalize_license_plate((string) ($tv['temp_visit_plate'] ?? ''));
         $doc = trim((string) ($tv['temp_visit_doc'] ?? ''));
@@ -447,12 +506,25 @@ class AccessQrController
         $vehiclePublic = [
             'vehicle_id' => null,
             'license_plate' => $plate,
-            'house_id' => null,
+            'house_id' => $houseId,
             'brand' => $tv['temp_visit_type'] ?? null,
             'model' => $tv['temp_visit_name'] ?? null,
-            'photo_url' => null,
+            'photo_url' => $tv['photo_url'] ?? null,
             'status_validated' => $tv['status_validated'] ?? null,
         ];
+
+        $activeForResponse = array_map(static function (array $row): array {
+            return [
+                'assignment_id' => (int) $row['assignment_id'],
+                'house_id' => (int) $row['house_id'],
+                'house_label' => $row['house_label'] ?? '',
+                'block_house' => $row['block_house'] ?? null,
+                'lot' => $row['lot'] ?? null,
+                'apartment' => $row['apartment'] ?? null,
+                'valid_from' => $row['valid_from'] ?? null,
+                'valid_until' => $row['valid_until'] ?? null,
+            ];
+        }, $activeAssignments);
 
         return [
             'source' => $source,
@@ -462,13 +534,18 @@ class AccessQrController
             'person_id' => null,
             'doc_number' => $doc !== '' ? $doc : null,
             'vehicle_id' => null,
-            'temp_visit_id' => isset($tv['temp_visit_id']) ? (int) $tv['temp_visit_id'] : null,
+            'temp_visit_id' => $tempVisitId > 0 ? $tempVisitId : null,
+            'assignment_id' => $assignmentId,
+            'house_id' => $houseId,
             'license_plate' => $plate,
             'status_validated' => $status,
             'allow_entry' => $allow,
+            'pending_house_selection' => $pendingHouseSelection,
+            'active_assignments' => $activeForResponse,
             'is_birthday' => false,
             'birth_date' => null,
-            'message' => null,
+            'message' => $message,
+            'operator_notes' => $tv['operator_notes'] ?? null,
         ];
     }
 

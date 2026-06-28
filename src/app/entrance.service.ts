@@ -13,31 +13,7 @@ export class EntranceService {
 
   baseUrl = environment.baseUrl;
 
-  constructor( private http: HttpClient ) { }
-
-  getActivitiesByUser(user_id: number) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/activities-by-user?user_id=${user_id}`);
-  }
-
-  getAllMachines(estado: string, campus: string) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/machines?estado=${estado}&campus=${campus}`);
-  }
-
-  getMachineByRMT(rmt: string) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/machine-by-rmt?rmt=${rmt}`);
-  }
-
-  getProblemsByType(tipo: string) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/problems-by-type?tipo=${tipo}`);
-  }
-
-  getSolutionsByType(tipo: string) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/solutions-by-type?tipo=${tipo}`);
-  }
-
-  getAreasByZone(zone: string) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/areas-by-zone?zone=${zone}`);
-  }
+  constructor(private http: HttpClient) { }
 
   getPersonsByHouseId(house_id: number) {
     return this.http.get(`${this.baseUrl}/api/v1/houses/${house_id}/members`);
@@ -71,18 +47,32 @@ export class EntranceService {
     return this.http.put(`${this.baseUrl}/api/v1/vehicles/${(vehicle as any).vehicle_id}`, vehicle);
   }
 
-  /**
-   * Listado global de visitas temporales (administración / operario en pantalla Vehículos).
-   */
   getAllExternalVehicles() {
     return this.http.get(`${this.baseUrl}/api/v1/external-visits`);
   }
 
-  /**
-   * Solo las visitas que registró el usuario en sesión (Mi casa; incluye admin/operario como residentes).
-   */
-  getMyExternalVehicles() {
+  getActiveExternalVehiclesByHouse(houseId: number) {
+    return this.http.get(
+      `${this.baseUrl}/api/v1/external-visits?house_id=${houseId}&active=1`
+    );
+  }
+
+  getMyExternalVehicles(houseId?: number) {
+    if (houseId != null && houseId > 0) {
+      return this.getActiveExternalVehiclesByHouse(houseId);
+    }
     return this.http.get(`${this.baseUrl}/api/v1/external-visits?mine=1`);
+  }
+
+  lookupExternalVisit(params: { plate?: string; doc?: string }) {
+    const q = new URLSearchParams();
+    if (params.plate) {
+      q.set('plate', params.plate);
+    }
+    if (params.doc) {
+      q.set('doc', params.doc);
+    }
+    return this.http.get(`${this.baseUrl}/api/v1/external-visits/lookup?${q.toString()}`);
   }
 
   addExternalVehicle(externalVehicle: ExternalVehicle) {
@@ -94,16 +84,20 @@ export class EntranceService {
     return this.http.put(`${this.baseUrl}/api/v1/external-visits/${id}`, externalVehicle);
   }
 
+  cancelExternalVisitAssignment(tempVisitId: number, assignmentId: number) {
+    return this.http.delete(
+      `${this.baseUrl}/api/v1/external-visits/${tempVisitId}?assignment_id=${assignmentId}`
+    );
+  }
+
   getAllAreas() {
     return this.http.get(`${this.baseUrl}/api/v1/catalog/areas`);
   }
 
-  /** Crear punto de acceso (tabla access_points). Solo administración. */
   addAccessPoint(body: Record<string, unknown>) {
     return this.http.post(`${this.baseUrl}/api/v1/catalog/access-points`, body);
   }
 
-  /** Actualizar punto de acceso. No hay eliminación por API. */
   updateAccessPoint(id: number, body: Record<string, unknown>) {
     return this.http.put(`${this.baseUrl}/api/v1/catalog/access-points/${id}`, body);
   }
@@ -114,29 +108,9 @@ export class EntranceService {
     );
   }
 
-  getCampusActiveById(campus_id: number) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/campus-active-by-id?campus_id=${campus_id}`);
-  }
-
   getAllAccessPoints() {
     return this.http.get(`${this.baseUrl}/api/v1/access-logs/access-points`).pipe(
       map((r: any) => r?.data ?? r ?? [])
     );
-  }
-
-  getCampusByZone(zone: string) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/campus-by-zone?zone=${zone}`);
-  }
-
-  getIncPendientes(tipo_usuario: string, id_assigned: string, user_id: number, campus: string, area: string) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/inc-pendientes?tipo_usuario=${tipo_usuario}&id_assigned=${id_assigned}&user_id=${user_id}&campus=${campus}&area=${area}`);
-  }
-
-  getIncProceso(tipo_usuario: string, id_assigned: string, user_id: number, campus: string, area: string) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/inc-proceso?tipo_usuario=${tipo_usuario}&id_assigned=${id_assigned}&user_id=${user_id}&campus=${campus}&area=${area}`);
-  }
-
-  getIncFin(tipo_usuario: string, id_assigned: string, user_id: number, campus: string, area: string) {
-    return this.http.get(`${this.baseUrl}/api/v1/catalog/inc-fin?tipo_usuario=${tipo_usuario}&id_assigned=${id_assigned}&user_id=${user_id}&campus=${campus}&area=${area}`);
   }
 }

@@ -17,10 +17,23 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ApiService } from '../api.service';
 import { QrAccessService, AccessQrScanResult } from './qr-access.service';
+import { ExternalVisitAssignmentOption } from '../externalVehicle';
+import { MatDialog } from '@angular/material/dialog';
+import { NavPermissionService } from '../nav-permission.service';
+import {
+  IncidentFormDialogComponent,
+} from '../incidents/incident-form-dialog.component';
+import {
+  IncidentFormDialogData,
+  IncidentScanContext,
+} from '../incidents/access-incident.service';
 
 /** Preferencia opcional: último punto elegido (sin bloqueo). */
 const ACCESS_POINT_STORAGE_KEY = 'vc_scanner_access_point_id';
+const MOVEMENT_MODE_STORAGE_KEY = 'vc_scanner_movement_mode';
 const COOLDOWN_MS = 3000;
+
+type MovementMode = 'INGRESO' | 'EGRESO';
 
 interface AccessPointOption {
   id: number;
@@ -50,7 +63,10 @@ interface AccessPointOption {
 
     <div class="w-full px-0 py-2 sm:py-3">
       <div
-        class="overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800">
+        class="overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+        [class.border-amber-400]="movementMode === 'EGRESO'"
+        [class.bg-amber-50]="movementMode === 'EGRESO'"
+        [class.scanner-exit-mode]="movementMode === 'EGRESO'">
         <div class="border-b border-gray-200 px-4 py-4 text-center dark:border-gray-700">
           <h2 class="m-0 flex items-center justify-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
             <mat-icon class="!h-7 !w-7 text-teal-600 dark:text-teal-400">qr_code_scanner</mat-icon>
@@ -74,6 +90,28 @@ interface AccessPointOption {
               <option [ngValue]="null">— Seleccione —</option>
               <option *ngFor="let p of accessPoints" [ngValue]="p.id">{{ p.name }}</option>
             </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Movimiento</label>
+            <div class="inline-flex w-full rounded-lg border border-gray-300 bg-gray-50 p-1 dark:border-gray-600 dark:bg-gray-700" role="group" aria-label="Entrada o salida">
+              <button
+                type="button"
+                (click)="setMovementMode('INGRESO')"
+                [class]="movementMode === 'INGRESO'
+                  ? 'flex-1 rounded-md bg-teal-600 px-3 py-2 text-sm font-medium text-white shadow'
+                  : 'flex-1 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600'">
+                Entrada
+              </button>
+              <button
+                type="button"
+                (click)="setMovementMode('EGRESO')"
+                [class]="movementMode === 'EGRESO'
+                  ? 'flex-1 rounded-md bg-amber-600 px-3 py-2 text-sm font-medium text-white shadow'
+                  : 'flex-1 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600'">
+                Salida
+              </button>
+            </div>
           </div>
           <p *ngIf="!accessPoints.length && !loadingPoints" class="mb-3 text-sm text-amber-700 dark:text-amber-400">
             No hay puntos de acceso configurados.
@@ -129,6 +167,36 @@ interface AccessPointOption {
               <pre
                 *ngIf="lastScanDetail"
                 class="mt-2 whitespace-pre-wrap break-all rounded bg-white/90 p-2 text-left text-xs text-gray-800 dark:bg-gray-900/80 dark:text-gray-200">{{ lastScanDetail }}</pre>
+            </div>
+            <div class="mt-3 flex justify-center" *ngIf="canAddIncident && !pendingHouseSelection">
+              <button
+                type="button"
+                (click)="openIncidentDialog()"
+                [disabled]="!incidentLogReady"
+                class="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-900/50">
+                <mat-icon class="!h-5 !w-5">report_problem</mat-icon>
+                {{ incidentLogReady ? 'Añadir incidencia' : 'Registrando acceso…' }}
+              </button>
+            </div>
+          </div>
+
+          <div
+            *ngIf="pendingHouseSelection && pendingAssignments.length"
+            class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
+            <p class="mb-3 text-sm font-medium text-amber-900 dark:text-amber-100">
+              Varias casas autorizadas. Seleccione destino:
+            </p>
+            <div class="flex flex-col gap-2">
+              <button
+                type="button"
+                *ngFor="let a of pendingAssignments"
+                (click)="confirmAssignmentSelection(a)"
+                class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-left text-sm hover:bg-teal-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700">
+                <span class="font-medium">{{ a.house_label || ('Casa #' + a.house_id) }}</span>
+                <span class="block text-xs text-gray-500 dark:text-gray-400" *ngIf="a.valid_until">
+                  Vigente hasta {{ a.valid_until }}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -233,6 +301,11 @@ interface AccessPointOption {
         pointer-events: none;
         z-index: 2;
       }
+      @media (prefers-color-scheme: dark) {
+        .scanner-exit-mode {
+          background-color: rgb(69 26 3 / 0.35) !important;
+        }
+      }
     `,
   ],
 })
@@ -253,6 +326,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
 
   accessPoints: AccessPointOption[] = [];
   selectedAccessPointId: number | null = null;
+  movementMode: MovementMode = 'INGRESO';
   loadingPoints = true;
 
   cooldownActive = false;
@@ -262,6 +336,13 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   heroImageUrl: string | null = null;
   /** Imagen grande de estado (allowed / denied / observed / birthday). */
   statusImageUrl: string | null = null;
+
+  pendingHouseSelection = false;
+  pendingAssignments: ExternalVisitAssignmentOption[] = [];
+  pendingTempVisitId: number | null = null;
+
+  incidentLogReady = false;
+  lastIncidentContext: IncidentScanContext | null = null;
 
   private useNativeBarcode = false;
   private mediaStream: MediaStream | null = null;
@@ -275,12 +356,40 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   constructor(
     private toastr: ToastrService,
     private api: ApiService,
-    private qrAccess: QrAccessService
+    private qrAccess: QrAccessService,
+    private navPerm: NavPermissionService,
+    private dialog: MatDialog
   ) {}
+
+  get canAddIncident(): boolean {
+    return this.navPerm.canView('incidents');
+  }
 
   ngOnInit(): void {
     this.checkBarcodeSupport();
+    this.loadMovementMode();
     this.loadAccessPoints();
+    this.navPerm.load().subscribe();
+  }
+
+  setMovementMode(mode: MovementMode): void {
+    this.movementMode = mode;
+    localStorage.setItem(MOVEMENT_MODE_STORAGE_KEY, mode);
+  }
+
+  private loadMovementMode(): void {
+    const saved = localStorage.getItem(MOVEMENT_MODE_STORAGE_KEY);
+    if (saved === 'INGRESO' || saved === 'EGRESO') {
+      this.movementMode = saved;
+    }
+  }
+
+  private isExitMode(): boolean {
+    return this.movementMode === 'EGRESO';
+  }
+
+  private movementLabel(): string {
+    return this.isExitMode() ? 'Salida' : 'Entrada';
   }
 
   ngOnDestroy(): void {
@@ -511,13 +620,14 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     this.lastScanDetail = null;
     this.heroImageUrl = null;
     this.statusImageUrl = null;
+    this.pendingHouseSelection = false;
+    this.pendingAssignments = [];
+    this.pendingTempVisitId = null;
+    this.incidentLogReady = false;
+    this.lastIncidentContext = null;
 
     this.qrAccess.scan(raw).subscribe({
-      next: (data) => {
-        this.applyScanUi(data);
-        this.postAccessLog(data);
-        this.beginCooldown();
-      },
+      next: (data) => this.handleScanResult(data),
       error: (err) => {
         const msg = err?.error?.error || err?.message || 'Error al procesar la lectura';
         this.errorMessage = msg;
@@ -528,6 +638,75 @@ export class QrScannerComponent implements OnInit, OnDestroy {
         this.beginCooldown();
       },
     });
+  }
+
+  confirmAssignmentSelection(assignment: ExternalVisitAssignmentOption): void {
+    const tid = this.pendingTempVisitId;
+    if (!tid || !assignment?.assignment_id) {
+      return;
+    }
+    this.qrAccess.scanConfirm(tid, assignment.assignment_id).subscribe({
+      next: (data) => {
+        this.pendingHouseSelection = false;
+        this.pendingAssignments = [];
+        this.pendingTempVisitId = null;
+        this.handleScanResult(data);
+      },
+      error: (err) => {
+        const msg = err?.error?.error || err?.message || 'Error al confirmar casa';
+        this.toastr.error(msg);
+      },
+    });
+  }
+
+  private handleScanResult(data: AccessQrScanResult): void {
+    if (data.pending_house_selection && data.active_assignments?.length) {
+      this.pendingHouseSelection = true;
+      this.pendingAssignments = data.active_assignments;
+      this.pendingTempVisitId = data.temp_visit_id ?? null;
+      this.applyScanUi(data);
+      this.toastr.info(data.message || 'Seleccione la casa destino');
+      return;
+    }
+
+    this.pendingHouseSelection = false;
+    this.pendingAssignments = [];
+    this.pendingTempVisitId = null;
+    this.applyScanUi(data);
+    this.postAccessLog(data);
+    this.beginCooldown();
+  }
+
+  openIncidentDialog(): void {
+    if (!this.incidentLogReady || !this.lastIncidentContext || !this.selectedAccessPointId) {
+      return;
+    }
+    const data: IncidentFormDialogData = {
+      mode: 'scan',
+      accessPointId: this.selectedAccessPointId,
+      lockAccessPoint: true,
+      scanContext: this.lastIncidentContext,
+    };
+    this.dialog.open(IncidentFormDialogComponent, {
+      width: 'min(480px, 96vw)',
+      data,
+    });
+  }
+
+  private buildScanContext(data: AccessQrScanResult): IncidentScanContext {
+    const personId = data.person_id ?? (data.person as any)?.id ?? null;
+    const vehicleId =
+      data.vehicle_id != null && Number(data.vehicle_id) > 0 ? Number(data.vehicle_id) : null;
+
+    return {
+      person_id: personId ? Number(personId) : null,
+      vehicle_id: vehicleId,
+      temp_visit_id: data.temp_visit_id ?? null,
+      house_id: data.house_id ?? data.vehicle?.house_id ?? null,
+      doc_number: data.doc_number ?? data.person?.doc_number ?? null,
+      license_plate: data.license_plate ?? data.vehicle?.license_plate ?? null,
+      status_validated: data.status_validated ?? null,
+    };
   }
 
   private applyScanUi(data: AccessQrScanResult): void {
@@ -555,6 +734,12 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       if (data.doc_number) {
         lines.push(`Doc. responsable: ${data.doc_number}`);
       }
+      if (data.house_id) {
+        lines.push(`Casa destino: #${data.house_id}`);
+      }
+      if (data.operator_notes) {
+        lines.push(`Notas: ${data.operator_notes}`);
+      }
       const url = this.api.getPhotoUrl(v.photo_url ?? null);
       this.heroImageUrl = url || null;
     } else {
@@ -568,24 +753,98 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       this.heroImageUrl = null;
     }
 
+    this.appendExternalTimerLines(data, lines);
+
     this.statusImageUrl = this.pickStatusImage(data);
-    this.lastScanOk = data.allow_entry;
-    this.lastScanSummary = `${data.status_validated}${data.allow_entry ? ' — Ingreso registrado' : ' — Registro denegado / observado'}`;
+    this.lastScanOk = this.isExitMode() && !!data.temp_visit_id ? true : data.allow_entry;
+    const registeredLabel = this.movementLabel() + ' registrada';
+    this.lastScanSummary = data.pending_house_selection
+      ? (data.message || 'Seleccione casa destino')
+      : `${data.status_validated}${
+          this.isExitMode() && data.temp_visit_id
+            ? ' — ' + registeredLabel
+            : data.allow_entry
+              ? ' — ' + registeredLabel
+              : ' — Registro denegado / observado'
+        }`;
     if (data.is_birthday) {
       this.lastScanSummary += ' — ¡Cumpleaños!';
     }
     this.lastScanDetail = lines.join('\n');
 
-    const snack = data.allow_entry
-      ? data.is_birthday
-        ? 'Ingreso registrado. ¡Feliz cumpleaños!'
-        : 'Ingreso registrado'
-      : 'Acceso denegado u observado — evento registrado';
-    if (data.allow_entry) {
+    const snack = data.pending_house_selection
+      ? 'Seleccione la casa destino'
+      : this.isExitMode() && data.temp_visit_id
+        ? registeredLabel
+        : data.allow_entry
+          ? data.is_birthday
+            ? registeredLabel + '. ¡Feliz cumpleaños!'
+            : registeredLabel
+          : 'Acceso denegado u observado — evento registrado';
+    if (data.pending_house_selection) {
+      this.toastr.info(snack);
+    } else if (this.isExitMode() && data.temp_visit_id) {
+      // El toast de salida se muestra al confirmar en postAccessLog
+    } else if (data.allow_entry) {
       this.toastr.success(snack);
     } else {
       this.toastr.warning(snack);
     }
+  }
+
+  private appendExternalTimerLines(data: AccessQrScanResult, lines: string[]): void {
+    if (!data.temp_visit_id || this.isExitMode()) {
+      return;
+    }
+    const assignment = this.resolveAssignmentForDisplay(data);
+    if (!assignment?.valid_until) {
+      return;
+    }
+    lines.push(`Autorizado para entrar hasta: ${assignment.valid_until}`);
+    const untilMs = new Date(assignment.valid_until).getTime();
+    const mins =
+      assignment.minutes_remaining != null
+        ? assignment.minutes_remaining
+        : Number.isFinite(untilMs)
+          ? Math.max(0, Math.round((untilMs - Date.now()) / 60000))
+          : null;
+    if (mins != null && mins >= 0) {
+      lines.push(`Tiempo restante para ingresar: ${mins} min`);
+      if (mins < 5) {
+        this.toastr.warning('Autorización por vencer');
+      }
+    }
+    const duration = this.assignmentDurationMinutes(assignment);
+    if (duration > 0) {
+      lines.push(`Máx. ${duration} min de permanencia una vez dentro`);
+    }
+  }
+
+  private resolveAssignmentForDisplay(data: AccessQrScanResult): ExternalVisitAssignmentOption | null {
+    const list = data.active_assignments ?? [];
+    const aid = data.assignment_id;
+    if (aid != null && aid > 0) {
+      const found = list.find((a) => a.assignment_id === aid);
+      if (found) {
+        return found;
+      }
+    }
+    if (list.length === 1) {
+      return list[0];
+    }
+    return null;
+  }
+
+  private assignmentDurationMinutes(assignment: ExternalVisitAssignmentOption): number {
+    const from = assignment.valid_from ? new Date(assignment.valid_from).getTime() : NaN;
+    const until = assignment.valid_until ? new Date(assignment.valid_until).getTime() : NaN;
+    if (Number.isFinite(from) && Number.isFinite(until) && until > from) {
+      return Math.max(1, Math.round((until - from) / 60000));
+    }
+    if (Number.isFinite(until)) {
+      return Math.max(0, Math.round((until - Date.now()) / 60000));
+    }
+    return 0;
   }
 
   private pickStatusImage(data: AccessQrScanResult): string {
@@ -621,9 +880,80 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.incidentLogReady = false;
+    this.lastIncidentContext = this.buildScanContext(data);
+
+    if (data.temp_visit_id) {
+      const houseId = data.house_id ?? data.vehicle?.house_id ?? null;
+      if (this.isExitMode()) {
+        const body: Record<string, unknown> = {
+          access_point_id: apId,
+          temp_visit_id: data.temp_visit_id,
+          house_id: houseId,
+        };
+        this.api.post('api/v1/access-logs/temporary/exit', body).subscribe({
+          next: (res) => {
+            const tempId = Number(res?.data?.temp_access_log_id ?? 0) || 0;
+            const mins = Number(res?.data?.permanence_minutes ?? 0);
+            const exceeded = !!res?.data?.stay_exceeded;
+            if (tempId > 0) {
+              this.lastIncidentContext = {
+                ...this.buildScanContext(data),
+                temp_access_log_id: tempId,
+              };
+              this.incidentLogReady = true;
+            }
+            let msg = `Salida registrada — permaneció ${mins} min`;
+            if (exceeded) {
+              msg += ' (excedió tiempo autorizado)';
+              this.toastr.warning(msg);
+            } else {
+              this.toastr.success(msg);
+            }
+            this.lastScanSummary = `${data.status_validated} — ${msg}`;
+          },
+          error: (err) => {
+            const msg =
+              err?.error?.error || 'No hay entrada abierta para esta visita';
+            this.toastr.error(msg);
+          },
+        });
+        return;
+      }
+
+      if (!data.allow_entry) {
+        return;
+      }
+
+      const body: Record<string, unknown> = {
+        access_point_id: apId,
+        temp_visit_id: data.temp_visit_id,
+        house_id: houseId,
+        assignment_id: data.assignment_id ?? null,
+        status_validated: data.status_validated,
+      };
+      this.api.post('api/v1/access-logs/temporary', body).subscribe({
+        next: (res) => {
+          const tempId = Number(res?.data?.temp_access_log_id ?? 0) || 0;
+          if (tempId > 0) {
+            this.lastIncidentContext = {
+              ...this.buildScanContext(data),
+              temp_access_log_id: tempId,
+            };
+            this.incidentLogReady = true;
+          }
+        },
+        error: (err) => {
+          const msg = err?.error?.error || 'No se pudo guardar el ingreso de visita externa';
+          this.toastr.error(msg);
+        },
+      });
+      return;
+    }
+
     const body: Record<string, unknown> = {
       access_point_id: apId,
-      type: 'INGRESO',
+      type: this.movementMode,
       observation: this.buildObservation(data),
     };
 
@@ -645,6 +975,16 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     }
 
     this.api.post('api/v1/access-logs', body).subscribe({
+      next: (res) => {
+        const logId = Number(res?.data?.id ?? 0) || 0;
+        if (logId > 0) {
+          this.lastIncidentContext = {
+            ...this.buildScanContext(data),
+            access_log_id: logId,
+          };
+          this.incidentLogReady = true;
+        }
+      },
       error: () => {
         this.toastr.error('No se pudo guardar el registro de acceso');
       },

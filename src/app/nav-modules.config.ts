@@ -15,6 +15,7 @@ export const NAV_MODULE_DEFS: NavModuleDef[] = [
   { key: 'pets', label: 'Mascotas', route: '/pets', section: 'gestion', icon: 'pets', sortOrder: 40 },
   { key: 'announcements', label: 'Comunicados', route: '/announcements', section: 'gestion', icon: 'campaign', sortOrder: 50 },
   { key: 'surveys', label: 'Encuestas', route: '/surveys', section: 'gestion', icon: 'fact_check', sortOrder: 60 },
+  { key: 'incidents', label: 'Incidencias', route: '/incidents', section: 'gestion', icon: 'report_problem', sortOrder: 65 },
   { key: 'access_points', label: 'Puntos de acceso', route: '/access-points', section: 'admin', icon: 'sensor_door', sortOrder: 70 },
 ];
 

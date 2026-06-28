@@ -11,7 +11,9 @@ require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../utils/Router.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/event_log.php';
+require_once __DIR__ . '/../helpers/temporary_visit.php';
 
 use Utils\Response;
 use Utils\Router;
@@ -201,6 +203,197 @@ class AccessLogController
     }
 
     /**
+     * POST /api/v1/access-logs/temporary
+     * Registra ingreso de visita externa en temporary_access_logs.
+     */
+    public function storeTemporary()
+    {
+        $auth = requireAuth();
+        if (!isStaffRole($auth)) {
+            Response::json(['success' => false, 'error' => 'Solo personal autorizado'], 403);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data) {
+            Response::json(['success' => false, 'error' => 'Datos inválidos'], 400);
+            return;
+        }
+
+        $accessPointId = (int) ($data['access_point_id'] ?? 0);
+        $tempVisitId = (int) ($data['temp_visit_id'] ?? 0);
+        $houseId = (int) ($data['house_id'] ?? 0);
+        $assignmentId = (int) ($data['assignment_id'] ?? 0);
+
+        if ($accessPointId <= 0 || $tempVisitId <= 0) {
+            Response::json(['success' => false, 'error' => 'access_point_id y temp_visit_id requeridos'], 400);
+            return;
+        }
+
+        $assignment = resolve_temp_visit_assignment_for_entry($this->pdo, $tempVisitId, $houseId, $assignmentId);
+        if (!$assignment) {
+            Response::json(['success' => false, 'error' => 'Autorización no vigente'], 422);
+            return;
+        }
+
+        $assignmentId = (int) $assignment['assignment_id'];
+        $houseId = (int) $assignment['house_id'];
+
+        $openStmt = $this->pdo->prepare(
+            'SELECT temp_access_log_id FROM temporary_access_logs
+             WHERE temp_visit_id = ? AND house_id = ? AND temp_exit_time IS NULL
+             LIMIT 1'
+        );
+        $openStmt->execute([$tempVisitId, $houseId]);
+        if ($openStmt->fetchColumn()) {
+            Response::json(['success' => false, 'error' => 'Ya hay una entrada sin salida registrada'], 409);
+            return;
+        }
+
+        $createdByUserId = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
+        $statusValidated = trim((string) ($data['status_validated'] ?? 'PERMITIDO'));
+        $now = date('Y-m-d H:i:s');
+        $assignmentValidUntil = (string) ($assignment['valid_until'] ?? '');
+        $authorizedMinutes = assignment_authorized_duration_minutes($assignment);
+        $stayDeadline = date('Y-m-d H:i:s', strtotime($now) + ($authorizedMinutes * 60));
+
+        try {
+            $stmt = $this->pdo->prepare(
+                "INSERT INTO temporary_access_logs
+                 (temp_visit_id, assignment_id, assignment_valid_until, authorized_duration_minutes, stay_deadline,
+                  temp_entry_time, access_point_id, status_validated, house_id, created_by_user_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+            $stmt->execute([
+                $tempVisitId,
+                $assignmentId,
+                $assignmentValidUntil !== '' ? $assignmentValidUntil : null,
+                $authorizedMinutes,
+                $stayDeadline,
+                $now,
+                $accessPointId,
+                $statusValidated !== '' ? $statusValidated : 'PERMITIDO',
+                $houseId,
+                $createdByUserId,
+            ]);
+
+            $id = (int) $this->pdo->lastInsertId();
+
+            recordEventLog($this->pdo, $auth, 'temporary_access_log.create', [
+                'summary' => 'Ingreso visita externa #' . $tempVisitId,
+                'entity_type' => 'temporary_access_logs',
+                'entity_id' => $id,
+                'details' => [
+                    'temp_visit_id' => $tempVisitId,
+                    'house_id' => $houseId,
+                    'assignment_id' => $assignmentId,
+                    'authorized_duration_minutes' => $authorizedMinutes,
+                    'stay_deadline' => $stayDeadline,
+                ],
+            ]);
+
+            Response::json([
+                'success' => true,
+                'data' => [
+                    'temp_access_log_id' => $id,
+                    'authorized_duration_minutes' => $authorizedMinutes,
+                    'stay_deadline' => $stayDeadline,
+                    'assignment_valid_until' => $assignmentValidUntil,
+                    'message' => 'Ingreso de visita externa registrado',
+                ],
+            ], 201);
+        } catch (\PDOException $e) {
+            Response::json(['success' => false, 'error' => 'Error al registrar: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /api/v1/access-logs/temporary/exit
+     * Cierra sesión abierta de visita externa (temp_exit_time).
+     */
+    public function exitTemporary()
+    {
+        $auth = requireAuth();
+        if (!isStaffRole($auth)) {
+            Response::json(['success' => false, 'error' => 'Solo personal autorizado'], 403);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data) {
+            Response::json(['success' => false, 'error' => 'Datos inválidos'], 400);
+            return;
+        }
+
+        $accessPointId = (int) ($data['access_point_id'] ?? 0);
+        $tempVisitId = (int) ($data['temp_visit_id'] ?? 0);
+        $houseId = (int) ($data['house_id'] ?? 0);
+
+        if ($accessPointId <= 0 || $tempVisitId <= 0) {
+            Response::json(['success' => false, 'error' => 'access_point_id y temp_visit_id requeridos'], 400);
+            return;
+        }
+
+        $open = fetch_open_temp_access_log($this->pdo, $tempVisitId, $houseId);
+        if (!$open) {
+            Response::json(['success' => false, 'error' => 'No hay entrada abierta para esta visita'], 422);
+            return;
+        }
+
+        $logId = (int) $open['temp_access_log_id'];
+        $now = date('Y-m-d H:i:s');
+
+        try {
+            $stmt = $this->pdo->prepare(
+                'UPDATE temporary_access_logs SET temp_exit_time = ? WHERE temp_access_log_id = ? AND temp_exit_time IS NULL'
+            );
+            $stmt->execute([$now, $logId]);
+
+            $entryTs = strtotime((string) ($open['temp_entry_time'] ?? ''));
+            $exitTs = strtotime($now);
+            $permanenceMinutes = ($entryTs !== false && $exitTs !== false && $exitTs >= $entryTs)
+                ? (int) max(0, round(($exitTs - $entryTs) / 60))
+                : 0;
+
+            $stayDeadline = $open['stay_deadline'] ?? null;
+            $stayExceeded = false;
+            if ($stayDeadline !== null && $stayDeadline !== '') {
+                $stayExceeded = strtotime($now) > strtotime((string) $stayDeadline);
+            } elseif (!empty($open['authorized_duration_minutes'])) {
+                $stayExceeded = $permanenceMinutes > (int) $open['authorized_duration_minutes'];
+            }
+
+            recordEventLog($this->pdo, $auth, 'temporary_access_log.exit', [
+                'summary' => 'Salida visita externa #' . $tempVisitId,
+                'entity_type' => 'temporary_access_logs',
+                'entity_id' => $logId,
+                'details' => [
+                    'temp_visit_id' => $tempVisitId,
+                    'house_id' => (int) ($open['house_id'] ?? 0),
+                    'permanence_minutes' => $permanenceMinutes,
+                    'stay_exceeded' => $stayExceeded,
+                ],
+            ]);
+
+            Response::json([
+                'success' => true,
+                'data' => [
+                    'temp_access_log_id' => $logId,
+                    'temp_exit_time' => $now,
+                    'permanence_minutes' => $permanenceMinutes,
+                    'stay_exceeded' => $stayExceeded,
+                    'authorized_duration_minutes' => isset($open['authorized_duration_minutes'])
+                        ? (int) $open['authorized_duration_minutes']
+                        : null,
+                    'message' => 'Salida de visita externa registrada',
+                ],
+            ]);
+        } catch (\PDOException $e) {
+            Response::json(['success' => false, 'error' => 'Error al registrar salida: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * GET /api/v1/access-logs/access-points
      * Listar puntos de acceso
      */
@@ -214,82 +407,35 @@ class AccessLogController
         Response::json(['success' => true, 'data' => $points]);
     }
 
-    /**
-     * GET /api/v1/access-logs/stats/daily
-     * Estadísticas diarias
-     */
-    public function dailyStats()
-    {
-        requireAuth();
-
-        $stmt = $this->pdo->query("
-            SELECT 
-                DATE(created_at) as date,
-                type,
-                COUNT(*) as count
-            FROM {$this->table}
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-            GROUP BY DATE(created_at), type
-            ORDER BY date DESC
-        ");
-
-        Response::json(['success' => true, 'data' => $stmt->fetchAll(\PDO::FETCH_ASSOC)]);
-    }
-
-    // ---------- Reportes (reemplazo legacy con access_logs vc_db) ----------
-
-    /** GET ?date_init=&date_end= - Ingresos por día en rango */
-    public function entranceByRange()
-    {
-        requireAuth();
-        $date_init = $_GET['date_init'] ?? '';
-        $date_end = $_GET['date_end'] ?? '';
-        if ($date_init === '' || $date_end === '') {
-            Response::json(['success' => false, 'error' => 'date_init y date_end requeridos'], 400);
-            return;
-        }
-        $stmt = $this->pdo->prepare("
-            SELECT DATE(created_at) as date, COUNT(*) as count
-            FROM {$this->table}
-            WHERE type = 'INGRESO' AND created_at BETWEEN ? AND ?
-            GROUP BY DATE(created_at)
-            ORDER BY date
-        ");
-        $stmt->execute([$date_init . ' 00:00:00', $date_end . ' 23:59:59']);
-        $result = $stmt->fetchAll(\PDO::FETCH_OBJ);
-        Response::json($result);
-    }
-
-    /** GET ?fecha=&access_point= (o sala= legacy) — id o nombre de punto */
+    /** GET ?fecha=&access_point= — id o nombre de punto. Incluye access_logs + temporary_access_logs. */
     public function historyByDate()
     {
         $auth = requireAuth();
-        $fecha = $_GET['fecha'] ?? '';
-        $ap = $this->legacyAccessPointQueryValue();
+        $fecha = trim((string) ($_GET['fecha'] ?? ''));
+        $ap = $this->accessPointQueryValue();
         if ($fecha === '') {
             Response::json(['success' => false, 'error' => 'fecha requerida'], 400);
             return;
         }
-        $where = ["DATE(al.created_at) = ?"];
-        $params = [$fecha];
-        if ($ap !== '') {
-            if (is_numeric($ap)) {
-                $where[] = 'al.access_point_id = ?';
-                $params[] = $ap;
-            } else {
-                $where[] = 'ap.name = ?';
-                $params[] = $ap;
-            }
-        }
-        $this->appendNeighborHouseFilterAccessLogsOnly($auth, $where, $params);
-        $sql = "SELECT al.*, ap.name as access_point_name, p.first_name, p.paternal_surname, p.doc_number as person_doc
-                FROM {$this->table} al
-                LEFT JOIN access_points ap ON ap.id = al.access_point_id
-                LEFT JOIN persons p ON p.id = al.person_id
-                LEFT JOIN vehicles v ON v.vehicle_id = al.vehicle_id
-                WHERE " . implode(' AND ', $where) . " ORDER BY al.created_at DESC";
+
+        $whereMain = ['DATE(al.created_at) = ?'];
+        $paramsMain = [$fecha];
+        $this->appendAccessPointFilter($ap, $whereMain, $paramsMain, 'al');
+
+        $whereTemp = ['DATE(tal.temp_entry_time) = ?'];
+        $paramsTemp = [$fecha];
+        $this->appendAccessPointFilter($ap, $whereTemp, $paramsTemp, 'tal');
+
+        $this->appendHistoryNeighborHouseScope($auth, $whereMain, $paramsMain, $whereTemp, $paramsTemp);
+
+        $includeIncidents = isStaffRole($auth) && canViewModule($this->pdo, $auth, 'incidents');
+
+        $sqlMain = $this->historyRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereMain);
+        $sqlTemp = $this->historyTemporaryRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereTemp);
+        $sql = 'SELECT * FROM ((' . $sqlMain . ') UNION ALL (' . $sqlTemp . ')) AS combined ORDER BY date_entry DESC';
+
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
+        $stmt->execute(array_merge($paramsMain, $paramsTemp));
         Response::json($stmt->fetchAll(\PDO::FETCH_OBJ));
     }
 
@@ -317,8 +463,10 @@ class AccessLogController
 
         $this->appendHistoryNeighborHouseScope($auth, $whereMain, $paramsMain, $whereTemp, $paramsTemp);
 
-        $sqlMain = $this->historyRowsSelectSql() . ' WHERE ' . implode(' AND ', $whereMain);
-        $sqlTemp = $this->historyTemporaryRowsSelectSql() . ' WHERE ' . implode(' AND ', $whereTemp);
+        $includeIncidents = isStaffRole($auth) && canViewModule($this->pdo, $auth, 'incidents');
+
+        $sqlMain = $this->historyRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereMain);
+        $sqlTemp = $this->historyTemporaryRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereTemp);
         $sql = 'SELECT * FROM ((' . $sqlMain . ') UNION ALL (' . $sqlTemp . ')) AS combined ORDER BY date_entry DESC';
 
         $stmt = $this->pdo->prepare($sql);
@@ -326,12 +474,12 @@ class AccessLogController
         Response::json($stmt->fetchAll(\PDO::FETCH_OBJ));
     }
 
-    /** GET ?fecha=&access_point=&doc= (sala= legacy) — fecha YYYY-MM-DD. access_point vacío = todos. Incluye access_logs + temporary_access_logs. */
+    /** GET ?fecha=&access_point=&doc= — fecha YYYY-MM-DD. access_point vacío = todos. Incluye access_logs + temporary_access_logs. */
     public function historyByClient()
     {
         $auth = requireAuth();
         $fecha = trim((string) ($_GET['fecha'] ?? ''));
-        $ap = $this->legacyAccessPointQueryValue();
+        $ap = $this->accessPointQueryValue();
         $doc = trim((string) ($_GET['doc'] ?? ''));
         if ($fecha === '') {
             Response::json(['success' => false, 'error' => 'fecha requerida'], 400);
@@ -350,7 +498,8 @@ class AccessLogController
         $paramsTemp = [$fecha];
         $this->appendAccessPointFilter($ap, $whereTemp, $paramsTemp, 'tal');
         if ($doc !== '') {
-            $whereTemp[] = 'tv.temp_visit_doc = ?';
+            $whereTemp[] = '(tv.temp_visit_doc = ? OR tv.temp_visit_plate = ?)';
+            $paramsTemp[] = $doc;
             $paramsTemp[] = $doc;
         }
 
@@ -365,70 +514,6 @@ class AccessLogController
         Response::json($stmt->fetchAll(\PDO::FETCH_OBJ));
     }
 
-    /** Reportes aforo/address/total-month/hours/age: legacy usaba visits_*; devolvemos datos desde access_logs por fecha y access_point */
-    public function reportAforo()
-    {
-        requireAuth();
-        $ap = $this->legacyAccessPointQueryValue();
-        $fechaInicio = $_GET['fechaInicio'] ?? '';
-        $fechaFin = $_GET['fechaFin'] ?? '';
-        $fechaMes = $_GET['fechaMes'] ?? '';
-        $mes = $_GET['mes'] ?? '';
-        $f1 = $_GET['fecha1'] ?? ''; $f2 = $_GET['fecha2'] ?? ''; $f3 = $_GET['fecha3'] ?? ''; $f4 = $_GET['fecha4'] ?? ''; $f5 = $_GET['fecha5'] ?? '';
-        $where = ["type = 'INGRESO'"];
-        $params = [];
-        if ($ap !== '') {
-            $where[] = 'access_point_id = ?';
-            $params[] = $ap;
-        }
-        if ($fechaInicio !== '' && $fechaFin !== '' && ($mes === 'SELECCIONAR' || $mes === '')) {
-            $where[] = 'DATE(created_at) BETWEEN ? AND ?';
-            $params[] = $fechaInicio;
-            $params[] = $fechaFin;
-        } elseif ($fechaMes !== '') {
-            $where[] = 'DATE(created_at) LIKE ?';
-            $params[] = '%' . $fechaMes . '%';
-        } else {
-            $dates = array_values(array_filter([$f1, $f2, $f3, $f4, $f5], fn($d) => $d !== ''));
-            if (!empty($dates)) {
-                $placeholders = implode(',', array_fill(0, count($dates), '?'));
-                $where[] = "DATE(created_at) IN ($placeholders)";
-                foreach ($dates as $d) {
-                    $params[] = $d;
-                }
-            }
-        }
-        $sql = "SELECT DATE(created_at) as FECHA, COUNT(*) as AFORO FROM {$this->table} WHERE " . implode(' AND ', $where) . " GROUP BY DATE(created_at) HAVING AFORO > 0 ORDER BY FECHA";
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
-        Response::json($stmt->fetchAll(\PDO::FETCH_OBJ));
-    }
-
-    public function reportAddress()
-    {
-        $this->reportAforo();
-    }
-
-    public function reportTotalMonth()
-    {
-        $this->reportAforo();
-    }
-
-    public function reportTotalMonthNew()
-    {
-        $this->reportAforo();
-    }
-
-    public function reportHours()
-    {
-        $this->reportAforo();
-    }
-
-    public function reportAge()
-    {
-        $this->reportAforo();
-    }
-
     /**
      * Unifica collation UTF-8 para columnas de texto en UNION ALL (MySQL 1271 Illegal mix of collations).
      */
@@ -440,10 +525,21 @@ class AccessLogController
     /**
      * SELECT enriquecido para pantalla Historial (columnas alineadas al mat-table Angular).
      */
-    private function historyRowsSelectSql(): string
+    private function historyRowsSelectSql(bool $includeIncidentCount = false): string
     {
         $t = $this->table;
         $s = fn (string $e) => $this->historyUnionStr($e);
+        $incidentSelect = $includeIncidentCount
+            ? ', COALESCE(ai_cnt.cnt, 0) AS incident_count'
+            : ', 0 AS incident_count';
+        $incidentJoin = $includeIncidentCount
+            ? ' LEFT JOIN (
+                SELECT access_log_id, COUNT(*) AS cnt
+                FROM access_incidents
+                WHERE access_log_id IS NOT NULL
+                GROUP BY access_log_id
+              ) ai_cnt ON ai_cnt.access_log_id = al.id'
+            : '';
 
         return "
             SELECT
@@ -473,13 +569,22 @@ class AccessLogController
                     NULLIF(TRIM(al.doc_number), ''),
                     '—'
                 )")} AS name,
-                {$s("COALESCE(NULLIF(UPPER(TRIM(p.person_type)), ''), '')")} AS person_category
+                {$s("COALESCE(NULLIF(UPPER(TRIM(p.person_type)), ''), '')")} AS person_category,
+                {$s("'REGISTRY'")} AS log_source,
+                NULL AS assignment_valid_until,
+                NULL AS authorized_duration_minutes,
+                NULL AS stay_deadline,
+                NULL AS permanence_minutes,
+                0 AS stay_exceeded,
+                NULL AS session_open
+                {$incidentSelect}
             FROM {$t} al
             LEFT JOIN access_points ap ON ap.id = al.access_point_id
             LEFT JOIN persons p ON p.id = al.person_id
             LEFT JOIN vehicles v ON v.vehicle_id = al.vehicle_id
             LEFT JOIN houses h ON h.house_id = COALESCE(p.house_id, v.house_id)
             LEFT JOIN users u ON u.user_id = al.created_by_user_id
+            {$incidentJoin}
         ";
     }
 
@@ -487,9 +592,20 @@ class AccessLogController
      * Misma forma de columnas que historyRowsSelectSql(), desde temporary_access_logs + temporary_visits.
      * id negativo para no chocar con access_logs.id.
      */
-    private function historyTemporaryRowsSelectSql(): string
+    private function historyTemporaryRowsSelectSql(bool $includeIncidentCount = false): string
     {
         $s = fn (string $e) => $this->historyUnionStr($e);
+        $incidentSelect = $includeIncidentCount
+            ? ', COALESCE(ai_cnt.cnt, 0) AS incident_count'
+            : ', 0 AS incident_count';
+        $incidentJoin = $includeIncidentCount
+            ? ' LEFT JOIN (
+                SELECT temp_access_log_id, COUNT(*) AS cnt
+                FROM access_incidents
+                WHERE temp_access_log_id IS NOT NULL
+                GROUP BY temp_access_log_id
+              ) ai_cnt ON ai_cnt.temp_access_log_id = tal.temp_access_log_id'
+            : '';
 
         return "
             SELECT
@@ -504,7 +620,7 @@ class AccessLogController
                 tal.temp_entry_time AS created_at,
                 COALESCE(tal.temp_exit_time, tal.temp_entry_time) AS updated_at,
                 {$s('ap.name')} AS access_point_name,
-                {$s("'VEHÍCULO'")} AS type,
+                {$s("CASE WHEN tv.temp_visit_plate IS NOT NULL AND TRIM(tv.temp_visit_plate) <> '' THEN 'VEHÍCULO' ELSE 'PERSONA' END")} AS type,
                 {$s('tv.temp_visit_plate')} AS vehicle_plate,
                 {$s("CONCAT_WS(' ', NULLIF(h.block_house,''), NULLIF(CAST(h.lot AS CHAR),''), NULLIF(h.apartment,''))")} AS house_address,
                 tal.temp_entry_time AS date_entry,
@@ -523,12 +639,30 @@ class AccessLogController
                     NULLIF(TRIM(tv.temp_visit_doc), ''),
                     '—'
                 )")} AS name,
-                {$s("'VISITA_EXTERNA'")} AS person_category
+                {$s("'VISITA_EXTERNA'")} AS person_category,
+                {$s("'EXTERNAL'")} AS log_source,
+                tal.assignment_valid_until,
+                tal.authorized_duration_minutes,
+                tal.stay_deadline,
+                CASE
+                    WHEN tal.temp_exit_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, tal.temp_entry_time, tal.temp_exit_time)
+                    ELSE TIMESTAMPDIFF(MINUTE, tal.temp_entry_time, NOW())
+                END AS permanence_minutes,
+                CASE
+                    WHEN tal.stay_deadline IS NOT NULL AND tal.temp_exit_time IS NOT NULL AND tal.temp_exit_time > tal.stay_deadline THEN 1
+                    WHEN tal.stay_deadline IS NOT NULL AND tal.temp_exit_time IS NULL AND NOW() > tal.stay_deadline THEN 1
+                    WHEN tal.authorized_duration_minutes IS NOT NULL AND tal.temp_exit_time IS NOT NULL
+                         AND TIMESTAMPDIFF(MINUTE, tal.temp_entry_time, tal.temp_exit_time) > tal.authorized_duration_minutes THEN 1
+                    ELSE 0
+                END AS stay_exceeded,
+                IF(tal.temp_exit_time IS NULL, 1, 0) AS session_open
+                {$incidentSelect}
             FROM temporary_access_logs tal
             LEFT JOIN temporary_visits tv ON tv.temp_visit_id = tal.temp_visit_id
             LEFT JOIN access_points ap ON ap.id = tal.access_point_id
             LEFT JOIN houses h ON h.house_id = tal.house_id
             LEFT JOIN users u ON u.user_id = COALESCE(tal.created_by_user_id, tal.operario_id)
+            {$incidentJoin}
         ";
     }
 
@@ -633,9 +767,8 @@ class AccessLogController
         }
     }
 
-    /** Parámetro access_point (preferido) o sala (compat. legado). */
-    private function legacyAccessPointQueryValue(): string
+    private function accessPointQueryValue(): string
     {
-        return trim((string) ($_GET['access_point'] ?? $_GET['sala'] ?? ''));
+        return trim((string) ($_GET['access_point'] ?? ''));
     }
 }

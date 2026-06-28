@@ -98,6 +98,13 @@
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('date_exit')">
               Salida {{ sortIndicator('date_exit') }}
             </th>
+            <th
+              *ngIf="hasExternalRows"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
+              (click)="toggleSort('permanence_minutes')">
+              Permanencia {{ sortIndicator('permanence_minutes') }}
+            </th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('obs')">
               Resultado {{ sortIndicator('obs') }}
             </th>
@@ -105,6 +112,7 @@
               Operario {{ sortIndicator('operator') }}
             </th>
             <th scope="col" class="vc-th"></th>
+            <th scope="col" class="vc-th" *ngIf="showIncidentsColumn">Incid.</th>
             <th scope="col" class="vc-th">Detalle</th>
           </tr>
         </thead>
@@ -123,6 +131,12 @@
               <ng-container *ngIf="a.date_exit; else noExit">{{ a.date_exit | date : 'dd/MM/yyyy HH:mm' }}</ng-container>
               <ng-template #noExit>—</ng-template>
             </td>
+            <td *ngIf="hasExternalRows" class="vc-td whitespace-nowrap text-sm">
+              <span *ngIf="isExternalRow(a)" [class.text-amber-700]="a.stay_exceeded == 1" [class.dark:text-amber-400]="a.stay_exceeded == 1">
+                {{ formatPermanence(a) }}
+              </span>
+              <span *ngIf="!isExternalRow(a)">—</span>
+            </td>
             <td class="vc-td">{{ a.obs | uppercase }}</td>
             <td class="vc-td">{{ a.operator }}</td>
             <td class="vc-td">
@@ -137,6 +151,16 @@
                 class="text-amber-600 dark:text-amber-400">
                 warning
               </mat-icon>
+            </td>
+            <td class="vc-td text-center" *ngIf="showIncidentsColumn">
+              <button
+                *ngIf="rowIncidentCount(a) > 0"
+                type="button"
+                (click)="viewIncidents(a)"
+                title="Ver incidencias"
+                class="inline-flex text-amber-600 hover:text-amber-800 dark:text-amber-400">
+                <mat-icon class="!h-5 !w-5">report_problem</mat-icon>
+              </button>
             </td>
             <td class="vc-td text-right">
               <button
@@ -159,7 +183,7 @@
             </td>
           </tr>
           <tr *ngIf="!pagedRows.length">
-            <td [attr.colspan]="showDocColumn ? 11 : 10" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+            <td [attr.colspan]="historyTableColspan" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
               <ng-container *ngIf="filterQuery.trim(); else emptyState">
                 No hay filas que coincidan con «{{ filterQuery }}».
               </ng-container>

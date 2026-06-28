@@ -18,8 +18,3 @@ export function isPublicGuestPath(path: string): boolean {
   const p = (path || '').split('?')[0];
   return p === '/login' || p === '/registro' || p === '/landing';
 }
-
-export function skipLicenseBootstrapPath(path: string): boolean {
-  const p = (path || '').split('?')[0];
-  return p === '/landing' || p === '/registro';
-}
