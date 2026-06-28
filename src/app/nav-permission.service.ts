@@ -31,7 +31,7 @@ export class NavPermissionService {
     if (this.loaded && !force) {
       return of(this.permissionsSubject.getValue());
     }
-    return this.api.getRaw<{ modules?: ResolvedNavPermissions }>('api/v1/config/nav-permissions').pipe(
+    return this.api.getRaw('api/v1/config/nav-permissions').pipe(
       map((res: any) => {
         const raw = res?.data?.modules ?? res?.modules ?? {};
         const merged = buildEmpty();
