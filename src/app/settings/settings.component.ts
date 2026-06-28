@@ -4,7 +4,7 @@ import { User } from '../user';
 import { UsersService } from '../users.service';
 import { ToastrService } from 'ngx-toastr';
 import { NavPermissionService } from '../nav-permission.service';
-import { NAV_PERMISSION_ROLES, NavModuleRow } from '../nav-modules.config';
+import { NAV_PERMISSION_ROLES, NavModuleRow, navModuleLabelByKey } from '../nav-modules.config';
 
 export interface MyPersonForm {
   gender: string;
@@ -88,9 +88,9 @@ export class SettingsComponent implements OnInit {
     this.navPerm.getAdminMatrix().subscribe({
       next: (matrix) => {
         this.loadingPermissions = false;
-        this.permissionModules = (matrix?.modules || []).slice().sort(
-          (a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0)
-        );
+        this.permissionModules = (matrix?.modules || [])
+          .map((m) => ({ ...m, label: navModuleLabelByKey(m.module_key, m.label) }))
+          .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
         this.permissionMatrix = matrix?.permissions || {};
       },
       error: () => {

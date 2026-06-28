@@ -8,6 +8,7 @@ import { EntranceService } from '../entrance.service';
 import { ToastrService } from 'ngx-toastr';
 import { NavPermissionService } from '../nav-permission.service';
 import { NavModuleDef } from '../nav-modules.config';
+import { User } from '../user';
 
 @Component({
   selector: 'app-side-nav',
@@ -33,10 +34,21 @@ export class SideNavComponent extends AppComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.syncUserFromAuth(this.auth.getUser());
+    this.auth.user$.subscribe((u) => this.syncUserFromAuth(u));
+
     this.refreshNavModules();
     this.navPerm.permissions$.subscribe(() => this.refreshNavModules());
     if (this.auth.isAuthenticated()) {
       this.navPerm.load().subscribe();
+    }
+  }
+
+  /** Side-nav es instancia aparte de AppComponent; hay que sincronizar user desde AuthService. */
+  private syncUserFromAuth(u: User | null): void {
+    if (u) {
+      this.user = u;
+      this.logged = true;
     }
   }
 

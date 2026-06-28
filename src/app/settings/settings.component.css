@@ -1,1 +1,40 @@
-/* Estilos de página: botones principales usan utilidades Tailwind (gradiente teal). */
+.settings-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(to right, #2dd4bf, #14b8a6, #0d9488);
+  box-shadow: 0 10px 15px -3px rgb(20 184 166 / 0.5);
+}
+
+.settings-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(to bottom right, #2dd4bf, #14b8a6, #0d9488);
+}
+
+.settings-btn-primary:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgb(153 246 228);
+}
+
+.dark .settings-btn-primary {
+  box-shadow: 0 10px 15px -3px rgb(17 94 89 / 0.8);
+}
+
+:host ::ng-deep .mat-mdc-tab-group {
+  --mat-tab-header-active-label-text-color: rgb(217 119 6);
+  --mat-tab-header-active-ripple-color: rgb(217 119 6);
+  --mat-tab-header-inactive-label-text-color: rgb(107 114 128);
+  --mat-tab-header-inactive-hover-label-text-color: rgb(55 65 81);
+  --mat-tab-header-active-focus-label-text-color: rgb(217 119 6);
+  --mat-tab-header-active-hover-label-text-color: rgb(217 119 6);
+  --mdc-tab-indicator-active-indicator-color: rgb(217 119 6);
+}
+
+.dark :host ::ng-deep .mat-mdc-tab-group {
+  --mat-tab-header-inactive-label-text-color: rgb(156 163 175);
+  --mat-tab-header-inactive-hover-label-text-color: rgb(229 231 235);
+}
+
+:host ::ng-deep .mat-mdc-tab .mdc-tab__text-label {
+  font-weight: 500;
+}

@@ -43,3 +43,8 @@ export interface AdminNavMatrix {
   roles: string[];
   permissions: Record<string, Record<string, { can_view: number; can_manage: number }>>;
 }
+
+/** Etiqueta UI desde el catálogo frontend (evita mojibake si la BD guardó UTF-8 mal). */
+export function navModuleLabelByKey(moduleKey: string, fallback = moduleKey): string {
+  return NAV_MODULE_DEFS.find((m) => m.key === moduleKey)?.label ?? fallback;
+}
