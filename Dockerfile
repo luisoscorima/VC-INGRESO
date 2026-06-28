@@ -10,7 +10,8 @@ RUN docker-php-ext-install pdo pdo_mysql mysqli
 RUN echo 'ServerName localhost' > /etc/apache2/conf-available/servername.conf \
     && a2enconf servername \
     && a2enmod rewrite \
-    && a2enmod headers
+    && a2enmod headers \
+    && a2enmod remoteip
 
 # PHP configuration
 RUN { \
@@ -36,6 +37,10 @@ RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/Allo
 # Copy backend source
 WORKDIR /var/www/html
 COPY server/ ./
+
+# Apache: IP real del cliente vía X-Forwarded-For (NPM / reverse proxy)
+COPY server/apache-remoteip.conf /etc/apache2/conf-available/remoteip.conf
+RUN a2enconf remoteip
 
 # Entrypoint: crea uploads/public/{vehicles,pets} y asigna permisos (para volumen en Docker)
 COPY server/docker-entrypoint.sh /usr/local/bin/

@@ -227,7 +227,8 @@ function auditLog($action, $userId = null, $details = null) {
         ]);
     } catch (\Throwable $e) {
         $timestamp = date('Y-m-d H:i:s');
-        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        require_once __DIR__ . '/helpers/client_ip.php';
+        $ip = getClientIpAddress() ?? 'unknown';
         $logEntry = [
             'timestamp' => $timestamp,
             'action' => $action,

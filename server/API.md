@@ -350,6 +350,8 @@ Tabla `event_logs` en MySQL. Las acciones de escritura relevantes (login, CRUD, 
 
 **UI:** pestaña *Registro de eventos* en **Configuración** (`/settings`), visible solo para administradores.
 
+**IP del cliente:** en Docker/producción la API está detrás de Nginx Proxy Manager. La IP se toma de `X-Forwarded-For` / `X-Real-IP` ([`server/helpers/client_ip.php`](helpers/client_ip.php)); Apache usa `mod_remoteip` con [`server/apache-remoteip.conf`](apache-remoteip.conf). Si todos los eventos muestran una IP `172.x.x.x`, el proxy no está reenviando la IP del cliente: en NPM, el proxy host hacia la API debe tener activado el reenvío de IP (por defecto suele estarlo). Tras el cambio, reconstruir la imagen `api` (`docker compose ... up -d --build`).
+
 **Migración en BD existente:**
 
 ```bash

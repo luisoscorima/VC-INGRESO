@@ -3,6 +3,8 @@
  * Registro persistente de eventos de auditoría (tabla event_logs).
  */
 
+require_once __DIR__ . '/client_ip.php';
+
 /** Claves sensibles que nunca deben persistirse en details_json. */
 const EVENT_LOG_SENSITIVE_KEYS = [
     'password',
@@ -107,10 +109,7 @@ function recordEventLog(\PDO $db, ?array $auth, string $action, array $opts): vo
             }
         }
 
-        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-        if (is_string($ip) && strlen($ip) > 45) {
-            $ip = substr($ip, 0, 45);
-        }
+        $ip = getClientIpAddress();
 
         $ua = $_SERVER['HTTP_USER_AGENT'] ?? null;
         if (is_string($ua) && strlen($ua) > 255) {
