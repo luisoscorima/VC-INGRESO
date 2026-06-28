@@ -9,6 +9,7 @@ import { environment } from '../../environments/environment';
 import { isStaffRoleSystemValue } from '../system-roles';
 import { AuthService } from '../auth.service';
 import { NavPermissionService } from '../nav-permission.service';
+import { ExpandableRowId, isExpandableRowOpen, toggleExpandableRow } from '../shared/expandable-row';
 
 @Component({
   selector: 'app-users',
@@ -62,6 +63,12 @@ export class UsersComponent implements OnInit, AfterViewInit{
   personsCurrentPage: number = 1;
   personsPageSize: number = 10;
   pageSizeOptions: number[] = [10, 25, 50, 100];
+
+  /** Fila expandida en móvil (tabla unificada) */
+  expandedUsersRowId: ExpandableRowId = null;
+  expandedPersonsRowId: ExpandableRowId = null;
+  readonly usersTableColspan = 9;
+  readonly personsTableColspan = 8;
 
   constructor(
     private usersService: UsersService,
@@ -247,42 +254,76 @@ export class UsersComponent implements OnInit, AfterViewInit{
 
   onUsersPageSizeChange(): void {
     this.usersCurrentPage = 1;
+    this.expandedUsersRowId = null;
   }
 
   onUsersFiltersChange(): void {
     this.usersCurrentPage = 1;
+    this.expandedUsersRowId = null;
   }
 
   previousUsersPage(): void {
     if (this.usersCurrentPage > 1) {
       this.usersCurrentPage -= 1;
+      this.expandedUsersRowId = null;
     }
   }
 
   nextUsersPage(): void {
     if (this.usersCurrentPage < this.usersTotalPages) {
       this.usersCurrentPage += 1;
+      this.expandedUsersRowId = null;
     }
   }
 
   onPersonsPageSizeChange(): void {
     this.personsCurrentPage = 1;
+    this.expandedPersonsRowId = null;
   }
 
   onPersonsFiltersChange(): void {
     this.personsCurrentPage = 1;
+    this.expandedPersonsRowId = null;
   }
 
   previousPersonsPage(): void {
     if (this.personsCurrentPage > 1) {
       this.personsCurrentPage -= 1;
+      this.expandedPersonsRowId = null;
     }
   }
 
   nextPersonsPage(): void {
     if (this.personsCurrentPage < this.personsTotalPages) {
       this.personsCurrentPage += 1;
+      this.expandedPersonsRowId = null;
     }
+  }
+
+  getUserRowId(u: User): string | number {
+    const id = Number((u as { user_id?: number }).user_id || 0);
+    return id > 0 ? id : u.doc_number;
+  }
+
+  getPersonRowId(p: { id?: number; doc_number?: string }): string | number {
+    const id = Number(p.id || 0);
+    return id > 0 ? id : (p.doc_number ?? '');
+  }
+
+  isUsersRowOpen(u: User): boolean {
+    return isExpandableRowOpen(this.expandedUsersRowId, this.getUserRowId(u));
+  }
+
+  toggleUsersRow(u: User): void {
+    this.expandedUsersRowId = toggleExpandableRow(this.expandedUsersRowId, this.getUserRowId(u));
+  }
+
+  isPersonsRowOpen(p: { id?: number; doc_number?: string }): boolean {
+    return isExpandableRowOpen(this.expandedPersonsRowId, this.getPersonRowId(p));
+  }
+
+  togglePersonsRow(p: { id?: number; doc_number?: string }): void {
+    this.expandedPersonsRowId = toggleExpandableRow(this.expandedPersonsRowId, this.getPersonRowId(p));
   }
 
   searchUser(doc_number: string){

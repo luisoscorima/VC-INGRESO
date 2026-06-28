@@ -6,6 +6,7 @@ import { initFlowbite } from 'flowbite';
 import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../auth.service';
 import { NavPermissionService } from '../nav-permission.service';
+import { ExpandableRowId, isExpandableRowOpen, toggleExpandableRow } from '../shared/expandable-row';
 
 @Component({
   selector: 'app-houses',
@@ -27,6 +28,9 @@ export class HousesComponent implements OnInit, AfterViewInit{
   currentPage: number = 1;
   pageSize: number = 10;
   pageSizeOptions: number[] = [10, 25, 50, 100];
+
+  expandedRowId: ExpandableRowId = null;
+  readonly tableColspan = 7;
 
   constructor(
     private entranceService: EntranceService,
@@ -168,10 +172,6 @@ export class HousesComponent implements OnInit, AfterViewInit{
     });
   }
 
-  onRegisteredFilterChange(): void {
-    this.currentPage = 1;
-  }
-
   get uniqueBlocks(): string[] {
     return [...new Set(this.houses.map(h => h.block_house.toString()))].sort();
   }
@@ -198,20 +198,40 @@ export class HousesComponent implements OnInit, AfterViewInit{
 
   onPageSizeChange(): void {
     this.currentPage = 1;
+    this.expandedRowId = null;
+  }
+
+  onRegisteredFilterChange(): void {
+    this.currentPage = 1;
+    this.expandedRowId = null;
   }
 
   previousPage(): void {
     if (this.currentPage > 1) {
       this.currentPage -= 1;
+      this.expandedRowId = null;
     }
   }
 
   nextPage(): void {
     if (this.currentPage < this.housesTotalPages) {
       this.currentPage += 1;
+      this.expandedRowId = null;
     }
   }
-  
+
+  getHouseRowId(h: House): string | number {
+    return h.house_id ?? `${h.block_house}-${h.lot}-${h.apartment ?? ''}`;
+  }
+
+  isRowOpen(h: House): boolean {
+    return isExpandableRowOpen(this.expandedRowId, this.getHouseRowId(h));
+  }
+
+  toggleRow(h: House): void {
+    this.expandedRowId = toggleExpandableRow(this.expandedRowId, this.getHouseRowId(h));
+  }
+
   clean(){
     this.houseToAdd = new House('',0,null,'',0);
     this.houseToEdit = new House('',0,null,'',0);

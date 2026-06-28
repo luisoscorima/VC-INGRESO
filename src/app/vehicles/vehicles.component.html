@@ -1,14 +1,14 @@
-<div *ngIf="true" class="p-4 dark:bg-gray-900">
-    <div class="vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
+<div *ngIf="true" class="vc-page">
+    <div class="vc-page-inner vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Vehiculos</h2>
             <p *ngIf="!showStaffExternalVehiclesTab" class="text-sm text-gray-600 dark:text-gray-400 mb-3">Las visitas temporales (taxi, delivery, etc.) las registra cada vecino en <strong>Mi casa</strong> → Visitas externas.</p>
         <div class="mb-4 border-b border-gray-200 dark:border-gray-700">
             <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="vehicles-default-tab" data-tabs-toggle="#vehicles-default-tab-content" role="tablist">
                 <li class="me-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg" id="vehicles-tab" data-tabs-target="#vehicles-vehicles" type="button" role="tab" aria-controls="vehicles-vehicles" aria-selected="false">Vehículos Residentes</button>
+                    <button class="inline-block px-3 py-2 sm:p-4 border-b-2 rounded-t-lg text-xs sm:text-sm" id="vehicles-tab" data-tabs-target="#vehicles-vehicles" type="button" role="tab" aria-controls="vehicles-vehicles" aria-selected="false">Vehículos Residentes</button>
                 </li>
                 <li *ngIf="showStaffExternalVehiclesTab" class="me-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg" id="vehicles-external-vehicles-tab" data-tabs-target="#vehicles-external-vehicles" type="button" role="tab" aria-controls="vehicles-external-vehicles" aria-selected="false">Visitas externas</button>
+                    <button class="inline-block px-3 py-2 sm:p-4 border-b-2 rounded-t-lg text-xs sm:text-sm hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="vehicles-external-vehicles-tab" data-tabs-target="#vehicles-external-vehicles" type="button" role="tab" aria-controls="vehicles-external-vehicles" aria-selected="false">Visitas externas</button>
                 </li>
             </ul>
         </div>
@@ -22,7 +22,7 @@
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Total vehiculos residentes: {{ vehicles.length }}</span>
                 </div>
         
-                <div class="mb-4 flex flex-col md:flex-row gap-2 md:items-center">
+                <div class="vc-filter-row">
                     <input [(ngModel)]="searchTerm" type="text" placeholder="Buscar por tipo o placa..." class="vc-input-search md:flex-1" />
                     <select [(ngModel)]="selectedBlock" class="vc-select-sm">
                         <option value="">Mz: Todas</option>
@@ -35,13 +35,14 @@
                 </div>
         
                 <div class="vc-table-wrap">
-                    <table class="vc-table text-left text-gray-600 dark:text-gray-300">
+                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
                         <thead>
                             <tr class="vc-thead-row">
+                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                                 <th scope="col" class="vc-th w-12"></th>
                                 <th scope="col" class="vc-th">Tipo</th>
-                                <th scope="col" class="vc-th">Placa</th>
-                                <th scope="col" class="vc-th">Domicilio</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Placa</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Domicilio</th>
                                 <th scope="col" class="vc-th">Estado</th>
                                 <th scope="col" class="vc-th text-right">
                                     Acciones
@@ -50,7 +51,20 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let v of paginatedVehicles" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+                            <ng-container *ngFor="let v of paginatedVehicles">
+                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                                [class.vc-row-summary--open]="isResidentRowOpen(v)"
+                                (click)="toggleResidentRow(v)"
+                                [attr.aria-expanded]="isResidentRowOpen(v)">
+                                <td class="vc-td vc-td-expand">
+                                    <button type="button" class="vc-row-toggle"
+                                        [attr.aria-label]="isResidentRowOpen(v) ? 'Ocultar detalle' : 'Ver detalle'"
+                                        (click)="toggleResidentRow(v); $event.stopPropagation()">
+                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isResidentRowOpen(v)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                </td>
                                 <td class="vc-td">
                                     <div *ngIf="v.photo_url" class="w-10 h-10 rounded-full overflow-hidden">
                                         <img [src]="getPhotoUrl(v.photo_url)" alt="Foto" class="w-full h-full object-cover">
@@ -59,33 +73,11 @@
                                         <mat-icon class="!text-lg !w-5 !h-5">{{ getVehicleIcon(v.type_vehicle) }}</mat-icon>
                                     </div>
                                 </td>
-                                <th scope="row" class="vc-td font-medium uppercase whitespace-nowrap">
-                                    {{v.type_vehicle}}
-                                </th>
-                                <td class="vc-td uppercase">{{ (v.license_plate || '').trim() ? v.license_plate : '—' }}</td>
-                                <td class="vc-td uppercase">{{ getHouseLocation(v) }}</td>
+                                <th scope="row" class="vc-td font-medium uppercase">{{v.type_vehicle}}</th>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{ (v.license_plate || '').trim() ? v.license_plate : '—' }}</td>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{ getHouseLocation(v) }}</td>
                                 <td class="vc-td uppercase">{{v.status_system}}</td>
-                                <!-- SWITCH ON OFF
-                                <td class="px-6 py-4">
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            class="sr-only peer"
-                                            [(ngModel)]="v.status_system"
-                                            [checked]="v.status_system === 'ACTIVO'"
-                                            (change)="toggleStatus(v)"
-                                        />
-                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 
-                                                    dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full 
-                                                    peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] 
-                                                    after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
-                                                    after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                        <span class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-                                            {{ v.status_system === 'ACTIVO' ? 'ACTIVO' : 'INACTIVO' }}
-                                        </span>
-                                    </label>
-                                </td>-->
-                                <td class="vc-td text-right">
+                                <td class="vc-td text-right" (click)="$event.stopPropagation()">
                                     <div class="inline-flex flex-wrap justify-end gap-1">
                                     <button *ngIf="v.photo_url" type="button" (click)="openViewPhoto(v)" class="vc-action-btn vc-action-btn--view" title="Ver foto" aria-label="Ver foto">
                                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -101,19 +93,28 @@
                                     </div>
                                 </td>
                             </tr>
+                            <tr class="vc-row-detail" *ngIf="isResidentRowOpen(v)">
+                                <td class="vc-row-detail-cell" [attr.colspan]="residentTableColspan">
+                                    <div class="vc-detail-list">
+                                        <div class="vc-detail-item"><span class="vc-detail-label">Placa</span><span class="vc-detail-value">{{ (v.license_plate || '').trim() ? v.license_plate : '—' }}</span></div>
+                                        <div class="vc-detail-item"><span class="vc-detail-label">Domicilio</span><span class="vc-detail-value">{{ getHouseLocation(v) || '—' }}</span></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            </ng-container>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <div class="flex items-center gap-2">
+                <div class="vc-pagination">
+                    <div class="vc-pagination-meta">
                         <span>Filas por pagina</span>
                         <select [(ngModel)]="residentPageSize" (ngModelChange)="onResidentPageSizeChange()" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                             <option *ngFor="let size of pageSizeOptions" [ngValue]="size">{{ size }}</option>
                         </select>
                         <span>Mostrando {{ filteredVehicles.length }} resultados</span>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="vc-pagination-nav">
                         <button type="button" (click)="previousResidentPage()" [disabled]="residentCurrentPage === 1" class="vc-btn-outline">Anterior</button>
                         <span>Pagina {{ residentCurrentPage }} de {{ vehiclesTotalPages }}</span>
                         <button type="button" (click)="nextResidentPage()" [disabled]="residentCurrentPage >= vehiclesTotalPages" class="vc-btn-outline">Siguiente</button>
@@ -135,14 +136,15 @@
                 </div>
 
                 <div class="vc-table-wrap">
-                    <table class="vc-table text-left text-gray-600 dark:text-gray-300">
+                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
                         <thead>
                             <tr class="vc-thead-row">
+                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                                 <th scope="col" class="vc-th w-12"></th>
                                 <th scope="col" class="vc-th">Categoría</th>
-                                <th scope="col" class="vc-th">Placa</th>
-                                <th scope="col" class="vc-th">Responsable</th>
-                                <th scope="col" class="vc-th">Celular</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Placa</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Responsable</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Celular</th>
                                 <th scope="col" class="vc-th">Estado</th>
                                 <th scope="col" class="vc-th text-right">
                                     Acciones
@@ -151,20 +153,31 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let ev of paginatedExternalVehicles" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+                            <ng-container *ngFor="let ev of paginatedExternalVehicles">
+                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                                [class.vc-row-summary--open]="isExternalRowOpen(ev)"
+                                (click)="toggleExternalRow(ev)"
+                                [attr.aria-expanded]="isExternalRowOpen(ev)">
+                                <td class="vc-td vc-td-expand">
+                                    <button type="button" class="vc-row-toggle"
+                                        [attr.aria-label]="isExternalRowOpen(ev) ? 'Ocultar detalle' : 'Ver detalle'"
+                                        (click)="toggleExternalRow(ev); $event.stopPropagation()">
+                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isExternalRowOpen(ev)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                </td>
                                 <td class="vc-td">
                                     <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300">
                                         <mat-icon class="!text-lg !w-5 !h-5">{{ getExternalVehicleIcon(ev.temp_visit_type) }}</mat-icon>
                                     </div>
                                 </td>
-                                <th scope="row" class="vc-td font-medium uppercase whitespace-nowrap">
-                                    {{ev.temp_visit_type}}
-                                </th>
-                                <td class="vc-td uppercase">{{ev.temp_visit_plate}}</td>
-                                <td class="vc-td uppercase">{{ev.temp_visit_name}}</td>
-                                <td class="vc-td uppercase">{{ev.temp_visit_cel}}</td>
+                                <th scope="row" class="vc-td font-medium uppercase">{{ev.temp_visit_type}}</th>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{ev.temp_visit_plate || '—'}}</td>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{ev.temp_visit_name || '—'}}</td>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{ev.temp_visit_cel || '—'}}</td>
                                 <td class="vc-td uppercase">{{ev.status_system}}</td>
-                                <td class="vc-td text-right">
+                                <td class="vc-td text-right" (click)="$event.stopPropagation()">
                                     <button *ngIf="canManageVehiclesCrud" type="button" (click)="editExternalVehicle(ev)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -172,19 +185,29 @@
                                     </button>
                                 </td>
                             </tr>
+                            <tr class="vc-row-detail" *ngIf="isExternalRowOpen(ev)">
+                                <td class="vc-row-detail-cell" [attr.colspan]="externalTableColspan">
+                                    <div class="vc-detail-list">
+                                        <div class="vc-detail-item"><span class="vc-detail-label">Placa</span><span class="vc-detail-value">{{ ev.temp_visit_plate || '—' }}</span></div>
+                                        <div class="vc-detail-item"><span class="vc-detail-label">Responsable</span><span class="vc-detail-value">{{ ev.temp_visit_name || '—' }}</span></div>
+                                        <div class="vc-detail-item"><span class="vc-detail-label">Celular</span><span class="vc-detail-value">{{ ev.temp_visit_cel || '—' }}</span></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            </ng-container>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
-                    <div class="flex items-center gap-2">
+                <div class="vc-pagination">
+                    <div class="vc-pagination-meta">
                         <span>Filas por pagina</span>
                         <select [(ngModel)]="externalPageSize" (ngModelChange)="onExternalPageSizeChange()" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                             <option *ngFor="let size of pageSizeOptions" [ngValue]="size">{{ size }}</option>
                         </select>
                         <span>Mostrando {{ filteredExternalVehicles.length }} resultados</span>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="vc-pagination-nav">
                         <button type="button" (click)="previousExternalPage()" [disabled]="externalCurrentPage === 1" class="vc-btn-outline">Anterior</button>
                         <span>Pagina {{ externalCurrentPage }} de {{ externalVehiclesTotalPages }}</span>
                         <button type="button" (click)="nextExternalPage()" [disabled]="externalCurrentPage >= externalVehiclesTotalPages" class="vc-btn-outline">Siguiente</button>
@@ -205,9 +228,9 @@
 
 <!-- Main modal new vehicle -->
 <div id="vehicles-new-vehicle-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -221,16 +244,16 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-type_vehicleNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de vehiculo</label>
-                    <select [(ngModel)]="vehicleToAdd.type_vehicle" (ngModelChange)="onNewVehicleTypeChange()" name="type_vehicleNew" id="vehicles-type_vehicleNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo ..." required>
+                    <select [(ngModel)]="vehicleToAdd.type_vehicle" (ngModelChange)="onNewVehicleTypeChange()" name="type_vehicleNew" id="vehicles-type_vehicleNew" class="vc-field w-full" placeholder="Tipo ..." required>
                         <option *ngFor="let t of types">{{t}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1" *ngIf="requiresVehiclePlateType(vehicleToAdd.type_vehicle)">
                     <label for="vehicles-license_plateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nº de placa <span class="text-red-600">*</span></label>
-                    <input [(ngModel)]="vehicleToAdd.license_plate" type="text" name="license_plateNew" id="vehicles-license_plateNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de placa..." />
+                    <input [(ngModel)]="vehicleToAdd.license_plate" type="text" name="license_plateNew" id="vehicles-license_plateNew" class="vc-field w-full" placeholder="Número de placa..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1" *ngIf="!requiresVehiclePlateType(vehicleToAdd.type_vehicle)">
                     <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nº de placa</label>
@@ -238,15 +261,15 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-brandNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Marca</label>
-                    <input [(ngModel)]="vehicleToAdd.brand" type="text" name="brandNew" id="vehicles-brandNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Marca..." />
+                    <input [(ngModel)]="vehicleToAdd.brand" type="text" name="brandNew" id="vehicles-brandNew" class="vc-field w-full" placeholder="Marca..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-modelNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Modelo</label>
-                    <input [(ngModel)]="vehicleToAdd.model" type="text" name="modelNew" id="vehicles-modelNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Modelo..." />
+                    <input [(ngModel)]="vehicleToAdd.model" type="text" name="modelNew" id="vehicles-modelNew" class="vc-field w-full" placeholder="Modelo..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-colorNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Color</label>
-                    <input [(ngModel)]="vehicleToAdd.color" type="text" name="colorNew" id="vehicles-colorNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Color..." />
+                    <input [(ngModel)]="vehicleToAdd.color" type="text" name="colorNew" id="vehicles-colorNew" class="vc-field w-full" placeholder="Color..." />
                 </div>
                 <div class="col-span-2 mb-2 mx-1">
                     <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto del vehículo <span *ngIf="requiresVehiclePhotoType(vehicleToAdd.type_vehicle)" class="text-red-600">*</span></label>
@@ -256,31 +279,31 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-houseIdNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio</label>
-                    <select [(ngModel)]="vehicleToAdd.house_id" name="houseIdNew" id="vehicles-houseIdNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Domicilio..." required>
+                    <select [(ngModel)]="vehicleToAdd.house_id" name="houseIdNew" id="vehicles-houseIdNew" class="vc-field w-full" placeholder="Domicilio..." required>
                         <option *ngFor="let h of houses" [ngValue]="h.house_id">Mz:{{h.block_house}} Lt:{{h.lot}} Dpt:{{h.apartment}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-category_entryNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-                    <select [(ngModel)]="vehicleToAdd.category_entry" name="category_entryNew" id="vehicles-category_entryNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." required>
+                    <select [(ngModel)]="vehicleToAdd.category_entry" name="category_entryNew" id="vehicles-category_entryNew" class="vc-field w-full" placeholder="Categoria..." required>
                         <option *ngFor="let c of categories">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-status_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <select [(ngModel)]="vehicleToAdd.status_validated" name="status_validatedNew" id="vehicles-status_validatedNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <select [(ngModel)]="vehicleToAdd.status_validated" name="status_validatedNew" id="vehicles-status_validatedNew" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-status_reasonNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="vehicleToAdd.status_reason" type="text" name="status_reasonNew" id="vehicles-status_reasonNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="vehicleToAdd.status_reason" type="text" name="status_reasonNew" id="vehicles-status_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveNewVehicle()" data-modal-hide="vehicles-new-vehicle-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="vehicles-new-vehicle-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveNewVehicle()" data-modal-hide="vehicles-new-vehicle-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="vehicles-new-vehicle-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -294,9 +317,9 @@
 
 <!-- Main modal edit vehicle -->
 <div id="vehicles-edit-vehicle-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -310,10 +333,10 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-typeEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de vehiculo</label>
-                    <select [(ngModel)]="vehicleToEdit.type_vehicle" (ngModelChange)="onEditVehicleTypeChange()" name="typeEdit" id="vehicles-typeEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo de vehiculo..." required>
+                    <select [(ngModel)]="vehicleToEdit.type_vehicle" (ngModelChange)="onEditVehicleTypeChange()" name="typeEdit" id="vehicles-typeEdit" class="vc-field w-full" placeholder="Tipo de vehiculo..." required>
                         <option *ngFor="let t of types">{{t}}</option>
                     </select>
                 </div>
@@ -327,31 +350,31 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-brandEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Marca</label>
-                    <input [(ngModel)]="vehicleToEdit.brand" type="text" name="brandEdit" id="vehicles-brandEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Marca..." />
+                    <input [(ngModel)]="vehicleToEdit.brand" type="text" name="brandEdit" id="vehicles-brandEdit" class="vc-field w-full" placeholder="Marca..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-modelEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Modelo</label>
-                    <input [(ngModel)]="vehicleToEdit.model" type="text" name="modelEdit" id="vehicles-modelEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Modelo..." />
+                    <input [(ngModel)]="vehicleToEdit.model" type="text" name="modelEdit" id="vehicles-modelEdit" class="vc-field w-full" placeholder="Modelo..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-colorEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Color</label>
-                    <input [(ngModel)]="vehicleToEdit.color" type="text" name="colorEdit" id="vehicles-colorEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Color..." />
+                    <input [(ngModel)]="vehicleToEdit.color" type="text" name="colorEdit" id="vehicles-colorEdit" class="vc-field w-full" placeholder="Color..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-houseIdEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio</label>
-                    <select [(ngModel)]="vehicleToEdit.house_id" name="houseIdEdit" id="vehicles-houseIdEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Domicilio..." required>
+                    <select [(ngModel)]="vehicleToEdit.house_id" name="houseIdEdit" id="vehicles-houseIdEdit" class="vc-field w-full" placeholder="Domicilio..." required>
                         <option *ngFor="let h of houses" [ngValue]="h.house_id">Mz:{{h.block_house}} Lt:{{h.lot}} Dpt:{{h.apartment}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-category_entryEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-                    <select [(ngModel)]="vehicleToEdit.category_entry" name="category_entryEdit" id="vehicles-category_entryEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." required>
+                    <select [(ngModel)]="vehicleToEdit.category_entry" name="category_entryEdit" id="vehicles-category_entryEdit" class="vc-field w-full" placeholder="Categoria..." required>
                         <option *ngFor="let c of categories">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-status_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <select [(ngModel)]="vehicleToEdit.status_validated" name="status_validatedEdit" id="vehicles-status_validatedEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <select [(ngModel)]="vehicleToEdit.status_validated" name="status_validatedEdit" id="vehicles-status_validatedEdit" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status">{{s}}</option>
                     </select>
                 </div>
@@ -361,9 +384,9 @@
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveEditVehicle()" data-modal-hide="vehicles-edit-vehicle-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="vehicles-edit-vehicle-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveEditVehicle()" data-modal-hide="vehicles-edit-vehicle-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="vehicles-edit-vehicle-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -380,9 +403,9 @@
 
 <!-- Main modal new external vehicle -->
 <div id="vehicles-new-external-vehicle-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -396,45 +419,45 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-type_externalVehicleNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría</label>
-                    <select [(ngModel)]="externalVehicleToAdd.temp_visit_type" name="type_ExternalVehicleNew" id="vehicles-type_ExternalvehicleNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo de vehiculo..." required>
+                    <select [(ngModel)]="externalVehicleToAdd.temp_visit_type" name="type_ExternalVehicleNew" id="vehicles-type_ExternalvehicleNew" class="vc-field w-full" placeholder="Tipo de vehiculo..." required>
                         <option *ngFor="let t of temp_visit_type">{{t}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-external_license_plateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_plate" type="text" name="external_license_plateNew" id="vehicles-external_license_plateNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de placa..." required />
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_plate" type="text" name="external_license_plateNew" id="vehicles-external_license_plateNew" class="vc-field w-full" placeholder="Número de placa..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc. Responsable</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" type="text" name="externalDocNew" id="vehicles-externalDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Documento de identidad..." required/>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" type="text" name="externalDocNew" id="vehicles-externalDocNew" class="vc-field w-full" placeholder="Documento de identidad..." required/>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalNameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Responsable</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_name" type="text" name="externalNameNew" id="vehicles-externalNameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Datos del responsable..." required/>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_name" type="text" name="externalNameNew" id="vehicles-externalNameNew" class="vc-field w-full" placeholder="Datos del responsable..." required/>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalCelNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_cel" type="text" name="externalCelNew" id="vehicles-externalCelNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_cel" type="text" name="externalCelNew" id="vehicles-externalCelNew" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalStatus_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <!-- <input [(ngModel)]="userToAdd.entrance_role" type="text" name="entranceRoleNew" id="vehicles-entranceRoleNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Rol..." required /> -->
-                    <select [(ngModel)]="externalVehicleToAdd.status_validated" name="externalStatus_validatedNew" id="vehicles-externalStatus_validatedNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <!-- <input [(ngModel)]="userToAdd.entrance_role" type="text" name="entranceRoleNew" id="vehicles-entranceRoleNew" class="vc-field w-full" placeholder="Rol..." required /> -->
+                    <select [(ngModel)]="externalVehicleToAdd.status_validated" name="externalStatus_validatedNew" id="vehicles-externalStatus_validatedNew" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalStatus_reasonNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="vehicles-externalStatus_reasonNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="vehicles-externalStatus_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveNewExternalVehicle()" data-modal-hide="vehicles-new-external-vehicle-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="vehicles-new-external-vehicle-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveNewExternalVehicle()" data-modal-hide="vehicles-new-external-vehicle-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="vehicles-new-external-vehicle-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -448,9 +471,9 @@
 
 <!-- Main modal edit vehicle -->
 <div id="vehicles-edit-external-vehicle-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -464,45 +487,45 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-type_externalVehicleEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría</label>
-                    <select [(ngModel)]="externalVehicleToEdit.temp_visit_type" name="type_ExternalVehicleEdit" id="vehicles-type_ExternalvehicleEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo de vehiculo..." required>
+                    <select [(ngModel)]="externalVehicleToEdit.temp_visit_type" name="type_ExternalVehicleEdit" id="vehicles-type_ExternalvehicleEdit" class="vc-field w-full" placeholder="Tipo de vehiculo..." required>
                         <option *ngFor="let t of temp_visit_type">{{t}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-external_license_plateEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_plate" type="text" name="external_license_plateEdit" id="vehicles-external_license_plateEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de placa..." required />
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_plate" type="text" name="external_license_plateEdit" id="vehicles-external_license_plateEdit" class="vc-field w-full" placeholder="Número de placa..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc. Responsable</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="vehicles-externalDocEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Documento de identidad..." required/>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="vehicles-externalDocEdit" class="vc-field w-full" placeholder="Documento de identidad..." required/>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalNameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Responsable</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_name" type="text" name="externalNameEdit" id="vehicles-externalNameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Datos del responsable..." required/>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_name" type="text" name="externalNameEdit" id="vehicles-externalNameEdit" class="vc-field w-full" placeholder="Datos del responsable..." required/>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalCelEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_cel" type="text" name="externalCelEdit" id="vehicles-externalCelEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_cel" type="text" name="externalCelEdit" id="vehicles-externalCelEdit" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalStatus_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <!-- <input [(ngModel)]="userToEdit.entrance_role" type="text" name="entranceRoleEdit" id="vehicles-entranceRoleEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Rol..." required /> -->
-                    <select [(ngModel)]="externalVehicleToEdit.status_validated" name="externalStatus_validatedEdit" id="vehicles-externalStatus_validatedEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <!-- <input [(ngModel)]="userToEdit.entrance_role" type="text" name="entranceRoleEdit" id="vehicles-entranceRoleEdit" class="vc-field w-full" placeholder="Rol..." required /> -->
+                    <select [(ngModel)]="externalVehicleToEdit.status_validated" name="externalStatus_validatedEdit" id="vehicles-externalStatus_validatedEdit" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="vehicles-externalStatus_reasonEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="vehicles-externalStatus_reasonEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="vehicles-externalStatus_reasonEdit" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveEditExternalVehicle()" data-modal-hide="vehicles-edit-external-vehicle-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="vehicles-edit-external-vehicle-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveEditExternalVehicle()" data-modal-hide="vehicles-edit-external-vehicle-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="vehicles-edit-external-vehicle-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>

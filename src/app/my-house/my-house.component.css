@@ -61,6 +61,21 @@
   font-size: 20px;
 }
 
+/* Tablas Mi Casa: padding más compacto en móvil */
+#myhouse-default-tab-content .vc-table-wrap th,
+#myhouse-default-tab-content .vc-table-wrap td {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  #myhouse-default-tab-content .vc-table-wrap th,
+  #myhouse-default-tab-content .vc-table-wrap td {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
 /* Espacio entre iconos de acción en tablas (ver / QR / editar / subir foto) */
 .myhouse-actions-cell {
   display: flex;

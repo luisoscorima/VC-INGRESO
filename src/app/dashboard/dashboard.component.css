@@ -50,10 +50,6 @@
   color: white;
 }
 
-.nombre, .direccion{
-  min-width: 500px;
-}
-
 .e, .j{
   width: 200px;
 }
@@ -88,10 +84,4 @@ mat-grid-list {
   margin-right: 20px;
   min-width: 400px;
   min-height: 150px;
-}
-
-.container{
-  min-width: 600px;
-  min-height: 220px;
-
 }

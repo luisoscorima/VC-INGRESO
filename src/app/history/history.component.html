@@ -1,5 +1,5 @@
-<div class="history-page p-4 pb-8 dark:bg-gray-900">
-    <div class="relative mx-auto mt-2 max-w-[1400px] vc-card bg-white dark:bg-gray-900/50 p-4 sm:p-6">
+<div class="vc-page">
+    <div class="relative vc-page-inner vc-card bg-white dark:bg-gray-900/50 p-4 sm:p-6">
     <div
       *ngIf="loading"
       class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-white/80 dark:bg-gray-900/80">
@@ -22,13 +22,13 @@
       Por defecto se muestran <strong>todos</strong> los registros (accesos normales y temporales) en <strong>todos</strong> los puntos.
     </p>
 
-    <div class="mb-4 flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
+    <div class="mb-4 vc-filter-row lg:flex-wrap lg:items-end">
       <div class="min-w-[200px] flex-1">
         <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Filtrar por punto (opcional)</label>
         <select
           [(ngModel)]="access_point"
           (ngModelChange)="onAccessPointChange()"
-          class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-teal-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-teal-500 dark:focus:ring-teal-500">
+          class="vc-select-sm w-full">
           <option [ngValue]="null">Todos los puntos</option>
           <option *ngFor="let p of accessPointOptions" [ngValue]="p.id">{{ p.label | uppercase }}</option>
         </select>
@@ -41,7 +41,7 @@
             type="date"
             [ngModel]="fechaInicialInput"
             (ngModelChange)="onFechaInicialInput($event)"
-            class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-teal-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-teal-500 dark:focus:ring-teal-500" />
+            class="vc-field w-full" />
         </div>
         <div class="min-w-[140px] flex-1">
           <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Hasta</label>
@@ -49,12 +49,12 @@
             type="date"
             [ngModel]="fechaFinalInput"
             (ngModelChange)="onFechaFinalInput($event)"
-            class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-teal-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-teal-500 dark:focus:ring-teal-500" />
+            class="vc-field w-full" />
         </div>
       </div>
     </div>
 
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+    <div class="mb-4 vc-filter-row sm:items-end">
       <div class="w-full flex-1 sm:min-w-[240px]">
         <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Buscar en tabla</label>
         <input
@@ -62,7 +62,7 @@
           [ngModel]="filterQuery"
           (ngModelChange)="onFilterInput($event)"
           placeholder="Documento, nombre, domicilio, punto de acceso…"
-          class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-teal-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-teal-500 dark:focus:ring-teal-500" />
+          class="vc-input-search w-full" />
       </div>
       <button
         type="button"
@@ -74,58 +74,72 @@
     </div>
 
     <div class="vc-table-wrap">
-      <table class="vc-table text-left text-gray-600 dark:text-gray-300">
+      <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
         <thead>
           <tr class="vc-thead-row">
+            <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('type')">
               Tipo {{ sortIndicator('type') }}
             </th>
-            <th *ngIf="showDocColumn" scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('doc_number')">
+            <th *ngIf="showDocColumn" scope="col" class="vc-th vc-th-data-secondary cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('doc_number')">
               Documento {{ sortIndicator('doc_number') }}
             </th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('name')">
               Datos {{ sortIndicator('name') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('house_address')">
+            <th scope="col" class="vc-th vc-th-data-secondary cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('house_address')">
               Domicilio {{ sortIndicator('house_address') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('access_point_name')">
+            <th scope="col" class="vc-th vc-th-data-secondary cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('access_point_name')">
               Punto de acceso {{ sortIndicator('access_point_name') }}
             </th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('date_entry')">
               Ingreso {{ sortIndicator('date_entry') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('date_exit')">
+            <th scope="col" class="vc-th vc-th-data-secondary cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('date_exit')">
               Salida {{ sortIndicator('date_exit') }}
             </th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('obs')">
               Resultado {{ sortIndicator('obs') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('operator')">
+            <th scope="col" class="vc-th vc-th-data-secondary cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('operator')">
               Operario {{ sortIndicator('operator') }}
             </th>
-            <th scope="col" class="vc-th"></th>
+            <th scope="col" class="vc-th vc-th-data-secondary"></th>
             <th scope="col" class="vc-th">Detalle</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let a of pagedRows" class="vc-tbody-row border-b bg-white dark:bg-gray-900/40">
+          <ng-container *ngFor="let a of pagedRows">
+          <tr class="vc-tbody-row vc-row-summary border-b bg-white dark:bg-gray-900/40"
+              [class.vc-row-summary--open]="isHistoryRowOpen(a)"
+              (click)="toggleHistoryRow(a)"
+              [attr.aria-expanded]="isHistoryRowOpen(a)">
+            <td class="vc-td vc-td-expand">
+              <button type="button" class="vc-row-toggle"
+                  [attr.aria-label]="isHistoryRowOpen(a) ? 'Ocultar detalle' : 'Ver detalle'"
+                  (click)="toggleHistoryRow(a); $event.stopPropagation()">
+                <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isHistoryRowOpen(a)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </button>
+            </td>
             <td class="vc-td">
               <mat-icon *ngIf="a.type == 'VEHÍCULO'" class="text-slate-600 dark:text-slate-300">directions_car</mat-icon>
               <mat-icon *ngIf="a.type != 'VEHÍCULO'" class="text-slate-600 dark:text-slate-300">person</mat-icon>
             </td>
-            <th *ngIf="showDocColumn" scope="row" class="vc-td whitespace-nowrap font-medium">{{ a.doc_number }}</th>
+            <th *ngIf="showDocColumn" scope="row" class="vc-td vc-td-data-secondary whitespace-nowrap font-medium">{{ a.doc_number }}</th>
             <td class="vc-td">{{ a.name }}</td>
-            <td class="vc-td">{{ a.house_address }}</td>
-            <td class="vc-td max-w-[200px] truncate" [title]="a.access_point_name || ''">{{ a.access_point_name || '—' }}</td>
+            <td class="vc-td vc-td-data-secondary">{{ a.house_address }}</td>
+            <td class="vc-td vc-td-data-secondary max-w-[200px] truncate" [title]="a.access_point_name || ''">{{ a.access_point_name || '—' }}</td>
             <td class="vc-td whitespace-nowrap">{{ a.date_entry | date : 'dd/MM/yyyy HH:mm' }}</td>
-            <td class="vc-td whitespace-nowrap">
+            <td class="vc-td vc-td-data-secondary whitespace-nowrap">
               <ng-container *ngIf="a.date_exit; else noExit">{{ a.date_exit | date : 'dd/MM/yyyy HH:mm' }}</ng-container>
               <ng-template #noExit>—</ng-template>
             </td>
             <td class="vc-td">{{ a.obs | uppercase }}</td>
-            <td class="vc-td">{{ a.operator }}</td>
-            <td class="vc-td">
+            <td class="vc-td vc-td-data-secondary">{{ a.operator }}</td>
+            <td class="vc-td vc-td-data-secondary">
               <mat-icon
                 *ngIf="a.obs == 'PERMITIDO' || a.obs == 'permitido'"
                 class="text-green-700 dark:text-green-400">
@@ -138,7 +152,7 @@
                 warning
               </mat-icon>
             </td>
-            <td class="vc-td text-right">
+            <td class="vc-td text-right" (click)="$event.stopPropagation()">
               <button
                 *ngIf="canOpenDayDetail(a)"
                 type="button"
@@ -158,8 +172,38 @@
               </button>
             </td>
           </tr>
+          <tr class="vc-row-detail" *ngIf="isHistoryRowOpen(a)">
+            <td class="vc-row-detail-cell" [attr.colspan]="historyTableColspan">
+              <div class="vc-detail-list">
+                <div *ngIf="showDocColumn" class="vc-detail-item">
+                  <span class="vc-detail-label">Documento</span>
+                  <span class="vc-detail-value">{{ a.doc_number || '—' }}</span>
+                </div>
+                <div class="vc-detail-item">
+                  <span class="vc-detail-label">Domicilio</span>
+                  <span class="vc-detail-value">{{ a.house_address || '—' }}</span>
+                </div>
+                <div class="vc-detail-item">
+                  <span class="vc-detail-label">Punto de acceso</span>
+                  <span class="vc-detail-value">{{ a.access_point_name || '—' }}</span>
+                </div>
+                <div class="vc-detail-item">
+                  <span class="vc-detail-label">Salida</span>
+                  <span class="vc-detail-value">
+                    <ng-container *ngIf="a.date_exit; else noExitDetail">{{ a.date_exit | date : 'dd/MM/yyyy HH:mm' }}</ng-container>
+                    <ng-template #noExitDetail>—</ng-template>
+                  </span>
+                </div>
+                <div class="vc-detail-item">
+                  <span class="vc-detail-label">Operario</span>
+                  <span class="vc-detail-value">{{ a.operator || '—' }}</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+          </ng-container>
           <tr *ngIf="!pagedRows.length">
-            <td colspan="11" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+            <td [attr.colspan]="historyTableColspan" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
               <ng-container *ngIf="filterQuery.trim(); else emptyState">
                 No hay filas que coincidan con «{{ filterQuery }}».
               </ng-container>

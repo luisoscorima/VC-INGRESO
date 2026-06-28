@@ -2,7 +2,7 @@
 
 <app-side-nav *ngIf=logged></app-side-nav>
 
-<main [ngClass]="logged ? 'pt-14 sm:ml-64 min-h-screen bg-gray-50 dark:bg-gray-900' : 'min-h-screen'" aria-label="Contenido principal">
+<main [ngClass]="logged ? 'pt-14 sm:ml-64 min-h-screen min-w-0 max-w-full overflow-x-hidden bg-gray-50 dark:bg-gray-900' : 'min-h-screen min-w-0 max-w-full overflow-x-hidden'" aria-label="Contenido principal">
   <router-outlet></router-outlet>
 </main>
 

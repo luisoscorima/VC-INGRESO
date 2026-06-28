@@ -1,5 +1,5 @@
-<div class="p-4 dark:bg-gray-900">
-  <div class="vc-card bg-white dark:bg-gray-800/90 sm:p-6 p-4">
+<div class="vc-page">
+  <div class="vc-page-inner vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Puntos de acceso</h2>
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
       Tipos: entrada, área común o área limitada. Marque si controla aforo (personas dentro) y si admite reservas en el módulo.
@@ -24,17 +24,18 @@
     </div>
 
     <div class="vc-table-wrap">
-      <table class="vc-table text-gray-600 dark:text-gray-300">
+      <table class="vc-table vc-table--expandable text-gray-600 dark:text-gray-300">
         <thead>
           <tr class="vc-thead-row">
+            <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
             <th scope="col" class="vc-th">Nombre</th>
             <th scope="col" class="vc-th">Tipo</th>
-            <th scope="col" class="vc-th hidden sm:table-cell">Ubicación</th>
-            <th scope="col" class="vc-th hidden lg:table-cell">Reserva</th>
+            <th scope="col" class="vc-th vc-th-data-secondary">Ubicación</th>
+            <th scope="col" class="vc-th vc-th-data-secondary">Reserva</th>
             <th scope="col" class="vc-th">Estado</th>
-            <th scope="col" class="vc-th hidden md:table-cell">Aforo</th>
-            <th scope="col" class="vc-th hidden md:table-cell">Aforo máx.</th>
-            <th scope="col" class="vc-th hidden lg:table-cell">Ocupación</th>
+            <th scope="col" class="vc-th vc-th-data-secondary">Aforo</th>
+            <th scope="col" class="vc-th vc-th-data-secondary">Aforo máx.</th>
+            <th scope="col" class="vc-th vc-th-data-secondary">Ocupación</th>
             <th scope="col" class="vc-th text-right">
               Acciones
               <span class="sr-only">Editar</span>
@@ -42,40 +43,54 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let p of paginatedPoints" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+          <ng-container *ngFor="let p of paginatedPoints">
+          <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+              [class.vc-row-summary--open]="isRowOpen(p)"
+              (click)="toggleRow(p)"
+              [attr.aria-expanded]="isRowOpen(p)">
+            <td class="vc-td vc-td-expand">
+              <button type="button" class="vc-row-toggle"
+                [attr.aria-label]="isRowOpen(p) ? 'Ocultar detalle' : 'Ver detalle'"
+                (click)="toggleRow(p); $event.stopPropagation()">
+                <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isRowOpen(p)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </button>
+            </td>
             <th scope="row" class="vc-td font-medium">{{ p.name }}</th>
             <td class="vc-td">{{ typeLabel(p.type) }}</td>
-            <td class="vc-td hidden sm:table-cell">{{ p.location || '—' }}</td>
-            <td class="vc-td hidden lg:table-cell">{{ siNo(p.permite_reserva) }}</td>
+            <td class="vc-td vc-td-data-secondary">{{ p.location || '—' }}</td>
+            <td class="vc-td vc-td-data-secondary">{{ siNo(p.permite_reserva) }}</td>
             <td class="vc-td">{{ isActiveLabel(p.is_active) }}</td>
-            <td class="vc-td hidden md:table-cell">{{ siNo(p.controla_aforo) }}</td>
-            <td class="vc-td hidden md:table-cell">{{ p.max_capacity ?? '—' }}</td>
-            <td class="vc-td hidden lg:table-cell">{{ p.current_capacity ?? '—' }}</td>
-            <td class="vc-td text-right">
-              <button
-                type="button"
-                (click)="editPoint(p)"
-                class="vc-action-btn vc-action-btn--edit"
-                title="Editar"
-                aria-label="Editar"
-              >
+            <td class="vc-td vc-td-data-secondary">{{ siNo(p.controla_aforo) }}</td>
+            <td class="vc-td vc-td-data-secondary">{{ p.max_capacity ?? '—' }}</td>
+            <td class="vc-td vc-td-data-secondary">{{ p.current_capacity ?? '—' }}</td>
+            <td class="vc-td text-right" (click)="$event.stopPropagation()">
+              <button type="button" (click)="editPoint(p)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
             </td>
           </tr>
+          <tr class="vc-row-detail" *ngIf="isRowOpen(p)">
+            <td class="vc-row-detail-cell" [attr.colspan]="tableColspan">
+              <div class="vc-detail-list">
+                <div class="vc-detail-item"><span class="vc-detail-label">Ubicación</span><span class="vc-detail-value">{{ p.location || '—' }}</span></div>
+                <div class="vc-detail-item"><span class="vc-detail-label">Permite reservas</span><span class="vc-detail-value">{{ siNo(p.permite_reserva) }}</span></div>
+                <div class="vc-detail-item"><span class="vc-detail-label">Controla aforo</span><span class="vc-detail-value">{{ siNo(p.controla_aforo) }}</span></div>
+                <div class="vc-detail-item"><span class="vc-detail-label">Aforo máximo</span><span class="vc-detail-value">{{ p.max_capacity ?? '—' }}</span></div>
+                <div class="vc-detail-item"><span class="vc-detail-label">Ocupación actual</span><span class="vc-detail-value">{{ p.current_capacity ?? '—' }}</span></div>
+              </div>
+            </td>
+          </tr>
+          </ng-container>
         </tbody>
       </table>
     </div>
 
-    <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
-      <div class="flex items-center gap-2">
+    <div class="vc-pagination">
+      <div class="vc-pagination-meta">
         <span>Filas por pagina</span>
         <select
           [(ngModel)]="pageSize"
@@ -86,7 +101,7 @@
         </select>
         <span>Mostrando {{ filteredPoints.length }} resultados</span>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="vc-pagination-nav">
         <button type="button" (click)="previousPage()" [disabled]="currentPage === 1" class="vc-btn-outline">
           Anterior
         </button>
@@ -117,8 +132,8 @@
   aria-hidden="true"
   class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full"
 >
-  <div class="relative p-4 w-full max-w-lg max-h-full">
-    <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+  <div class="vc-modal-panel">
+    <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
       <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Nuevo punto de acceso</h3>
         <button
@@ -145,7 +160,7 @@
             id="ap-new-name"
             [(ngModel)]="pointToAdd.name"
             type="text"
-            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+            class="vc-field w-full"
             placeholder="Ej. Garita principal"
           />
         </div>
@@ -154,7 +169,7 @@
           <select
             id="ap-new-type"
             [(ngModel)]="pointToAdd.type"
-            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            class="vc-field w-full"
           >
             <option *ngFor="let t of types" [ngValue]="t">{{ t }}</option>
           </select>
@@ -214,19 +229,19 @@
           <label for="ap-new-active" class="text-sm text-gray-900 dark:text-white">Activo</label>
         </div>
       </div>
-      <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
+      <div class="vc-modal-footer">
         <button
           (click)="saveNewPoint()"
           data-modal-hide="access-points-new-modal"
           type="button"
-          class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-blue-600 dark:hover:bg-blue-700"
+          class="vc-btn-primary"
         >
           Guardar
         </button>
         <button
           data-modal-hide="access-points-new-modal"
           type="button"
-          class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 bg-white rounded-lg border border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700"
+          class="vc-btn-cancel"
         >
           Cancelar
         </button>
@@ -253,8 +268,8 @@
   aria-hidden="true"
   class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full"
 >
-  <div class="relative p-4 w-full max-w-lg max-h-full">
-    <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+  <div class="vc-modal-panel">
+    <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
       <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Editar punto de acceso</h3>
         <button
@@ -293,7 +308,7 @@
           <select
             id="ap-edit-type"
             [(ngModel)]="pointToEdit.type"
-            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+            class="vc-field w-full"
           >
             <option *ngFor="let t of types" [ngValue]="t">{{ t }}</option>
           </select>
@@ -359,19 +374,19 @@
           <label for="ap-edit-active" class="text-sm text-gray-900 dark:text-white">Activo</label>
         </div>
       </div>
-      <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
+      <div class="vc-modal-footer">
         <button
           (click)="saveEditPoint()"
           data-modal-hide="access-points-edit-modal"
           type="button"
-          class="text-white bg-blue-700 hover:bg-blue-800 font-medium rounded-lg text-sm px-5 py-2.5 dark:bg-blue-600 dark:hover:bg-blue-700"
+          class="vc-btn-primary"
         >
           Guardar cambios
         </button>
         <button
           data-modal-hide="access-points-edit-modal"
           type="button"
-          class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 bg-white rounded-lg border border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700"
+          class="vc-btn-cancel"
         >
           Cancelar
         </button>

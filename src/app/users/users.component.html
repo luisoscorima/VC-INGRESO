@@ -1,5 +1,5 @@
-<div class="p-4 dark:bg-gray-900">
-    <div class="vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
+<div class="vc-page">
+    <div class="vc-page-inner vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
 
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Usuarios / Personas</h2>
 
@@ -22,7 +22,7 @@
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Total usuarios: {{ users.length }}</span>
         </div>
 
-        <div class="mb-4 flex flex-col md:flex-row gap-2 md:items-center">
+        <div class="vc-filter-row">
             <input [(ngModel)]="searchTerm" (ngModelChange)="onUsersFiltersChange()" type="text" placeholder="Buscar por nombre, usuario o celular..." class="vc-input-search md:flex-1" />
             <select [(ngModel)]="selectedBlock" (ngModelChange)="onUsersFiltersChange()" class="vc-select-sm">
                 <option value="">Mz: Todas</option>
@@ -39,16 +39,17 @@
         </div>
 
         <div class="vc-table-wrap">
-            <table class="vc-table text-left text-gray-600 dark:text-gray-300">
+            <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
                 <thead>
                     <tr class="vc-thead-row">
-                        <th scope="col" class="vc-th w-12"></th>
+                        <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
+                        <th scope="col" class="vc-th w-12">Foto</th>
                         <th scope="col" class="vc-th">Nombre</th>
-                        <th scope="col" class="vc-th">Usuario</th>
-                        <th scope="col" class="vc-th">Domicilio</th>
-                        <th scope="col" class="vc-th">Categoría</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary">Usuario</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary">Domicilio</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary">Categoría</th>
                         <th scope="col" class="vc-th">Estado</th>
-                        <th scope="col" class="vc-th">Número</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary">Número</th>
                         <th scope="col" class="vc-th text-right">
                             Acciones
                             <span class="sr-only">Editar</span>
@@ -56,7 +57,20 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let u of paginatedUsers" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+                    <ng-container *ngFor="let u of paginatedUsers">
+                    <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                        [class.vc-row-summary--open]="isUsersRowOpen(u)"
+                        (click)="toggleUsersRow(u)"
+                        [attr.aria-expanded]="isUsersRowOpen(u)">
+                        <td class="vc-td vc-td-expand">
+                            <button type="button" class="vc-row-toggle"
+                                [attr.aria-label]="isUsersRowOpen(u) ? 'Ocultar detalle' : 'Ver detalle'"
+                                (click)="toggleUsersRow(u); $event.stopPropagation()">
+                                <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isUsersRowOpen(u)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </td>
                         <td class="vc-td">
                             <div *ngIf="u.photo_url" class="w-10 h-10 rounded-full overflow-hidden">
                                 <img [src]="getPhotoUrl(u.photo_url)" alt="Foto" class="w-full h-full object-cover">
@@ -65,15 +79,15 @@
                                 <mat-icon class="!text-lg !w-5 !h-5">person</mat-icon>
                             </div>
                         </td>
-                        <th scope="row" class="vc-td font-medium whitespace-nowrap">
+                        <th scope="row" class="vc-td font-medium">
                             {{ (u.paternal_surname+' '+u.maternal_surname+' '+u.first_name).toUpperCase() }}
                         </th>
-                        <td class="vc-td">{{u.username_system.toUpperCase()}}</td>
-                        <td class="vc-td">{{ getHouseLocation(u) }}</td>
-                        <td class="vc-td">{{ listCategoryLabel(u) }}</td>
+                        <td class="vc-td vc-td-data-secondary">{{u.username_system.toUpperCase()}}</td>
+                        <td class="vc-td vc-td-data-secondary">{{ getHouseLocation(u) }}</td>
+                        <td class="vc-td vc-td-data-secondary">{{ listCategoryLabel(u) }}</td>
                         <td class="vc-td">{{ (u.status_system || 'ACTIVO').toUpperCase() }}</td>
-                        <td class="vc-td">{{u.cel_number || '-'}}</td>
-                        <td class="vc-td text-right">
+                        <td class="vc-td vc-td-data-secondary">{{u.cel_number || '-'}}</td>
+                        <td class="vc-td text-right" (click)="$event.stopPropagation()">
                             <button *ngIf="canManageUsers" type="button" (click)="editUser(u)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -81,19 +95,42 @@
                             </button>
                         </td>
                     </tr>
+                    <tr class="vc-row-detail" *ngIf="isUsersRowOpen(u)">
+                        <td class="vc-row-detail-cell" [attr.colspan]="usersTableColspan">
+                            <div class="vc-detail-list">
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Usuario</span>
+                                    <span class="vc-detail-value">{{ u.username_system?.toUpperCase() || '—' }}</span>
+                                </div>
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Domicilio</span>
+                                    <span class="vc-detail-value">{{ getHouseLocation(u) || '—' }}</span>
+                                </div>
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Categoría</span>
+                                    <span class="vc-detail-value">{{ listCategoryLabel(u) || '—' }}</span>
+                                </div>
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Número</span>
+                                    <span class="vc-detail-value">{{ u.cel_number || '—' }}</span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    </ng-container>
                 </tbody>
             </table>
         </div>
 
-        <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
-            <div class="flex items-center gap-2">
+        <div class="vc-pagination">
+            <div class="vc-pagination-meta">
                 <span>Filas por pagina</span>
                 <select [(ngModel)]="usersPageSize" (ngModelChange)="onUsersPageSizeChange()" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                     <option *ngFor="let size of pageSizeOptions" [ngValue]="size">{{ size }}</option>
                 </select>
                 <span>Mostrando {{ filteredUsers.length }} resultados</span>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="vc-pagination-nav">
                 <button type="button" (click)="previousUsersPage()" [disabled]="usersCurrentPage === 1" class="vc-btn-outline">Anterior</button>
                 <span>Pagina {{ usersCurrentPage }} de {{ usersTotalPages }}</span>
                 <button type="button" (click)="nextUsersPage()" [disabled]="usersCurrentPage >= usersTotalPages" class="vc-btn-outline">Siguiente</button>
@@ -113,7 +150,7 @@
                 </button>
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Total personas sin acceso: {{ personsWithoutUser.length }}</span>
             </div>
-            <div class="mb-4 flex flex-col md:flex-row gap-2 md:items-center">
+            <div class="vc-filter-row">
                 <input [(ngModel)]="personsSearchTerm" (ngModelChange)="onPersonsFiltersChange()" type="text" placeholder="Buscar por nombre, documento, celular o correo..." class="vc-input-search md:flex-1" />
                 <select [(ngModel)]="personsSelectedBlock" (ngModelChange)="onPersonsFiltersChange()" class="vc-select-sm">
                     <option value="">Mz: Todas</option>
@@ -129,20 +166,34 @@
                 </select>
             </div>
             <div class="vc-table-wrap" *ngIf="personsWithoutUser.length > 0">
-                <table class="vc-table text-left text-gray-600 dark:text-gray-300">
+                <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
                     <thead>
                         <tr class="vc-thead-row">
-                            <th class="vc-th w-12"></th>
+                            <th class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
+                            <th class="vc-th w-12">Foto</th>
                             <th class="vc-th">Documento</th>
                             <th class="vc-th">Nombre</th>
-                            <th class="vc-th">Domicilio</th>
-                            <th class="vc-th">Categoría</th>
-                            <th class="vc-th">Cel / Email</th>
+                            <th class="vc-th vc-th-data-secondary">Domicilio</th>
+                            <th class="vc-th vc-th-data-secondary">Categoría</th>
+                            <th class="vc-th vc-th-data-secondary">Cel / Email</th>
                             <th class="vc-th">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr *ngFor="let p of paginatedPersonsWithoutUser" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+                        <ng-container *ngFor="let p of paginatedPersonsWithoutUser">
+                        <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                            [class.vc-row-summary--open]="isPersonsRowOpen(p)"
+                            (click)="togglePersonsRow(p)"
+                            [attr.aria-expanded]="isPersonsRowOpen(p)">
+                            <td class="vc-td vc-td-expand">
+                                <button type="button" class="vc-row-toggle"
+                                    [attr.aria-label]="isPersonsRowOpen(p) ? 'Ocultar detalle' : 'Ver detalle'"
+                                    (click)="togglePersonsRow(p); $event.stopPropagation()">
+                                    <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isPersonsRowOpen(p)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </button>
+                            </td>
                             <td class="vc-td">
                                 <div *ngIf="p.photo_url" class="w-10 h-10 rounded-full overflow-hidden">
                                     <img [src]="getPhotoUrl(p.photo_url)" alt="Foto" class="w-full h-full object-cover">
@@ -153,10 +204,10 @@
                             </td>
                             <td class="vc-td">{{ p.doc_number }}</td>
                             <td class="vc-td">{{ p.paternal_surname }} {{ p.maternal_surname }} {{ p.first_name }}</td>
-                            <td class="vc-td">{{ getHouseLocation(p) }}</td>
-                            <td class="vc-td">{{ listCategoryLabel(p) }}</td>
-                            <td class="vc-td">{{ p.cel_number || '-' }} / {{ p.email || '-' }}</td>
-                            <td class="vc-td">
+                            <td class="vc-td vc-td-data-secondary">{{ getHouseLocation(p) }}</td>
+                            <td class="vc-td vc-td-data-secondary">{{ listCategoryLabel(p) }}</td>
+                            <td class="vc-td vc-td-data-secondary">{{ p.cel_number || '-' }} / {{ p.email || '-' }}</td>
+                            <td class="vc-td" (click)="$event.stopPropagation()">
                                 <button *ngIf="canManageUsers" type="button" (click)="editPerson(p)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -164,18 +215,37 @@
                                 </button>
                             </td>
                         </tr>
+                        <tr class="vc-row-detail" *ngIf="isPersonsRowOpen(p)">
+                            <td class="vc-row-detail-cell" [attr.colspan]="personsTableColspan">
+                                <div class="vc-detail-list">
+                                    <div class="vc-detail-item">
+                                        <span class="vc-detail-label">Domicilio</span>
+                                        <span class="vc-detail-value">{{ getHouseLocation(p) || '—' }}</span>
+                                    </div>
+                                    <div class="vc-detail-item">
+                                        <span class="vc-detail-label">Categoría</span>
+                                        <span class="vc-detail-value">{{ listCategoryLabel(p) || '—' }}</span>
+                                    </div>
+                                    <div class="vc-detail-item sm:col-span-2">
+                                        <span class="vc-detail-label">Celular / Email</span>
+                                        <span class="vc-detail-value">{{ p.cel_number || '—' }} · {{ p.email || '—' }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        </ng-container>
                     </tbody>
                 </table>
             </div>
-            <div *ngIf="personsWithoutUser.length > 0" class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <div class="flex items-center gap-2">
+            <div *ngIf="personsWithoutUser.length > 0" class="vc-pagination">
+                <div class="vc-pagination-meta">
                     <span>Filas por pagina</span>
                     <select [(ngModel)]="personsPageSize" (ngModelChange)="onPersonsPageSizeChange()" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                         <option *ngFor="let size of pageSizeOptions" [ngValue]="size">{{ size }}</option>
                     </select>
                     <span>Mostrando {{ filteredPersonsWithoutUser.length }} resultados</span>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="vc-pagination-nav">
                     <button type="button" (click)="previousPersonsPage()" [disabled]="personsCurrentPage === 1" class="vc-btn-outline">Anterior</button>
                     <span>Pagina {{ personsCurrentPage }} de {{ personsTotalPages }}</span>
                     <button type="button" (click)="nextPersonsPage()" [disabled]="personsCurrentPage >= personsTotalPages" class="vc-btn-outline">Siguiente</button>
@@ -191,8 +261,8 @@
 
 <!-- Modal: Dar acceso (crear usuario desde persona) -->
 <div id="users-give-access-modal" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-md">
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+    <div class="vc-modal-panel-sm">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <div class="flex items-center justify-between p-4 border-b dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Dar acceso al sistema</h3>
                 <button type="button" id="users-close-give-access-modal" data-modal-hide="users-give-access-modal" class="text-gray-400 bg-transparent hover:bg-gray-200 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white">
@@ -233,9 +303,9 @@
 
 <!-- Main modal new user -->
 <div id="users-new-user-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -249,15 +319,15 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-full mb-3 mx-1 pb-2 border-b border-gray-200 dark:border-gray-600">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">Datos personales y residencia</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Tabla <span class="font-mono">persons</span></p>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-typeDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de documento</label>
-                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="users-typeDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Tipo de documento..." required /> -->
-                    <select [(ngModel)]="userToAdd.type_doc" name="typeDocNew" id="users-typeDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo de documento..." required>
+                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="users-typeDocNew" class="vc-field w-full" placeholder="Tipo de documento..." required /> -->
+                    <select [(ngModel)]="userToAdd.type_doc" name="typeDocNew" id="users-typeDocNew" class="vc-field w-full" placeholder="Tipo de documento..." required>
                         <option *ngFor="let td of typeDocs">{{td}}</option>
                     </select>
                 </div>
@@ -272,59 +342,59 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-paternalSurnameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido paterno</label>
-                    <input [(ngModel)]="userToAdd.paternal_surname" (ngModelChange)="onNewUserNameFieldsChange()" type="text" name="paternalSurnameNew" id="users-paternalSurnameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido paterno..." required />
+                    <input [(ngModel)]="userToAdd.paternal_surname" (ngModelChange)="onNewUserNameFieldsChange()" type="text" name="paternalSurnameNew" id="users-paternalSurnameNew" class="vc-field w-full" placeholder="Apellido paterno..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-maternalSurnameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido materno</label>
-                    <input [(ngModel)]="userToAdd.maternal_surname" type="text" name="maternalSurnameNew" id="users-maternalSurnameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido materno..." required />
+                    <input [(ngModel)]="userToAdd.maternal_surname" type="text" name="maternalSurnameNew" id="users-maternalSurnameNew" class="vc-field w-full" placeholder="Apellido materno..." required />
                 </div>
                 <div class="col-span-full mb-2 mx-1">
                     <label for="users-firstNameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombres</label>
-                    <input [(ngModel)]="userToAdd.first_name" (ngModelChange)="onNewUserNameFieldsChange()" type="text" name="firstNameNew" id="users-firstNameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Nombres..." required />
+                    <input [(ngModel)]="userToAdd.first_name" (ngModelChange)="onNewUserNameFieldsChange()" type="text" name="firstNameNew" id="users-firstNameNew" class="vc-field w-full" placeholder="Nombres..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-genderNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Genero</label>
-                    <!-- <input [(ngModel)]="userToAdd.gender" type="text" name="genderNew" id="users-genderNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Genero..." required /> -->
-                    <select [(ngModel)]="userToAdd.gender" name="genderNew" id="users-genderNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Genero..." required>
+                    <!-- <input [(ngModel)]="userToAdd.gender" type="text" name="genderNew" id="users-genderNew" class="vc-field w-full" placeholder="Genero..." required /> -->
+                    <select [(ngModel)]="userToAdd.gender" name="genderNew" id="users-genderNew" class="vc-field w-full" placeholder="Genero..." required>
                         <option *ngFor="let g of genders">{{g}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-birthdateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fecha de nacimiento</label>
-                    <input [(ngModel)]="userToAdd.birth_date" type="date" name="birthdateNew" id="users-birthdateNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Fecha de nacimiento..." required />
+                    <input [(ngModel)]="userToAdd.birth_date" type="date" name="birthdateNew" id="users-birthdateNew" class="vc-field w-full" placeholder="Fecha de nacimiento..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-celNumberNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="userToAdd.cel_number" type="text" name="celNumberNew" id="users-celNumberNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                    <input [(ngModel)]="userToAdd.cel_number" type="text" name="celNumberNew" id="users-celNumberNew" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-emailNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Correo electrónico</label>
-                    <input [(ngModel)]="userToAdd.email" type="email" name="emailNew" id="users-emailNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="correo@dominio.com" />
+                    <input [(ngModel)]="userToAdd.email" type="email" name="emailNew" id="users-emailNew" class="vc-field w-full" placeholder="correo@dominio.com" />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-houseIdNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio <span class="text-gray-400 font-normal text-xs">(obligatorio solo para rol USUARIO)</span></label>
-                    <select [(ngModel)]="userToAdd.house_id" name="houseIdNew" id="users-houseIdNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Domicilio..." [required]="modalMode === 'users' && !isStaffRole(userToAdd.role_system)">
+                    <select [(ngModel)]="userToAdd.house_id" name="houseIdNew" id="users-houseIdNew" class="vc-field w-full" placeholder="Domicilio..." [required]="modalMode === 'users' && !isStaffRole(userToAdd.role_system)">
                         <option [ngValue]="null">Sin domicilio (administración / portería)</option>
                         <option *ngFor="let h of houses" [ngValue]="h.house_id">Mz:{{h.block_house}} Lt:{{h.lot}} Dpt:{{h.apartment}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-property_categoryNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría <span class="text-gray-400 font-normal text-xs">(si elige casa)</span></label>
-                    <select [(ngModel)]="userToAdd.property_category" name="property_categoryNew" id="users-property_categoryNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." [required]="hasSelectedHouseId(userToAdd)">
+                    <select [(ngModel)]="userToAdd.property_category" name="property_categoryNew" id="users-property_categoryNew" class="vc-field w-full" placeholder="Categoria..." [required]="hasSelectedHouseId(userToAdd)">
                         <option [ngValue]="''">—</option>
                         <option *ngFor="let c of categoriesNewUser" [ngValue]="c">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-status_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado de validación</label>
-                    <!-- <input [(ngModel)]="userToAdd.house_id" type="text" name="houseIdNew" id="users-houseIdNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Domicilio..." required /> -->
-                    <select [(ngModel)]="userToAdd.status_validated" name="status_validatedNew" id="users-status_validatedNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <!-- <input [(ngModel)]="userToAdd.house_id" type="text" name="houseIdNew" id="users-houseIdNew" class="vc-field w-full" placeholder="Domicilio..." required /> -->
+                    <select [(ngModel)]="userToAdd.status_validated" name="status_validatedNew" id="users-status_validatedNew" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated" [ngValue]="s">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-status_reasonNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="userToAdd.status_reason" type="text" name="status_reasonNew" id="users-status_reasonNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="userToAdd.status_reason" type="text" name="status_reasonNew" id="users-status_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
                 <div class="col-span-full mt-2 mb-2 mx-1 pt-3 pb-2 border-t border-gray-200 dark:border-gray-600">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">Acceso al sistema</p>
@@ -357,9 +427,9 @@
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveNewUser()" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button data-modal-hide="users-new-user-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveNewUser()" type="button" class="vc-btn-primary">Guardar</button>
+                <button data-modal-hide="users-new-user-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -373,9 +443,9 @@
 
 <!-- Main modal edit user -->
 <div id="users-edit-user-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -389,14 +459,14 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-full mb-3 mx-1 pb-2 border-b border-gray-200 dark:border-gray-600">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">Datos personales y residencia</p>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Tabla <span class="font-mono">persons</span></p>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-typeDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de documento</label>
-                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="users-typeDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Tipo de documento..." required /> -->
+                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="users-typeDocNew" class="vc-field w-full" placeholder="Tipo de documento..." required /> -->
                     <select disabled [(ngModel)]="userToEdit.type_doc" name="typeDocEdit" id="users-typeDocEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:bg-gray-300" placeholder="Tipo de documento..." required>
                         <option *ngFor="let td of typeDocs">{{td}}</option>
                     </select>
@@ -407,57 +477,57 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-paternalSurnameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido paterno</label>
-                    <input [(ngModel)]="userToEdit.paternal_surname" type="text" name="paternalSurnameEdit" id="users-paternalSurnameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido paterno..." required />
+                    <input [(ngModel)]="userToEdit.paternal_surname" type="text" name="paternalSurnameEdit" id="users-paternalSurnameEdit" class="vc-field w-full" placeholder="Apellido paterno..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-maternalSurnameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido materno</label>
-                    <input [(ngModel)]="userToEdit.maternal_surname" type="text" name="maternalSurnameEdit" id="users-maternalSurnameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido materno..." required />
+                    <input [(ngModel)]="userToEdit.maternal_surname" type="text" name="maternalSurnameEdit" id="users-maternalSurnameEdit" class="vc-field w-full" placeholder="Apellido materno..." required />
                 </div>
                 <div class="col-span-full mb-2 mx-1">
                     <label for="users-firstNameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombres</label>
-                    <input [(ngModel)]="userToEdit.first_name" type="text" name="firstNameEdit" id="users-firstNameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Nombres..." required />
+                    <input [(ngModel)]="userToEdit.first_name" type="text" name="firstNameEdit" id="users-firstNameEdit" class="vc-field w-full" placeholder="Nombres..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-genderEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Genero</label>
-                    <select [(ngModel)]="userToEdit.gender" name="genderEdit" id="users-genderEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Genero..." required>
+                    <select [(ngModel)]="userToEdit.gender" name="genderEdit" id="users-genderEdit" class="vc-field w-full" placeholder="Genero..." required>
                         <option *ngFor="let g of genders">{{g}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-birthdateEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fecha de nacimiento</label>
-                    <input [(ngModel)]="userToEdit.birth_date" type="date" name="birthdateEdit" id="users-birthdateEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Fecha de nacimiento..." required />
+                    <input [(ngModel)]="userToEdit.birth_date" type="date" name="birthdateEdit" id="users-birthdateEdit" class="vc-field w-full" placeholder="Fecha de nacimiento..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-celNumberEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="userToEdit.cel_number" type="text" name="celNumberEdit" id="users-celNumberEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                    <input [(ngModel)]="userToEdit.cel_number" type="text" name="celNumberEdit" id="users-celNumberEdit" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-emailEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Correo electrónico</label>
-                    <input [(ngModel)]="userToEdit.email" type="email" name="emailEdit" id="users-emailEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="correo@dominio.com" />
+                    <input [(ngModel)]="userToEdit.email" type="email" name="emailEdit" id="users-emailEdit" class="vc-field w-full" placeholder="correo@dominio.com" />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-houseIdEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio <span class="text-gray-400 font-normal text-xs" *ngIf="modalMode === 'users'">(opcional staff)</span></label>
-                    <select [(ngModel)]="userToEdit.house_id" name="houseIdEdit" id="users-houseIdEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Domicilio..." [required]="modalMode === 'users' && !isStaffRole(userToEdit.role_system)">
+                    <select [(ngModel)]="userToEdit.house_id" name="houseIdEdit" id="users-houseIdEdit" class="vc-field w-full" placeholder="Domicilio..." [required]="modalMode === 'users' && !isStaffRole(userToEdit.role_system)">
                         <option [ngValue]="null">Sin domicilio</option>
                         <option *ngFor="let h of houses" [ngValue]="h.house_id">Mz:{{h.block_house}} Lt:{{h.lot}} Dpt:{{h.apartment}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-property_categoryEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría</label>
-                    <select [(ngModel)]="userToEdit.property_category" name="property_categoryEdit" id="users-property_categoryEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." [required]="hasSelectedHouseId(userToEdit)">
+                    <select [(ngModel)]="userToEdit.property_category" name="property_categoryEdit" id="users-property_categoryEdit" class="vc-field w-full" placeholder="Categoria..." [required]="hasSelectedHouseId(userToEdit)">
                         <option [ngValue]="''">—</option>
                         <option *ngFor="let c of categories" [ngValue]="c">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-status_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado de validación</label>
-                    <select [(ngModel)]="userToEdit.status_validated" name="status_validatedEdit" id="users-status_validatedEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <select [(ngModel)]="userToEdit.status_validated" name="status_validatedEdit" id="users-status_validatedEdit" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated" [ngValue]="s">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="users-status_reasonEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="userToEdit.status_reason" type="text" name="status_reasonEdit" id="users-status_reasonEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="userToEdit.status_reason" type="text" name="status_reasonEdit" id="users-status_reasonEdit" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
                 <div class="col-span-full mt-2 mb-2 mx-1 pt-3 pb-2 border-t border-gray-200 dark:border-gray-600">
                     <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">Acceso al sistema</p>
@@ -495,9 +565,9 @@
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveEditUser()" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button data-modal-hide="users-edit-user-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveEditUser()" type="button" class="vc-btn-primary">Guardar</button>
+                <button data-modal-hide="users-edit-user-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>

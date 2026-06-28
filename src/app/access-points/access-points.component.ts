@@ -2,6 +2,7 @@ import { AfterViewInit, Component, OnInit } from '@angular/core';
 import { EntranceService } from '../entrance.service';
 import { initFlowbite } from 'flowbite';
 import { ToastrService } from 'ngx-toastr';
+import { ExpandableRowId, isExpandableRowOpen, toggleExpandableRow } from '../shared/expandable-row';
 
 /** Fila de `access_points` (catálogo / gestión). */
 export interface AccessPointRow {
@@ -33,6 +34,9 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
   currentPage = 1;
   pageSize = 10;
   pageSizeOptions: number[] = [10, 25, 50, 100];
+
+  expandedRowId: ExpandableRowId = null;
+  readonly tableColspan = 10;
 
   constructor(
     private entranceService: EntranceService,
@@ -236,18 +240,29 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
 
   onPageSizeChange(): void {
     this.currentPage = 1;
+    this.expandedRowId = null;
   }
 
   previousPage(): void {
     if (this.currentPage > 1) {
       this.currentPage -= 1;
+      this.expandedRowId = null;
     }
   }
 
   nextPage(): void {
     if (this.currentPage < this.totalPages) {
       this.currentPage += 1;
+      this.expandedRowId = null;
     }
+  }
+
+  isRowOpen(p: AccessPointRow): boolean {
+    return isExpandableRowOpen(this.expandedRowId, p.id);
+  }
+
+  toggleRow(p: AccessPointRow): void {
+    this.expandedRowId = toggleExpandableRow(this.expandedRowId, p.id);
   }
 
   private normalizeMaxCapacity(v: number | string | null | undefined): number | null {

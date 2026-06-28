@@ -11,6 +11,11 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
 import { EntranceService } from '../entrance.service';
 import { House } from '../house';
 import { AuthService } from '../auth.service';
+import {
+  ExpandableRowId,
+  isExpandableRowOpen,
+  toggleExpandableRow,
+} from '../shared/expandable-row';
 
 @Component({
   selector: 'app-birthday',
@@ -74,6 +79,12 @@ export class BirthdayComponent implements OnInit {
   currentPage = 1;
   pageSize = 10;
   readonly pageSizeOptions = [10, 20, 50, 100];
+
+  expandedBirthdayRowId: ExpandableRowId = null;
+
+  get birthdayTableColspan(): number {
+    return this.showDocColumn ? 6 : 5;
+  }
 
   /** Columnas a mostrar en la tabla (con o sin doc según rol). */
   get displayedColumns(): string[] {
@@ -212,18 +223,42 @@ export class BirthdayComponent implements OnInit {
 
   onPageSizeChange(): void {
     this.currentPage = 1;
+    this.expandedBirthdayRowId = null;
   }
 
   previousPage(): void {
     if (this.currentPage > 1) {
       this.currentPage -= 1;
+      this.expandedBirthdayRowId = null;
     }
   }
 
   nextPage(): void {
     if (this.currentPage < this.totalPages) {
       this.currentPage += 1;
+      this.expandedBirthdayRowId = null;
     }
+  }
+
+  getBirthdayRowId(a: User): string | number {
+    const id = Number((a as { user_id?: number }).user_id || 0);
+    return id > 0 ? id : a.doc_number;
+  }
+
+  isBirthdayRowOpen(a: User): boolean {
+    return isExpandableRowOpen(this.expandedBirthdayRowId, this.getBirthdayRowId(a));
+  }
+
+  toggleBirthdayRow(a: User): void {
+    this.expandedBirthdayRowId = toggleExpandableRow(
+      this.expandedBirthdayRowId,
+      this.getBirthdayRowId(a)
+    );
+  }
+
+  onBirthdaySearchChange(): void {
+    this.currentPage = 1;
+    this.expandedBirthdayRowId = null;
   }
 
   private initializeDateFields() {

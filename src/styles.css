@@ -10,7 +10,7 @@ body {
 }
 body {
   margin: 0;
-  font-family:  "Trebuchet MS", sans-serif;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Backdrop del drawer de Flowbite: por debajo del sidebar para que en móvil se pueda tocar el menú */
@@ -91,9 +91,18 @@ body {
     @apply max-w-6xl mx-auto px-4 py-6 sm:px-6;
   }
 
+  /* Shell móvil-first para pantallas autenticadas (CRUD, historial, etc.) */
+  .vc-page {
+    @apply min-w-0 max-w-full overflow-x-hidden p-4 pb-8 dark:bg-gray-900;
+  }
+
+  .vc-page-inner {
+    @apply relative mx-auto mt-2 w-full min-w-0 max-w-[1400px];
+  }
+
   /* Tarjeta principal con “glass” y borde discontinuo (Inicio, Reservas, etc.) */
   .vc-card {
-    @apply glass-effect rounded-xl border-2 border-dashed border-gray-200 shadow-lg dark:border-gray-600 overflow-hidden;
+    @apply glass-effect rounded-xl border-2 border-dashed border-gray-200 shadow-lg dark:border-gray-600 overflow-hidden min-w-0;
   }
 
   .vc-card-header {
@@ -119,7 +128,124 @@ body {
 
   /* Contenedor de tabla (misma línea que Reservaciones) */
   .vc-table-wrap {
-    @apply overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700;
+    @apply w-full min-w-0 max-w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700;
+  }
+
+  /* Fila de filtros encima de tablas CRUD */
+  .vc-filter-row {
+    @apply mb-4 flex min-w-0 flex-col gap-2 md:flex-row md:flex-wrap md:items-center;
+  }
+
+  /* Paginación de tablas (evita overflow horizontal en móvil) */
+  .vc-pagination {
+    @apply mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-gray-700 dark:text-gray-300;
+  }
+
+  .vc-pagination-meta,
+  .vc-pagination-nav {
+    @apply flex min-w-0 flex-wrap items-center gap-2;
+  }
+
+  /* Paneles de modales Flowbite — ancho acotado al viewport móvil */
+  .vc-modal-panel {
+    @apply relative mx-auto w-full max-h-full p-4;
+    max-width: min(42rem, calc(100vw - 2rem));
+  }
+
+  .vc-modal-panel-sm {
+    @apply relative mx-auto w-full max-h-full p-4;
+    max-width: min(28rem, calc(100vw - 2rem));
+  }
+
+  .vc-modal-panel-md {
+    @apply relative mx-auto w-full max-h-full p-4;
+    max-width: min(32rem, calc(100vw - 2rem));
+  }
+
+  .vc-modal-footer {
+    @apply flex flex-wrap items-center gap-2 p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600;
+  }
+
+  /*
+   * Tabla expandible unificada (móvil: resumen + detalle; desktop: tabla completa).
+   * Usar en <table class="vc-table vc-table--expandable"> con:
+   * - .vc-th-expand / .vc-td-expand (chevron, solo móvil)
+   * - .vc-th-data-secondary / .vc-td-data-secondary (columnas extra en desktop)
+   * - segunda <tr class="vc-row-detail"> con .vc-detail-list
+   */
+  .vc-table--expandable .vc-th-expand,
+  .vc-table--expandable .vc-td-expand {
+    @apply w-10 p-0 text-center align-middle;
+  }
+
+  .vc-row-toggle {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700;
+  }
+
+  .vc-row-toggle-icon {
+    @apply h-5 w-5 transition-transform duration-200;
+  }
+
+  .vc-row-toggle-icon--open {
+    transform: rotate(180deg);
+  }
+
+  .vc-row-summary {
+    @apply cursor-pointer;
+  }
+
+  .vc-row-summary--open {
+    @apply bg-teal-50/80 dark:bg-teal-900/20;
+  }
+
+  .vc-row-detail-cell {
+    @apply bg-gray-50/90 p-0 dark:bg-gray-800/60;
+  }
+
+  .vc-detail-list {
+    @apply grid grid-cols-1 gap-3 border-t border-gray-100 p-4 sm:grid-cols-2 dark:border-gray-700;
+  }
+
+  .vc-detail-item {
+    @apply min-w-0;
+  }
+
+  .vc-detail-label {
+    @apply block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400;
+  }
+
+  .vc-detail-value {
+    @apply mt-0.5 block text-sm text-gray-900 break-words dark:text-gray-100;
+  }
+
+  @media (max-width: 767.98px) {
+    .vc-table-wrap:has(.vc-table--expandable) {
+      @apply overflow-x-hidden;
+    }
+
+    .vc-table--expandable .vc-th-data-secondary,
+    .vc-table--expandable .vc-td-data-secondary {
+      display: none;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .vc-table--expandable .vc-th-expand,
+    .vc-table--expandable .vc-td-expand {
+      display: none;
+    }
+
+    .vc-table--expandable .vc-row-detail {
+      display: none;
+    }
+
+    .vc-table--expandable .vc-row-summary {
+      cursor: default;
+    }
+
+    .vc-table--expandable .vc-row-summary--open {
+      @apply bg-transparent dark:bg-transparent;
+    }
   }
 
   .vc-table {
@@ -213,7 +339,7 @@ body {
 
   /* Select pequeño Mz/Lt */
   .vc-select-sm {
-    @apply px-2 py-1.5 text-xs border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white focus:ring-1 focus:ring-teal-500 md:w-auto;
+    @apply w-full min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white focus:ring-1 focus:ring-teal-500 md:w-auto md:max-w-[12rem];
   }
 
   /* Campos de formulario (encuestas, comunicados, etc.) */

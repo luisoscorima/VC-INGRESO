@@ -20,6 +20,13 @@ import {
 } from '../vehicle-types';
 import { QrAccessService } from '../qr/qr-access.service';
 import * as QRCode from 'qrcode';
+import {
+  ExpandableRowId,
+  isExpandableRowOpen,
+  toggleExpandableRow,
+} from '../shared/expandable-row';
+
+type MyHouseTableKey = 'residents' | 'tenants' | 'pets' | 'vehicles' | 'visits' | 'external';
 
 @Component({
   selector: 'app-my-house',
@@ -105,6 +112,22 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
   uploadingPetIndex: number = -1;
   /** Foto del modal «nueva mascota» (opcional, antes de crear el registro) */
   uploadingNewPetPhoto = false;
+
+  expandedMyHouseRows: Record<MyHouseTableKey, ExpandableRowId> = {
+    residents: null,
+    tenants: null,
+    pets: null,
+    vehicles: null,
+    visits: null,
+    external: null,
+  };
+
+  readonly myHouseResidentsColspan = 8;
+  readonly myHouseTenantsColspan = 7;
+  readonly myHousePetsColspan = 7;
+  readonly myHouseVehiclesColspan = 7;
+  readonly myHouseVisitsColspan = 6;
+  readonly myHouseExternalColspan = 7;
 
   constructor(
     private entranceService: EntranceService,
@@ -440,6 +463,43 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     initFlowbite();
+    const tabList = document.getElementById('myhouse-default-tab');
+    tabList?.querySelectorAll('[role="tab"]').forEach((btn) => {
+      btn.addEventListener('click', () => this.onMyHouseTabChange());
+    });
+  }
+
+  onMyHouseTabChange(): void {
+    (Object.keys(this.expandedMyHouseRows) as MyHouseTableKey[]).forEach((key) => {
+      this.expandedMyHouseRows[key] = null;
+    });
+  }
+
+  isMyHouseRowOpen(table: MyHouseTableKey, id: string | number): boolean {
+    return isExpandableRowOpen(this.expandedMyHouseRows[table], id);
+  }
+
+  toggleMyHouseRow(table: MyHouseTableKey, id: string | number): void {
+    this.expandedMyHouseRows[table] = toggleExpandableRow(this.expandedMyHouseRows[table], id);
+  }
+
+  getMyHouseUserRowId(u: User): string | number {
+    const id = Number((u as { user_id?: number }).user_id || 0);
+    return id > 0 ? id : u.doc_number;
+  }
+
+  getMyHousePetRowId(pt: Pet): string | number {
+    return pt.id ?? pt.name ?? '';
+  }
+
+  getMyHouseVehicleRowId(vh: Vehicle): string | number {
+    const id = Number((vh as { vehicle_id?: number }).vehicle_id || 0);
+    return id > 0 ? id : (vh.license_plate || vh.type_vehicle || '');
+  }
+
+  getMyHouseExternalRowId(ev: ExternalVehicle): string | number {
+    const id = Number((ev as { id?: number }).id || 0);
+    return id > 0 ? id : `${ev.temp_visit_plate}-${ev.temp_visit_name}`;
   }
 
   openViewPhoto(item: { photo_url?: string }, title: string): void {

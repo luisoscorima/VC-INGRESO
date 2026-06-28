@@ -10,6 +10,7 @@ import { EntranceService } from '../entrance.service';
 import { House } from '../house';
 import { AuthService } from '../auth.service';
 import { NavPermissionService } from '../nav-permission.service';
+import { ExpandableRowId, isExpandableRowOpen, toggleExpandableRow } from '../shared/expandable-row';
 
 @Component({
   selector: 'app-pets',
@@ -35,6 +36,9 @@ export class PetsComponent implements OnInit, AfterViewInit {
   currentPage: number = 1;
   pageSize: number = 10;
   pageSizeOptions: number[] = [10, 25, 50, 100];
+
+  expandedRowId: ExpandableRowId = null;
+  readonly tableColspan = 9;
 
   constructor(
     private api: ApiService,
@@ -166,18 +170,33 @@ export class PetsComponent implements OnInit, AfterViewInit {
 
   onPageSizeChange(): void {
     this.currentPage = 1;
+    this.expandedRowId = null;
   }
 
   previousPage(): void {
     if (this.currentPage > 1) {
       this.currentPage -= 1;
+      this.expandedRowId = null;
     }
   }
 
   nextPage(): void {
     if (this.currentPage < this.petsTotalPages) {
       this.currentPage += 1;
+      this.expandedRowId = null;
     }
+  }
+
+  getPetRowId(p: Pet): string | number {
+    return p.id ?? p.name;
+  }
+
+  isRowOpen(p: Pet): boolean {
+    return isExpandableRowOpen(this.expandedRowId, this.getPetRowId(p));
+  }
+
+  toggleRow(p: Pet): void {
+    this.expandedRowId = toggleExpandableRow(this.expandedRowId, this.getPetRowId(p));
   }
 
   openViewPhoto(pet: Pet): void {

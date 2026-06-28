@@ -1,5 +1,5 @@
-<div *ngIf=true class="p-4 dark:bg-gray-900">
-    <div class="vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
+<div *ngIf=true class="vc-page">
+    <div class="vc-page-inner vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
 
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Viviendas</h2>
 
@@ -17,7 +17,7 @@
             </span>
         </div>
 
-        <div class="mb-4 flex flex-col md:flex-row gap-2 md:items-center">
+        <div class="vc-filter-row">
             <input [(ngModel)]="searchTerm" type="text" placeholder="Buscar por manzana, lote o departamento..." class="vc-input-search md:flex-1" />
             <select [(ngModel)]="selectedBlock" class="vc-select-sm">
                 <option value="">Mz: Todas</option>
@@ -35,14 +35,15 @@
         </div>
 
         <div class="vc-table-wrap">
-            <table class="vc-table text-left text-gray-600 dark:text-gray-300">
+            <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
                 <thead>
                     <tr class="vc-thead-row">
+                        <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                         <th scope="col" class="vc-th">Manzana</th>
                         <th scope="col" class="vc-th">Lote</th>
-                        <th scope="col" class="vc-th">Departamento</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary">Departamento</th>
                         <th scope="col" class="vc-th">Estado</th>
-                        <th scope="col" class="vc-th text-center">Registrada</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary text-center">Registrada</th>
                         <th scope="col" class="vc-th text-right">
                             Acciones
                             <span class="sr-only">Editar</span>
@@ -50,12 +51,25 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let h of paginatedHouses" class="vc-tbody-row bg-white dark:bg-gray-900/40">
-                        <th scope="row" class="vc-td font-medium whitespace-nowrap">{{h.block_house}}</th>
+                    <ng-container *ngFor="let h of paginatedHouses">
+                    <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                        [class.vc-row-summary--open]="isRowOpen(h)"
+                        (click)="toggleRow(h)"
+                        [attr.aria-expanded]="isRowOpen(h)">
+                        <td class="vc-td vc-td-expand">
+                            <button type="button" class="vc-row-toggle"
+                                [attr.aria-label]="isRowOpen(h) ? 'Ocultar detalle' : 'Ver detalle'"
+                                (click)="toggleRow(h); $event.stopPropagation()">
+                                <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isRowOpen(h)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </td>
+                        <th scope="row" class="vc-td font-medium">{{h.block_house}}</th>
                         <td class="vc-td">{{h.lot}}</td>
-                        <td class="vc-td">{{h.apartment}}</td>
+                        <td class="vc-td vc-td-data-secondary">{{h.apartment || '—'}}</td>
                         <td class="vc-td">{{h.status_system.toUpperCase()}}</td>
-                        <td class="vc-td text-center align-middle">
+                        <td class="vc-td vc-td-data-secondary text-center align-middle">
                             <span *ngIf="isOwnerRegistered(h)" class="inline-flex text-green-600 dark:text-green-400" title="Tiene propietario registrado" aria-label="Sí, registrada">
                                 <svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -67,7 +81,7 @@
                                 </svg>
                             </span>
                         </td>
-                        <td class="vc-td text-right">
+                        <td class="vc-td text-right" (click)="$event.stopPropagation()">
                             <button *ngIf="canManageHousesCrud" type="button" (click)="editHouse(h)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -75,19 +89,34 @@
                             </button>
                         </td>
                     </tr>
+                    <tr class="vc-row-detail" *ngIf="isRowOpen(h)">
+                        <td class="vc-row-detail-cell" [attr.colspan]="tableColspan">
+                            <div class="vc-detail-list">
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Departamento</span>
+                                    <span class="vc-detail-value">{{ h.apartment || '—' }}</span>
+                                </div>
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Registrada</span>
+                                    <span class="vc-detail-value">{{ isOwnerRegistered(h) ? 'Sí, con propietario' : 'No registrada' }}</span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    </ng-container>
                 </tbody>
             </table>
         </div>
 
-        <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
-            <div class="flex items-center gap-2">
+        <div class="vc-pagination">
+            <div class="vc-pagination-meta">
                 <span>Filas por pagina</span>
                 <select [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                     <option *ngFor="let size of pageSizeOptions" [ngValue]="size">{{ size }}</option>
                 </select>
                 <span>Mostrando {{ filteredHouses.length }} resultados</span>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="vc-pagination-nav">
                 <button type="button" (click)="previousPage()" [disabled]="currentPage === 1" class="vc-btn-outline">Anterior</button>
                 <span>Pagina {{ currentPage }} de {{ housesTotalPages }}</span>
                 <button type="button" (click)="nextPage()" [disabled]="currentPage >= housesTotalPages" class="vc-btn-outline">Siguiente</button>
@@ -103,9 +132,9 @@
 
 <!-- Main modal new house -->
 <div id="new-house-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -122,22 +151,22 @@
             <div class="p-4 md:p-5 space-y-4">
                 <div>
                     <label for="block_houseNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Manzana</label>
-                    <input [(ngModel)]="houseToAdd.block_house" type="text" name="block_houseNew" id="block_houseNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Ingresa la manzana..." required />
+                    <input [(ngModel)]="houseToAdd.block_house" type="text" name="block_houseNew" id="block_houseNew" class="vc-field w-full" placeholder="Ingresa la manzana..." required />
                 </div>
                 <div>
                     <label for="lotNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Lote</label>
-                    <input [(ngModel)]="houseToAdd.lot" type="number" name="lotNew" id="lotNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Ingresa el lote..." required />
+                    <input [(ngModel)]="houseToAdd.lot" type="number" name="lotNew" id="lotNew" class="vc-field w-full" placeholder="Ingresa el lote..." required />
                 </div>
                 <div>
                     <label for="apartmentNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Departamento</label>
-                    <input [(ngModel)]="houseToAdd.apartment" type="text" name="apartmentNew" id="apartmentNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Ingresa el departamento..." required />
+                    <input [(ngModel)]="houseToAdd.apartment" type="text" name="apartmentNew" id="apartmentNew" class="vc-field w-full" placeholder="Ingresa el departamento..." required />
                 </div>
                 
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveNewHouse()" data-modal-hide="new-house-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button data-modal-hide="new-house-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveNewHouse()" data-modal-hide="new-house-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button data-modal-hide="new-house-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -154,9 +183,9 @@
 
 <!-- Main modal edit house -->
 <div id="edit-house-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -173,21 +202,21 @@
             <div class="p-4 md:p-5 space-y-4">
                 <div>
                     <label for="block_houseEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Manzana</label>
-                    <input [(ngModel)]="houseToEdit.block_house" type="text" name="block_houseEdit" id="block_houseEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Ingresa la manzana..." required />
+                    <input [(ngModel)]="houseToEdit.block_house" type="text" name="block_houseEdit" id="block_houseEdit" class="vc-field w-full" placeholder="Ingresa la manzana..." required />
                 </div>
                 <div>
                     <label for="lotEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Lote</label>
-                    <input [(ngModel)]="houseToEdit.lot" type="number" name="lotEdit" id="lotEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Ingresa el lote..." required />
+                    <input [(ngModel)]="houseToEdit.lot" type="number" name="lotEdit" id="lotEdit" class="vc-field w-full" placeholder="Ingresa el lote..." required />
                 </div>
                 <div>
                     <label for="apartmentEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Departamento</label>
-                    <input [(ngModel)]="houseToEdit.apartment" type="text" name="apartmentEdit" id="apartmentEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Ingresa el departamento..." required />
+                    <input [(ngModel)]="houseToEdit.apartment" type="text" name="apartmentEdit" id="apartmentEdit" class="vc-field w-full" placeholder="Ingresa el departamento..." required />
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveEditHouse()" data-modal-hide="edit-house-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button data-modal-hide="edit-house-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveEditHouse()" data-modal-hide="edit-house-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button data-modal-hide="edit-house-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>

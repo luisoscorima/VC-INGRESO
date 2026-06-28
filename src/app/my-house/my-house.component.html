@@ -1,28 +1,28 @@
-<div class="p-4 dark:bg-gray-900">
-    <div class="mt-2 rounded-xl border-2 border-dashed border-gray-200 bg-white p-4 shadow-lg dark:border-gray-600 dark:bg-gray-800 sm:p-6">
+<div class="vc-page">
+    <div class="vc-page-inner vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Mi Casa</h2>
         <div class="mb-4 border-b border-gray-200 dark:border-gray-700">
             <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="myhouse-default-tab" data-tabs-toggle="#myhouse-default-tab-content" role="tablist">
                 <li *ngIf="!isTenantRestrictedInMyHouse" class="me-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg" id="myhouse-family-tab" data-tabs-target="#myhouse-family" type="button" role="tab" aria-controls="myhouse-family" aria-selected="false">Residentes</button>
+                    <button class="inline-block px-3 py-2 sm:p-4 border-b-2 rounded-t-lg text-xs sm:text-sm" id="myhouse-family-tab" data-tabs-target="#myhouse-family" type="button" role="tab" aria-controls="myhouse-family" aria-selected="false">Residentes</button>
                 </li>
                 <li class="me-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-tenants-tab" data-tabs-target="#myhouse-tenants" type="button" role="tab" aria-controls="myhouse-tenants" aria-selected="false">Inquilinos</button>
+                    <button class="inline-block px-3 py-2 sm:p-4 border-b-2 rounded-t-lg text-xs sm:text-sm hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-tenants-tab" data-tabs-target="#myhouse-tenants" type="button" role="tab" aria-controls="myhouse-tenants" aria-selected="false">Inquilinos</button>
                 </li>
                 <li class="me-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-pets-tab" data-tabs-target="#myhouse-pets" type="button" role="tab" aria-controls="myhouse-pets" aria-selected="false">Mascotas</button>
+                    <button class="inline-block px-3 py-2 sm:p-4 border-b-2 rounded-t-lg text-xs sm:text-sm hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-pets-tab" data-tabs-target="#myhouse-pets" type="button" role="tab" aria-controls="myhouse-pets" aria-selected="false">Mascotas</button>
                 </li>
                 <li class="me-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-vehicles-tab" data-tabs-target="#myhouse-vehicles" type="button" role="tab" aria-controls="myhouse-vehicles" aria-selected="false">Vehiculos</button>
+                    <button class="inline-block px-3 py-2 sm:p-4 border-b-2 rounded-t-lg text-xs sm:text-sm hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-vehicles-tab" data-tabs-target="#myhouse-vehicles" type="button" role="tab" aria-controls="myhouse-vehicles" aria-selected="false">Vehiculos</button>
                 </li>
                 <li class="me-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-visits-tab" data-tabs-target="#myhouse-visits" type="button" role="tab" aria-controls="myhouse-visits" aria-selected="false">Visitas</button>
+                    <button class="inline-block px-3 py-2 sm:p-4 border-b-2 rounded-t-lg text-xs sm:text-sm hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-visits-tab" data-tabs-target="#myhouse-visits" type="button" role="tab" aria-controls="myhouse-visits" aria-selected="false">Visitas</button>
                 </li>
                 <li class="me-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-external-vehicles-tab" data-tabs-target="#myhouse-external-vehicles" type="button" role="tab" aria-controls="myhouse-external-vehicles" aria-selected="false">Visitas externas</button>
+                    <button class="inline-block px-3 py-2 sm:p-4 border-b-2 rounded-t-lg text-xs sm:text-sm hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-external-vehicles-tab" data-tabs-target="#myhouse-external-vehicles" type="button" role="tab" aria-controls="myhouse-external-vehicles" aria-selected="false">Visitas externas</button>
                 </li>
 <!--                 <li role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-contacts-tab" data-tabs-target="#myhouse-contacts" type="button" role="tab" aria-controls="myhouse-contacts" aria-selected="false">Contacts</button>
+                    <button class="inline-block px-3 py-2 sm:p-4 border-b-2 rounded-t-lg text-xs sm:text-sm hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300" id="myhouse-contacts-tab" data-tabs-target="#myhouse-contacts" type="button" role="tab" aria-controls="myhouse-contacts" aria-selected="false">Contacts</button>
                 </li> -->
             </ul>
         </div>
@@ -33,56 +33,45 @@
                     Nuevo
                 </button>
         
-                <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" class="px-6 py-3">
-                                    Foto
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Documento
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Nombre
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Categoria
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Número
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Estado
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Acciones
-                                    <span class="sr-only">Editar</span>
-                                </th>
+                <div class="vc-table-wrap">
+                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                        <thead>
+                            <tr class="vc-thead-row">
+                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Foto</th>
+                                <th scope="col" class="vc-th">Documento</th>
+                                <th scope="col" class="vc-th">Nombre</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Categoria</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Número</th>
+                                <th scope="col" class="vc-th">Estado</th>
+                                <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let fm of myResidents" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                <td class="px-6 py-4">
+                            <ng-container *ngFor="let fm of myResidents">
+                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                                [class.vc-row-summary--open]="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm))"
+                                (click)="toggleMyHouseRow('residents', getMyHouseUserRowId(fm))"
+                                [attr.aria-expanded]="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm))">
+                                <td class="vc-td vc-td-expand">
+                                    <button type="button" class="vc-row-toggle"
+                                        [attr.aria-label]="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm)) ? 'Ocultar detalle' : 'Ver detalle'"
+                                        (click)="toggleMyHouseRow('residents', getMyHouseUserRowId(fm)); $event.stopPropagation()">
+                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                                <td class="vc-td vc-td-data-secondary">
                                   <img *ngIf="fm.photo_url" [src]="api.getPhotoUrl(fm.photo_url)" alt="Foto {{fm.first_name}}" class="photo-thumb" />
                                   <div *ngIf="!fm.photo_url" class="photo-avatar"><mat-icon>person</mat-icon></div>
                                 </td>
-                                <th scope="row" class="uppercase px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                    {{fm?.doc_number}}
-                                </th>
-                                <td class="px-6 py-4 uppercase">
-                                    {{fm.first_name+' '+fm.paternal_surname+' '+fm.maternal_surname}}
-                                </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{fm.property_category || fm.person_type || fm.relation_type}}
-                                </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{fm.cel_number}}
-                                </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{fm.status_system || fm.status_validated}}
-                                </td>
-                                <td class="px-6 py-4 text-right uppercase myhouse-actions-cell">
+                                <th scope="row" class="vc-td uppercase font-medium whitespace-nowrap">{{fm?.doc_number}}</th>
+                                <td class="vc-td uppercase">{{fm.first_name+' '+fm.paternal_surname+' '+fm.maternal_surname}}</td>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{fm.property_category || fm.person_type || fm.relation_type}}</td>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{fm.cel_number}}</td>
+                                <td class="vc-td uppercase">{{fm.status_system || fm.status_validated}}</td>
+                                <td class="vc-td text-right uppercase myhouse-actions-cell" (click)="$event.stopPropagation()">
                                     <button *ngIf="fm.photo_url" type="button" (click)="openViewPhoto(fm, 'Residente: '+fm.first_name+' '+fm.paternal_surname)" class="vc-action-btn vc-action-btn--view" title="Ver foto" aria-label="Ver foto">
                                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -93,39 +82,68 @@
                                     <button *ngIf="canEditResidentRow(fm)" type="button" (click)="editUser(fm)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr *ngIf="myResidents.length === 0"><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay residentes registrados</td></tr>
+                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm))">
+                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseResidentsColspan">
+                                    <div class="vc-detail-list">
+                                        <div class="vc-detail-item">
+                                            <span class="vc-detail-label">Categoría</span>
+                                            <span class="vc-detail-value">{{ fm.property_category || fm.person_type || fm.relation_type || '—' }}</span>
+                                        </div>
+                                        <div class="vc-detail-item">
+                                            <span class="vc-detail-label">Número</span>
+                                            <span class="vc-detail-value">{{ fm.cel_number || '—' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            </ng-container>
+                            <tr *ngIf="myResidents.length === 0"><td [attr.colspan]="myHouseResidentsColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay residentes registrados</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 <!--INQUILINOS-TAB-->
             <div class="hidden p-4 rounded-lg bg-gray-50 dark:bg-gray-800" id="myhouse-tenants" role="tabpanel" aria-labelledby="myhouse-tenants-tab">
-                <button type="button" (click)="newTenant()" class="text-white bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-300 dark:focus:ring-teal-800 shadow-lg shadow-teal-500/50 dark:shadow-lg dark:shadow-teal-800/80 font-medium rounded-lg text-sm px-5 py-1.5 text-center me-2 mb-2">
+                <button type="button" (click)="newTenant()" class="vc-btn-primary me-2 mb-2 py-1.5">
                     Nuevo
                 </button>
-                <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" class="px-6 py-3">Foto</th>
-                                <th scope="col" class="px-6 py-3">Documento</th>
-                                <th scope="col" class="px-6 py-3">Nombre</th>
-                                <th scope="col" class="px-6 py-3">Celular</th>
-                                <th scope="col" class="px-6 py-3">Estado</th>
-                                <th scope="col" class="px-6 py-3"><span class="sr-only">Editar</span></th>
+                <div class="vc-table-wrap">
+                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                        <thead>
+                            <tr class="vc-thead-row">
+                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Foto</th>
+                                <th scope="col" class="vc-th">Documento</th>
+                                <th scope="col" class="vc-th">Nombre</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Celular</th>
+                                <th scope="col" class="vc-th">Estado</th>
+                                <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let t of myTenants" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                                <td class="px-6 py-4">
+                            <ng-container *ngFor="let t of myTenants">
+                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                                [class.vc-row-summary--open]="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t))"
+                                (click)="toggleMyHouseRow('tenants', getMyHouseUserRowId(t))"
+                                [attr.aria-expanded]="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t))">
+                                <td class="vc-td vc-td-expand">
+                                    <button type="button" class="vc-row-toggle"
+                                        [attr.aria-label]="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t)) ? 'Ocultar detalle' : 'Ver detalle'"
+                                        (click)="toggleMyHouseRow('tenants', getMyHouseUserRowId(t)); $event.stopPropagation()">
+                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                                <td class="vc-td vc-td-data-secondary">
                                   <img *ngIf="t.photo_url" [src]="api.getPhotoUrl(t.photo_url)" alt="Foto {{t.first_name}}" class="photo-thumb" />
                                   <div *ngIf="!t.photo_url" class="photo-avatar"><mat-icon>person</mat-icon></div>
                                 </td>
-                                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ t?.doc_number }}</td>
-                                <td class="px-6 py-4">{{ t?.first_name }} {{ t?.paternal_surname }} {{ t?.maternal_surname }}</td>
-                                <td class="px-6 py-4">{{ t?.cel_number }}</td>
-                                <td class="px-6 py-4">{{ t?.status_system || t?.status_validated }}</td>
-                                <td class="px-6 py-4 text-right myhouse-actions-cell">
+                                <td class="vc-td font-medium whitespace-nowrap">{{ t?.doc_number }}</td>
+                                <td class="vc-td">{{ t?.first_name }} {{ t?.paternal_surname }} {{ t?.maternal_surname }}</td>
+                                <td class="vc-td vc-td-data-secondary">{{ t?.cel_number }}</td>
+                                <td class="vc-td">{{ t?.status_system || t?.status_validated }}</td>
+                                <td class="vc-td text-right myhouse-actions-cell" (click)="$event.stopPropagation()">
                                     <button *ngIf="t.photo_url" type="button" (click)="openViewPhoto(t, 'Inquilino: '+t.first_name+' '+t.paternal_surname)" class="vc-action-btn vc-action-btn--view" title="Ver foto" aria-label="Ver foto">
                                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -136,7 +154,18 @@
                                     <button type="button" (click)="editUser(t)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr *ngIf="myTenants.length === 0"><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay inquilinos registrados</td></tr>
+                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t))">
+                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseTenantsColspan">
+                                    <div class="vc-detail-list">
+                                        <div class="vc-detail-item">
+                                            <span class="vc-detail-label">Celular</span>
+                                            <span class="vc-detail-value">{{ t?.cel_number || '—' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            </ng-container>
+                            <tr *ngIf="myTenants.length === 0"><td [attr.colspan]="myHouseTenantsColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay inquilinos registrados</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -146,41 +175,43 @@
                 <button type="button" (click)="newPet()" class="vc-btn-primary me-2 mb-2 py-1.5">
                     Nuevo
                 </button>
-                <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" class="px-6 py-3">
-                                    FOTO
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    NOMBRE
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    ESPECIE
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    RAZA
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    ESTADO
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    ACCIONES
-                                </th>
+                <div class="vc-table-wrap">
+                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                        <thead>
+                            <tr class="vc-thead-row">
+                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Foto</th>
+                                <th scope="col" class="vc-th">Nombre</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Especie</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Raza</th>
+                                <th scope="col" class="vc-th">Estado</th>
+                                <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let pt of myPets" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                <td class="px-6 py-4">
+                            <ng-container *ngFor="let pt of myPets">
+                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                                [class.vc-row-summary--open]="isMyHouseRowOpen('pets', getMyHousePetRowId(pt))"
+                                (click)="toggleMyHouseRow('pets', getMyHousePetRowId(pt))"
+                                [attr.aria-expanded]="isMyHouseRowOpen('pets', getMyHousePetRowId(pt))">
+                                <td class="vc-td vc-td-expand">
+                                    <button type="button" class="vc-row-toggle"
+                                        [attr.aria-label]="isMyHouseRowOpen('pets', getMyHousePetRowId(pt)) ? 'Ocultar detalle' : 'Ver detalle'"
+                                        (click)="toggleMyHouseRow('pets', getMyHousePetRowId(pt)); $event.stopPropagation()">
+                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('pets', getMyHousePetRowId(pt))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                                <td class="vc-td vc-td-data-secondary">
                                   <img *ngIf="pt?.photo_url" [src]="api.getPhotoUrl(pt.photo_url)" alt="Foto {{pt.name}}" class="photo-thumb" />
                                   <div *ngIf="!pt?.photo_url" class="photo-avatar"><mat-icon>pets</mat-icon></div>
                                 </td>
-                                <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">{{ pt?.name }}</td>
-                                <td class="px-6 py-4">{{ pt?.species }}</td>
-                                <td class="px-6 py-4">{{ pt?.breed || '-' }}</td>
-                                <td class="px-6 py-4 uppercase">{{ pt?.status_system || pt?.status_validated }}</td>
-                                <td class="px-6 py-4 text-right myhouse-actions-cell">
+                                <td class="vc-td font-medium">{{ pt?.name }}</td>
+                                <td class="vc-td vc-td-data-secondary">{{ pt?.species }}</td>
+                                <td class="vc-td vc-td-data-secondary">{{ pt?.breed || '-' }}</td>
+                                <td class="vc-td uppercase">{{ pt?.status_system || pt?.status_validated }}</td>
+                                <td class="vc-td text-right myhouse-actions-cell" (click)="$event.stopPropagation()">
                                     <input type="file" #petPhotoInput [attr.id]="'myhouse-pet-photo-' + myPets.indexOf(pt)" accept="image/jpeg,image/png,image/gif" (change)="onPetPhotoSelect(myPets.indexOf(pt), $event)" class="hidden" />
                                     <button *ngIf="canTenantEditPet(pt)" type="button" class="vc-action-btn vc-action-btn--upload" [attr.title]="uploadingPetIndex === myPets.indexOf(pt) ? 'Cargando...' : 'Subir foto'" [disabled]="uploadingPetIndex === myPets.indexOf(pt)" (click)="document.getElementById('myhouse-pet-photo-' + myPets.indexOf(pt))?.click()" aria-label="Subir foto">
                                         <svg *ngIf="uploadingPetIndex !== myPets.indexOf(pt)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -201,7 +232,22 @@
                                     <button *ngIf="canTenantEditPet(pt)" type="button" (click)="editPet(pt)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr *ngIf="myPets.length === 0"><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay mascotas registradas</td></tr>
+                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('pets', getMyHousePetRowId(pt))">
+                                <td class="vc-row-detail-cell" [attr.colspan]="myHousePetsColspan">
+                                    <div class="vc-detail-list">
+                                        <div class="vc-detail-item">
+                                            <span class="vc-detail-label">Especie</span>
+                                            <span class="vc-detail-value">{{ pt?.species || '—' }}</span>
+                                        </div>
+                                        <div class="vc-detail-item">
+                                            <span class="vc-detail-label">Raza</span>
+                                            <span class="vc-detail-value">{{ pt?.breed || '—' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            </ng-container>
+                            <tr *ngIf="myPets.length === 0"><td [attr.colspan]="myHousePetsColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay mascotas registradas</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -212,49 +258,43 @@
                     Nuevo
                 </button>
         
-                <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" class="px-6 py-3">
-                                    FOTO
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    TIPO
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    PLACA
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    CATEGORIA
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    ESTADO
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    ACCIONES
-                                </th>
+                <div class="vc-table-wrap">
+                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                        <thead>
+                            <tr class="vc-thead-row">
+                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Foto</th>
+                                <th scope="col" class="vc-th">Tipo</th>
+                                <th scope="col" class="vc-th">Placa</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Categoria</th>
+                                <th scope="col" class="vc-th">Estado</th>
+                                <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let vh of myVehicles" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                <td class="px-6 py-4">
+                            <ng-container *ngFor="let vh of myVehicles">
+                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                                [class.vc-row-summary--open]="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh))"
+                                (click)="toggleMyHouseRow('vehicles', getMyHouseVehicleRowId(vh))"
+                                [attr.aria-expanded]="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh))">
+                                <td class="vc-td vc-td-expand">
+                                    <button type="button" class="vc-row-toggle"
+                                        [attr.aria-label]="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh)) ? 'Ocultar detalle' : 'Ver detalle'"
+                                        (click)="toggleMyHouseRow('vehicles', getMyHouseVehicleRowId(vh)); $event.stopPropagation()">
+                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                                <td class="vc-td vc-td-data-secondary">
                                   <img *ngIf="vh?.photo_url" [src]="api.getPhotoUrl(vh.photo_url)" alt="Foto {{vh.license_plate}}" class="photo-thumb" />
                                   <div *ngIf="!vh?.photo_url" class="photo-avatar"><mat-icon>directions_car</mat-icon></div>
                                 </td>
-                                <th scope="row" class="uppercase px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                    {{vh?.type_vehicle}}
-                                </th>
-                                <td class="px-6 py-4 uppercase">
-                                    {{ (vh?.license_plate || '').trim() ? vh?.license_plate : '—' }}
-                                </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{vh?.category_entry}}
-                                </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{ vh?.status_system || vh?.status_validated }}
-                                </td>
-                                <td class="px-6 py-4 text-right uppercase myhouse-actions-cell">
+                                <th scope="row" class="vc-td uppercase font-medium whitespace-nowrap">{{vh?.type_vehicle}}</th>
+                                <td class="vc-td uppercase">{{ (vh?.license_plate || '').trim() ? vh?.license_plate : '—' }}</td>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{vh?.category_entry}}</td>
+                                <td class="vc-td uppercase">{{ vh?.status_system || vh?.status_validated }}</td>
+                                <td class="vc-td text-right uppercase myhouse-actions-cell" (click)="$event.stopPropagation()">
                                     <input type="file" [attr.id]="'myhouse-vehicle-photo-' + myVehicles.indexOf(vh)" accept="image/jpeg,image/png,image/gif" (change)="onVehiclePhotoSelect(myVehicles.indexOf(vh), $event)" class="hidden" />
                                     <button *ngIf="canTenantEditVehicle(vh)" type="button" class="vc-action-btn vc-action-btn--upload" [attr.title]="uploadingVehicleIndex === myVehicles.indexOf(vh) ? 'Cargando...' : 'Subir foto'" [disabled]="uploadingVehicleIndex === myVehicles.indexOf(vh)" (click)="document.getElementById('myhouse-vehicle-photo-' + myVehicles.indexOf(vh))?.click()" aria-label="Subir foto">
                                         <svg *ngIf="uploadingVehicleIndex !== myVehicles.indexOf(vh)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -276,7 +316,18 @@
                                     <button *ngIf="canTenantEditVehicle(vh)" type="button" (click)="editVehicle(vh)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr *ngIf="myVehicles.length === 0"><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay vehículos registrados</td></tr>
+                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh))">
+                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseVehiclesColspan">
+                                    <div class="vc-detail-list">
+                                        <div class="vc-detail-item">
+                                            <span class="vc-detail-label">Categoría</span>
+                                            <span class="vc-detail-value">{{ vh?.category_entry || '—' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            </ng-container>
+                            <tr *ngIf="myVehicles.length === 0"><td [attr.colspan]="myHouseVehiclesColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay vehículos registrados</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -287,47 +338,54 @@
                     Nuevo
                 </button>
         
-                <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" class="px-6 py-3">
-                                    DNI
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    NOMBRE
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    CATEGORIA
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Estado
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    <span class="sr-only">Editar</span>
-                                </th>
+                <div class="vc-table-wrap">
+                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                        <thead>
+                            <tr class="vc-thead-row">
+                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
+                                <th scope="col" class="vc-th">DNI</th>
+                                <th scope="col" class="vc-th">Nombre</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Categoria</th>
+                                <th scope="col" class="vc-th">Estado</th>
+                                <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let mv of myVisits" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                <th scope="row" class="uppercase px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                    {{mv?.doc_number}}
-                                </th>
-                                <td class="px-6 py-4 uppercase">
-                                    {{mv?.first_name}} {{mv?.paternal_surname}} {{mv?.maternal_surname}}
+                            <ng-container *ngFor="let mv of myVisits">
+                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                                [class.vc-row-summary--open]="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv))"
+                                (click)="toggleMyHouseRow('visits', getMyHouseUserRowId(mv))"
+                                [attr.aria-expanded]="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv))">
+                                <td class="vc-td vc-td-expand">
+                                    <button type="button" class="vc-row-toggle"
+                                        [attr.aria-label]="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv)) ? 'Ocultar detalle' : 'Ver detalle'"
+                                        (click)="toggleMyHouseRow('visits', getMyHouseUserRowId(mv)); $event.stopPropagation()">
+                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
                                 </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{mv?.property_category || mv?.person_type || mv?.relation_type}}
-                                </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{mv?.status_system || mv?.status_validated}}
-                                </td>
-                                <td class="px-6 py-4 text-right uppercase">
+                                <th scope="row" class="vc-td uppercase font-medium whitespace-nowrap">{{mv?.doc_number}}</th>
+                                <td class="vc-td uppercase">{{mv?.first_name}} {{mv?.paternal_surname}} {{mv?.maternal_surname}}</td>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{mv?.property_category || mv?.person_type || mv?.relation_type}}</td>
+                                <td class="vc-td uppercase">{{mv?.status_system || mv?.status_validated}}</td>
+                                <td class="vc-td text-right uppercase" (click)="$event.stopPropagation()">
                                     <button *ngIf="canShowQrForPersonRow(mv)" type="button" (click)="openPersonAccessQr(mv, 'QR ingreso — visita ' + (mv.first_name||'') + ' ' + (mv.paternal_surname||''))" class="inline-flex items-center justify-center p-1 rounded text-violet-600 hover:bg-violet-100 dark:text-violet-400 dark:hover:bg-violet-900/30" title="QR de ingreso"><mat-icon class="!text-lg !w-5 !h-5">qr_code_2</mat-icon></button>
                                     <button type="button" (click)="editVisit(mv)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr *ngIf="myVisits.length === 0"><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay visitas registradas</td></tr>
+                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv))">
+                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseVisitsColspan">
+                                    <div class="vc-detail-list">
+                                        <div class="vc-detail-item">
+                                            <span class="vc-detail-label">Categoría</span>
+                                            <span class="vc-detail-value">{{ mv?.property_category || mv?.person_type || mv?.relation_type || '—' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            </ng-container>
+                            <tr *ngIf="myVisits.length === 0"><td [attr.colspan]="myHouseVisitsColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay visitas registradas</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -339,52 +397,59 @@
                     Nuevo
                 </button>
 
-                <div class="relative overflow-x-auto shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                <th scope="col" class="px-6 py-3">
-                                    Categoría
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Placa
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Responsable
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Celular
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    Estado
-                                </th>
-                                <th scope="col" class="px-6 py-3">
-                                    <span class="sr-only">Editar</span>
-                                </th>
+                <div class="vc-table-wrap">
+                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                        <thead>
+                            <tr class="vc-thead-row">
+                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
+                                <th scope="col" class="vc-th">Categoría</th>
+                                <th scope="col" class="vc-th">Placa</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Responsable</th>
+                                <th scope="col" class="vc-th vc-th-data-secondary">Celular</th>
+                                <th scope="col" class="vc-th">Estado</th>
+                                <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr *ngFor="let ev of externalVehicles" class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                                <th scope="row" class="px-6 py-4 font-medium text-gray-900 uppercase whitespace-nowrap dark:text-white">
-                                    {{ev.temp_visit_type}}
-                                </th>
-                                <td class="px-6 py-4 uppercase">
-                                    {{ev.temp_visit_plate}}
+                            <ng-container *ngFor="let ev of externalVehicles">
+                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                                [class.vc-row-summary--open]="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev))"
+                                (click)="toggleMyHouseRow('external', getMyHouseExternalRowId(ev))"
+                                [attr.aria-expanded]="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev))">
+                                <td class="vc-td vc-td-expand">
+                                    <button type="button" class="vc-row-toggle"
+                                        [attr.aria-label]="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev)) ? 'Ocultar detalle' : 'Ver detalle'"
+                                        (click)="toggleMyHouseRow('external', getMyHouseExternalRowId(ev)); $event.stopPropagation()">
+                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
                                 </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{ev.temp_visit_name}}
-                                </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{ev.temp_visit_cel}}
-                                </td>
-                                <td class="px-6 py-4 uppercase">
-                                    {{ev.status_system}}
-                                </td>
-                                <td class="px-6 py-4 text-right uppercase myhouse-actions-cell">
+                                <th scope="row" class="vc-td font-medium uppercase whitespace-nowrap">{{ev.temp_visit_type}}</th>
+                                <td class="vc-td uppercase">{{ev.temp_visit_plate}}</td>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{ev.temp_visit_name}}</td>
+                                <td class="vc-td vc-td-data-secondary uppercase">{{ev.temp_visit_cel}}</td>
+                                <td class="vc-td uppercase">{{ev.status_system}}</td>
+                                <td class="vc-td text-right uppercase myhouse-actions-cell" (click)="$event.stopPropagation()">
                                     <button type="button" (click)="editExternalVehicle(ev)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr *ngIf="externalVehicles.length === 0"><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay visitas externas registradas</td></tr>
+                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev))">
+                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseExternalColspan">
+                                    <div class="vc-detail-list">
+                                        <div class="vc-detail-item">
+                                            <span class="vc-detail-label">Responsable</span>
+                                            <span class="vc-detail-value">{{ ev.temp_visit_name || '—' }}</span>
+                                        </div>
+                                        <div class="vc-detail-item">
+                                            <span class="vc-detail-label">Celular</span>
+                                            <span class="vc-detail-value">{{ ev.temp_visit_cel || '—' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            </ng-container>
+                            <tr *ngIf="externalVehicles.length === 0"><td [attr.colspan]="myHouseExternalColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay visitas externas registradas</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -399,9 +464,9 @@
 
 <!-- Main modal new user -->
 <div id="myhouse-new-user-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -415,15 +480,15 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-full mb-2 mx-1 p-3 rounded-lg border border-sky-200 bg-sky-50 dark:bg-sky-900/20 dark:border-sky-800">
                     <p class="text-sm font-semibold text-sky-800 dark:text-sky-200">PERSONS: Datos personales y de residencia</p>
                     <p class="text-xs text-sky-700 dark:text-sky-300">Se guardan en la tabla persons.</p>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-typeDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de documento</label>
-                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="myhouse-typeDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Tipo de documento..." required /> -->
-                    <select [(ngModel)]="userToAdd.type_doc" name="typeDocNew" id="myhouse-typeDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo de documento..." required>
+                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="myhouse-typeDocNew" class="vc-field w-full" placeholder="Tipo de documento..." required /> -->
+                    <select [(ngModel)]="userToAdd.type_doc" name="typeDocNew" id="myhouse-typeDocNew" class="vc-field w-full" placeholder="Tipo de documento..." required>
                         <option *ngFor="let td of typeDocs">{{td}}</option>
                     </select>
                 </div>
@@ -438,38 +503,38 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-paternalSurnameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido paterno</label>
-                    <input [(ngModel)]="userToAdd.paternal_surname" type="text" name="paternalSurnameNew" id="myhouse-paternalSurnameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido paterno..." required />
+                    <input [(ngModel)]="userToAdd.paternal_surname" type="text" name="paternalSurnameNew" id="myhouse-paternalSurnameNew" class="vc-field w-full" placeholder="Apellido paterno..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-maternalSurnameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido materno</label>
-                    <input [(ngModel)]="userToAdd.maternal_surname" type="text" name="maternalSurnameNew" id="myhouse-maternalSurnameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido materno..." required />
+                    <input [(ngModel)]="userToAdd.maternal_surname" type="text" name="maternalSurnameNew" id="myhouse-maternalSurnameNew" class="vc-field w-full" placeholder="Apellido materno..." required />
                 </div>
                 <div class="col-span-full mb-2 mx-1">
                     <label for="myhouse-firstNameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombres</label>
-                    <input [(ngModel)]="userToAdd.first_name" type="text" name="firstNameNew" id="myhouse-firstNameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Nombres..." required />
+                    <input [(ngModel)]="userToAdd.first_name" type="text" name="firstNameNew" id="myhouse-firstNameNew" class="vc-field w-full" placeholder="Nombres..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-genderNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Genero</label>
-                    <!-- <input [(ngModel)]="userToAdd.gender" type="text" name="genderNew" id="myhouse-genderNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Genero..." required /> -->
-                    <select [(ngModel)]="userToAdd.gender" name="genderNew" id="myhouse-genderNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Genero..." required>
+                    <!-- <input [(ngModel)]="userToAdd.gender" type="text" name="genderNew" id="myhouse-genderNew" class="vc-field w-full" placeholder="Genero..." required /> -->
+                    <select [(ngModel)]="userToAdd.gender" name="genderNew" id="myhouse-genderNew" class="vc-field w-full" placeholder="Genero..." required>
                         <option *ngFor="let g of genders">{{g}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-birthdateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fecha de nacimiento</label>
-                    <input [(ngModel)]="userToAdd.birth_date" type="date" name="birthdateNew" id="myhouse-birthdateNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Fecha de nacimiento..." required />
+                    <input [(ngModel)]="userToAdd.birth_date" type="date" name="birthdateNew" id="myhouse-birthdateNew" class="vc-field w-full" placeholder="Fecha de nacimiento..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-celNumberNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="userToAdd.cel_number" type="text" name="celNumberNew" id="myhouse-celNumberNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                    <input [(ngModel)]="userToAdd.cel_number" type="text" name="celNumberNew" id="myhouse-celNumberNew" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-emailNewVisit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Correo electrónico</label>
-                    <input [(ngModel)]="userToAdd.email" type="email" name="emailNewVisit" id="myhouse-emailNewVisit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="correo@dominio.com" />
+                    <input [(ngModel)]="userToAdd.email" type="email" name="emailNewVisit" id="myhouse-emailNewVisit" class="vc-field w-full" placeholder="correo@dominio.com" />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-emailNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Correo electrónico</label>
-                    <input [(ngModel)]="userToAdd.email" type="email" name="emailNew" id="myhouse-emailNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="correo@dominio.com" />
+                    <input [(ngModel)]="userToAdd.email" type="email" name="emailNew" id="myhouse-emailNew" class="vc-field w-full" placeholder="correo@dominio.com" />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-houseIdNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio</label>
@@ -477,20 +542,20 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-property_categoryNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-                    <select [(ngModel)]="userToAdd.property_category" name="property_categoryNew" id="myhouse-property_categoryNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." required>
+                    <select [(ngModel)]="userToAdd.property_category" name="property_categoryNew" id="myhouse-property_categoryNew" class="vc-field w-full" placeholder="Categoria..." required>
                         <option *ngFor="let c of currentCategoryOptions" [ngValue]="c">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado de validación</label>
-                    <!-- <input [(ngModel)]="userToAdd.house_id" type="text" name="houseIdNew" id="myhouse-houseIdNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Domicilio..." required /> -->
-                    <select [(ngModel)]="userToAdd.status_validated" name="status_validatedNew" id="myhouse-status_validatedNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <!-- <input [(ngModel)]="userToAdd.house_id" type="text" name="houseIdNew" id="myhouse-houseIdNew" class="vc-field w-full" placeholder="Domicilio..." required /> -->
+                    <select [(ngModel)]="userToAdd.status_validated" name="status_validatedNew" id="myhouse-status_validatedNew" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated" [ngValue]="s">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_reasonNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="userToAdd.status_reason" type="text" name="status_reasonNew" id="myhouse-status_reasonNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="userToAdd.status_reason" type="text" name="status_reasonNew" id="myhouse-status_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
                 <div class="col-span-full mt-2 mb-2 mx-1 p-3 rounded-lg border border-violet-200 bg-violet-50 dark:bg-violet-900/20 dark:border-violet-800">
                     <p class="text-sm font-semibold text-violet-800 dark:text-violet-200">USERS: Acceso al sistema</p>
@@ -520,9 +585,9 @@
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveNewUser()" data-modal-hide="myhouse-new-user-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button data-modal-hide="myhouse-new-user-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveNewUser()" data-modal-hide="myhouse-new-user-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button data-modal-hide="myhouse-new-user-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -534,9 +599,9 @@
 
 <!-- Main modal edit user -->
 <div id="myhouse-edit-user-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -550,14 +615,14 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-full mb-2 mx-1 p-3 rounded-lg border border-sky-200 bg-sky-50 dark:bg-sky-900/20 dark:border-sky-800">
                     <p class="text-sm font-semibold text-sky-800 dark:text-sky-200">PERSONS: Datos personales y de residencia</p>
                     <p class="text-xs text-sky-700 dark:text-sky-300">Se actualizan en la tabla persons.</p>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-typeDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de documento</label>
-                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="myhouse-typeDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Tipo de documento..." required /> -->
+                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="myhouse-typeDocNew" class="vc-field w-full" placeholder="Tipo de documento..." required /> -->
                     <select disabled [(ngModel)]="userToEdit.type_doc" name="typeDocEdit" id="myhouse-typeDocEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:bg-gray-300" placeholder="Tipo de documento..." required>
                         <option *ngFor="let td of typeDocs">{{td}}</option>
                     </select>
@@ -568,33 +633,33 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-paternalSurnameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido paterno</label>
-                    <input [(ngModel)]="userToEdit.paternal_surname" type="text" name="paternalSurnameEdit" id="myhouse-paternalSurnameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido paterno..." required />
+                    <input [(ngModel)]="userToEdit.paternal_surname" type="text" name="paternalSurnameEdit" id="myhouse-paternalSurnameEdit" class="vc-field w-full" placeholder="Apellido paterno..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-maternalSurnameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido materno</label>
-                    <input [(ngModel)]="userToEdit.maternal_surname" type="text" name="maternalSurnameEdit" id="myhouse-maternalSurnameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido materno..." required />
+                    <input [(ngModel)]="userToEdit.maternal_surname" type="text" name="maternalSurnameEdit" id="myhouse-maternalSurnameEdit" class="vc-field w-full" placeholder="Apellido materno..." required />
                 </div>
                 <div class="col-span-full mb-2 mx-1">
                     <label for="myhouse-firstNameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombres</label>
-                    <input [(ngModel)]="userToEdit.first_name" type="text" name="firstNameEdit" id="myhouse-firstNameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Nombres..." required />
+                    <input [(ngModel)]="userToEdit.first_name" type="text" name="firstNameEdit" id="myhouse-firstNameEdit" class="vc-field w-full" placeholder="Nombres..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-genderEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Genero</label>
-                    <select [(ngModel)]="userToEdit.gender" name="genderEdit" id="myhouse-genderEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Genero..." required>
+                    <select [(ngModel)]="userToEdit.gender" name="genderEdit" id="myhouse-genderEdit" class="vc-field w-full" placeholder="Genero..." required>
                         <option *ngFor="let g of genders">{{g}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-birthdateEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fecha de nacimiento</label>
-                    <input [(ngModel)]="userToEdit.birth_date" type="date" name="birthdateEdit" id="myhouse-birthdateEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Fecha de nacimiento..." required />
+                    <input [(ngModel)]="userToEdit.birth_date" type="date" name="birthdateEdit" id="myhouse-birthdateEdit" class="vc-field w-full" placeholder="Fecha de nacimiento..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-celNumberEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="userToEdit.cel_number" type="text" name="celNumberEdit" id="myhouse-celNumberEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                    <input [(ngModel)]="userToEdit.cel_number" type="text" name="celNumberEdit" id="myhouse-celNumberEdit" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-emailEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Correo electrónico</label>
-                    <input [(ngModel)]="userToEdit.email" type="email" name="emailEdit" id="myhouse-emailEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="correo@dominio.com" />
+                    <input [(ngModel)]="userToEdit.email" type="email" name="emailEdit" id="myhouse-emailEdit" class="vc-field w-full" placeholder="correo@dominio.com" />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-houseIdEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio</label>
@@ -602,19 +667,19 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-property_categoryEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-                    <select [(ngModel)]="userToEdit.property_category" name="property_categoryEdit" id="myhouse-property_categoryEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." required>
+                    <select [(ngModel)]="userToEdit.property_category" name="property_categoryEdit" id="myhouse-property_categoryEdit" class="vc-field w-full" placeholder="Categoria..." required>
                         <option *ngFor="let c of currentCategoryOptions" [ngValue]="c">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado de validación</label>
-                    <select [(ngModel)]="userToEdit.status_validated" name="status_validatedEdit" id="myhouse-status_validatedEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <select [(ngModel)]="userToEdit.status_validated" name="status_validatedEdit" id="myhouse-status_validatedEdit" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated" [ngValue]="s">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_reasonEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="userToEdit.status_reason" type="text" name="status_reasonEdit" id="myhouse-status_reasonEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="userToEdit.status_reason" type="text" name="status_reasonEdit" id="myhouse-status_reasonEdit" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
                 <div class="col-span-full mt-2 mb-2 mx-1 p-3 rounded-lg border border-violet-200 bg-violet-50 dark:bg-violet-900/20 dark:border-violet-800">
                     <p class="text-sm font-semibold text-violet-800 dark:text-violet-200">USERS: Acceso al sistema</p>
@@ -644,9 +709,9 @@
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveEditUser()" data-modal-hide="myhouse-edit-user-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button data-modal-hide="myhouse-edit-user-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveEditUser()" data-modal-hide="myhouse-edit-user-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button data-modal-hide="myhouse-edit-user-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -657,9 +722,9 @@
 
 <!-- Main modal new visit -->
 <div id="myhouse-new-visit-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -673,15 +738,15 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-full mb-2 mx-1 p-3 rounded-lg border border-sky-200 bg-sky-50 dark:bg-sky-900/20 dark:border-sky-800">
                     <p class="text-sm font-semibold text-sky-800 dark:text-sky-200">PERSONS: Datos personales y de residencia</p>
                     <p class="text-xs text-sky-700 dark:text-sky-300">Se guardan en la tabla persons. Las visitas no tienen acceso al sistema.</p>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-typeDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de documento</label>
-                    <!-- <input [(ngModel)]="visitToAdd.type_doc" type="text" name="typeDocNew" id="myhouse-typeDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Tipo de documento..." required /> -->
-                    <select [(ngModel)]="userToAdd.type_doc" name="typeDocNew" id="myhouse-typeDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo de documento..." required>
+                    <!-- <input [(ngModel)]="visitToAdd.type_doc" type="text" name="typeDocNew" id="myhouse-typeDocNew" class="vc-field w-full" placeholder="Tipo de documento..." required /> -->
+                    <select [(ngModel)]="userToAdd.type_doc" name="typeDocNew" id="myhouse-typeDocNew" class="vc-field w-full" placeholder="Tipo de documento..." required>
                         <option *ngFor="let td of typeDocs">{{td}}</option>
                     </select>
                 </div>
@@ -696,30 +761,30 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-paternalSurnameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido paterno</label>
-                    <input [(ngModel)]="userToAdd.paternal_surname" type="text" name="paternalSurnameNew" id="myhouse-paternalSurnameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido paterno..." required />
+                    <input [(ngModel)]="userToAdd.paternal_surname" type="text" name="paternalSurnameNew" id="myhouse-paternalSurnameNew" class="vc-field w-full" placeholder="Apellido paterno..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-maternalSurnameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido materno</label>
-                    <input [(ngModel)]="userToAdd.maternal_surname" type="text" name="maternalSurnameNew" id="myhouse-maternalSurnameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido materno..." required />
+                    <input [(ngModel)]="userToAdd.maternal_surname" type="text" name="maternalSurnameNew" id="myhouse-maternalSurnameNew" class="vc-field w-full" placeholder="Apellido materno..." required />
                 </div>
                 <div class="col-span-full mb-2 mx-1">
                     <label for="myhouse-firstNameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombres</label>
-                    <input [(ngModel)]="userToAdd.first_name" type="text" name="firstNameNew" id="myhouse-firstNameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Nombres..." required />
+                    <input [(ngModel)]="userToAdd.first_name" type="text" name="firstNameNew" id="myhouse-firstNameNew" class="vc-field w-full" placeholder="Nombres..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-genderNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Genero</label>
-                    <!-- <input [(ngModel)]="userToAdd.gender" type="text" name="genderNew" id="myhouse-genderNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Genero..." required /> -->
-                    <select [(ngModel)]="userToAdd.gender" name="genderNew" id="myhouse-genderNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Genero..." required>
+                    <!-- <input [(ngModel)]="userToAdd.gender" type="text" name="genderNew" id="myhouse-genderNew" class="vc-field w-full" placeholder="Genero..." required /> -->
+                    <select [(ngModel)]="userToAdd.gender" name="genderNew" id="myhouse-genderNew" class="vc-field w-full" placeholder="Genero..." required>
                         <option *ngFor="let g of genders">{{g}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-birthdateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fecha de nacimiento</label>
-                    <input [(ngModel)]="userToAdd.birth_date" type="date" name="birthdateNew" id="myhouse-birthdateNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Fecha de nacimiento..." required />
+                    <input [(ngModel)]="userToAdd.birth_date" type="date" name="birthdateNew" id="myhouse-birthdateNew" class="vc-field w-full" placeholder="Fecha de nacimiento..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-celNumberNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="userToAdd.cel_number" type="text" name="celNumberNew" id="myhouse-celNumberNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                    <input [(ngModel)]="userToAdd.cel_number" type="text" name="celNumberNew" id="myhouse-celNumberNew" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-houseIdNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio</label>
@@ -727,27 +792,27 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-property_categoryNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-                    <!-- <input [(ngModel)]="userToAdd.house_id" type="text" name="houseIdNew" id="myhouse-houseIdNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Domicilio..." required /> -->
-                    <select [(ngModel)]="userToAdd.property_category" name="property_categoryNew" id="myhouse-property_categoryNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." required>
+                    <!-- <input [(ngModel)]="userToAdd.house_id" type="text" name="houseIdNew" id="myhouse-houseIdNew" class="vc-field w-full" placeholder="Domicilio..." required /> -->
+                    <select [(ngModel)]="userToAdd.property_category" name="property_categoryNew" id="myhouse-property_categoryNew" class="vc-field w-full" placeholder="Categoria..." required>
                         <option *ngFor="let c of categories_visits" [ngValue]="c">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado de validación</label>
-                    <!-- <input [(ngModel)]="userToAdd.house_id" type="text" name="houseIdNew" id="myhouse-houseIdNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Domicilio..." required /> -->
-                    <select [(ngModel)]="userToAdd.status_validated" name="status_validatedNew" id="myhouse-status_validatedNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <!-- <input [(ngModel)]="userToAdd.house_id" type="text" name="houseIdNew" id="myhouse-houseIdNew" class="vc-field w-full" placeholder="Domicilio..." required /> -->
+                    <select [(ngModel)]="userToAdd.status_validated" name="status_validatedNew" id="myhouse-status_validatedNew" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated" [ngValue]="s">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_reasonNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="userToAdd.status_reason" type="text" name="status_reasonNew" id="myhouse-status_reasonNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="userToAdd.status_reason" type="text" name="status_reasonNew" id="myhouse-status_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveNewVisit()" data-modal-hide="myhouse-new-visit-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button data-modal-hide="myhouse-new-visit-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveNewVisit()" data-modal-hide="myhouse-new-visit-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button data-modal-hide="myhouse-new-visit-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -759,9 +824,9 @@
 
 <!-- Main modal edit visit -->
 <div id="myhouse-edit-visit-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -775,14 +840,14 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-full mb-2 mx-1 p-3 rounded-lg border border-sky-200 bg-sky-50 dark:bg-sky-900/20 dark:border-sky-800">
                     <p class="text-sm font-semibold text-sky-800 dark:text-sky-200">PERSONS: Datos personales y de residencia</p>
                     <p class="text-xs text-sky-700 dark:text-sky-300">Se actualizan en la tabla persons. Las visitas no tienen acceso al sistema.</p>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-typeDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de documento</label>
-                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="myhouse-typeDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Tipo de documento..." required /> -->
+                    <!-- <input [(ngModel)]="userToAdd.type_doc" type="text" name="typeDocNew" id="myhouse-typeDocNew" class="vc-field w-full" placeholder="Tipo de documento..." required /> -->
                     <select disabled [(ngModel)]="userToEdit.type_doc" name="typeDocEdit" id="myhouse-typeDocEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 disabled:bg-gray-300" placeholder="Tipo de documento..." required>
                         <option *ngFor="let td of typeDocs">{{td}}</option>
                     </select>
@@ -793,33 +858,33 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-paternalSurnameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido paterno</label>
-                    <input [(ngModel)]="userToEdit.paternal_surname" type="text" name="paternalSurnameEdit" id="myhouse-paternalSurnameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido paterno..." required />
+                    <input [(ngModel)]="userToEdit.paternal_surname" type="text" name="paternalSurnameEdit" id="myhouse-paternalSurnameEdit" class="vc-field w-full" placeholder="Apellido paterno..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-maternalSurnameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apellido materno</label>
-                    <input [(ngModel)]="userToEdit.maternal_surname" type="text" name="maternalSurnameEdit" id="myhouse-maternalSurnameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Apellido materno..." required />
+                    <input [(ngModel)]="userToEdit.maternal_surname" type="text" name="maternalSurnameEdit" id="myhouse-maternalSurnameEdit" class="vc-field w-full" placeholder="Apellido materno..." required />
                 </div>
                 <div class="col-span-full mb-2 mx-1">
                     <label for="myhouse-firstNameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombres</label>
-                    <input [(ngModel)]="userToEdit.first_name" type="text" name="firstNameEdit" id="myhouse-firstNameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Nombres..." required />
+                    <input [(ngModel)]="userToEdit.first_name" type="text" name="firstNameEdit" id="myhouse-firstNameEdit" class="vc-field w-full" placeholder="Nombres..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-genderEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Genero</label>
-                    <select [(ngModel)]="userToEdit.gender" name="genderEdit" id="myhouse-genderEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Genero..." required>
+                    <select [(ngModel)]="userToEdit.gender" name="genderEdit" id="myhouse-genderEdit" class="vc-field w-full" placeholder="Genero..." required>
                         <option *ngFor="let g of genders">{{g}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-birthdateEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Fecha de nacimiento</label>
-                       <input [(ngModel)]="userToEdit.birth_date" type="date" name="birthdateEdit" id="myhouse-birthdateEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Fecha de nacimiento..." required />
+                       <input [(ngModel)]="userToEdit.birth_date" type="date" name="birthdateEdit" id="myhouse-birthdateEdit" class="vc-field w-full" placeholder="Fecha de nacimiento..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-celNumberEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                       <input [(ngModel)]="userToEdit.cel_number" type="text" name="celNumberEdit" id="myhouse-celNumberEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                       <input [(ngModel)]="userToEdit.cel_number" type="text" name="celNumberEdit" id="myhouse-celNumberEdit" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-emailEditVisit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Correo electrónico</label>
-                    <input [(ngModel)]="userToEdit.email" type="email" name="emailEditVisit" id="myhouse-emailEditVisit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="correo@dominio.com" />
+                    <input [(ngModel)]="userToEdit.email" type="email" name="emailEditVisit" id="myhouse-emailEditVisit" class="vc-field w-full" placeholder="correo@dominio.com" />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-houseIdEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio</label>
@@ -827,25 +892,25 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-property_categoryEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-                       <select [(ngModel)]="userToEdit.property_category" name="property_categoryEdit" id="myhouse-property_categoryEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." required>
+                       <select [(ngModel)]="userToEdit.property_category" name="property_categoryEdit" id="myhouse-property_categoryEdit" class="vc-field w-full" placeholder="Categoria..." required>
                            <option *ngFor="let c of categories_visits" [ngValue]="c">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado de validación</label>
-                    <select [(ngModel)]="userToEdit.status_validated" name="status_validatedEdit" id="myhouse-status_validatedEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <select [(ngModel)]="userToEdit.status_validated" name="status_validatedEdit" id="myhouse-status_validatedEdit" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated" [ngValue]="s">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_reasonEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="userToEdit.status_reason" type="text" name="status_reasonEdit" id="myhouse-status_reasonEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="userToEdit.status_reason" type="text" name="status_reasonEdit" id="myhouse-status_reasonEdit" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveEditVisit()" data-modal-hide="myhouse-edit-visit-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button data-modal-hide="myhouse-edit-visit-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveEditVisit()" data-modal-hide="myhouse-edit-visit-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button data-modal-hide="myhouse-edit-visit-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -857,9 +922,9 @@
 
 <!-- Main modal new vehicle -->
 <div id="myhouse-new-vehicle-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -873,16 +938,16 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-type_vehicleNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de vehiculo</label>
-                    <select [(ngModel)]="vehicleToAdd.type_vehicle" (ngModelChange)="onNewVehicleTypeChange()" name="type_vehicleNew" id="myhouse-type_vehicleNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo ..." required>
+                    <select [(ngModel)]="vehicleToAdd.type_vehicle" (ngModelChange)="onNewVehicleTypeChange()" name="type_vehicleNew" id="myhouse-type_vehicleNew" class="vc-field w-full" placeholder="Tipo ..." required>
                         <option *ngFor="let t of types">{{t}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1" *ngIf="requiresVehiclePlateType(vehicleToAdd.type_vehicle)">
                     <label for="myhouse-license_plateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nº de placa <span class="text-red-600">*</span></label>
-                    <input [(ngModel)]="vehicleToAdd.license_plate" type="text" name="license_plateNew" id="myhouse-license_plateNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de placa..." />
+                    <input [(ngModel)]="vehicleToAdd.license_plate" type="text" name="license_plateNew" id="myhouse-license_plateNew" class="vc-field w-full" placeholder="Número de placa..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1" *ngIf="!requiresVehiclePlateType(vehicleToAdd.type_vehicle)">
                     <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nº de placa</label>
@@ -890,15 +955,15 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-brandNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Marca</label>
-                    <input [(ngModel)]="vehicleToAdd.brand" type="text" name="brandNew" id="myhouse-brandNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Marca (ej: Toyota)..." />
+                    <input [(ngModel)]="vehicleToAdd.brand" type="text" name="brandNew" id="myhouse-brandNew" class="vc-field w-full" placeholder="Marca (ej: Toyota)..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-modelNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Modelo</label>
-                    <input [(ngModel)]="vehicleToAdd.model" type="text" name="modelNew" id="myhouse-modelNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Modelo (ej: Corolla)..." />
+                    <input [(ngModel)]="vehicleToAdd.model" type="text" name="modelNew" id="myhouse-modelNew" class="vc-field w-full" placeholder="Modelo (ej: Corolla)..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-colorNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Color</label>
-                    <select [(ngModel)]="vehicleToAdd.color" name="colorNew" id="myhouse-colorNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Color...">
+                    <select [(ngModel)]="vehicleToAdd.color" name="colorNew" id="myhouse-colorNew" class="vc-field w-full" placeholder="Color...">
                         <option value="">Seleccione un color</option>
                         <option *ngFor="let c of vehicleColors" [ngValue]="c">{{ c }}</option>
                     </select>
@@ -915,25 +980,25 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-category_entryNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-                    <select [(ngModel)]="vehicleToAdd.category_entry" name="category_entryNew" id="myhouse-category_entryNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." required>
+                    <select [(ngModel)]="vehicleToAdd.category_entry" name="category_entryNew" id="myhouse-category_entryNew" class="vc-field w-full" placeholder="Categoria..." required>
                         <option *ngFor="let c of vehicleCategoryOptions">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <select [(ngModel)]="vehicleToAdd.status_validated" name="status_validatedNew" id="myhouse-status_validatedNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <select [(ngModel)]="vehicleToAdd.status_validated" name="status_validatedNew" id="myhouse-status_validatedNew" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_reasonNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="vehicleToAdd.status_reason" type="text" name="status_reasonNew" id="myhouse-status_reasonNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="vehicleToAdd.status_reason" type="text" name="status_reasonNew" id="myhouse-status_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveNewVehicle()" data-modal-hide="myhouse-new-vehicle-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="myhouse-new-vehicle-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveNewVehicle()" data-modal-hide="myhouse-new-vehicle-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="myhouse-new-vehicle-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -945,9 +1010,9 @@
 
 <!-- Main modal edit vehicle -->
 <div id="myhouse-edit-vehicle-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -961,10 +1026,10 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-typeEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Tipo de vehiculo</label>
-                    <select [(ngModel)]="vehicleToEdit.type_vehicle" (ngModelChange)="onEditVehicleTypeChange()" name="typeEdit" id="myhouse-typeEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo de vehiculo..." required>
+                    <select [(ngModel)]="vehicleToEdit.type_vehicle" (ngModelChange)="onEditVehicleTypeChange()" name="typeEdit" id="myhouse-typeEdit" class="vc-field w-full" placeholder="Tipo de vehiculo..." required>
                         <option *ngFor="let t of types">{{t}}</option>
                     </select>
                 </div>
@@ -978,34 +1043,34 @@
                 </div>
                    <div class="col-span-1 mb-2 mx-1">
                        <label for="myhouse-brandEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Marca</label>
-                       <input [(ngModel)]="vehicleToEdit.brand" type="text" name="brandEdit" id="myhouse-brandEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Marca (ej: Toyota)..." />
+                       <input [(ngModel)]="vehicleToEdit.brand" type="text" name="brandEdit" id="myhouse-brandEdit" class="vc-field w-full" placeholder="Marca (ej: Toyota)..." />
                    </div>
                    <div class="col-span-1 mb-2 mx-1">
                        <label for="myhouse-modelEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Modelo</label>
-                       <input [(ngModel)]="vehicleToEdit.model" type="text" name="modelEdit" id="myhouse-modelEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Modelo (ej: Corolla)..." />
+                       <input [(ngModel)]="vehicleToEdit.model" type="text" name="modelEdit" id="myhouse-modelEdit" class="vc-field w-full" placeholder="Modelo (ej: Corolla)..." />
                    </div>
                    <div class="col-span-1 mb-2 mx-1">
                        <label for="myhouse-colorEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Color</label>
-                       <select [(ngModel)]="vehicleToEdit.color" name="colorEdit" id="myhouse-colorEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Color...">
+                       <select [(ngModel)]="vehicleToEdit.color" name="colorEdit" id="myhouse-colorEdit" class="vc-field w-full" placeholder="Color...">
                            <option value="">Seleccione un color</option>
                            <option *ngFor="let c of vehicleColors" [ngValue]="c">{{ c }}</option>
                        </select>
                    </div>
                    <div class="col-span-1 mb-2 mx-1">
                        <label for="myhouse-houseIdEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio</label>
-                    <select [(ngModel)]="vehicleToEdit.house_id" name="houseIdEdit" id="myhouse-houseIdEdit" [disabled]="isTenantRestrictedInMyHouse" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Domicilio..." required>
+                    <select [(ngModel)]="vehicleToEdit.house_id" name="houseIdEdit" id="myhouse-houseIdEdit" [disabled]="isTenantRestrictedInMyHouse" class="vc-field w-full" placeholder="Domicilio..." required>
                         <option *ngFor="let h of houses" [ngValue]="h.house_id">Mz:{{h.block_house}} Lt:{{h.lot}} Dpt:{{h.apartment}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-category_entryEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-                    <select [(ngModel)]="vehicleToEdit.category_entry" name="category_entryEdit" id="myhouse-category_entryEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Categoria..." required>
+                    <select [(ngModel)]="vehicleToEdit.category_entry" name="category_entryEdit" id="myhouse-category_entryEdit" class="vc-field w-full" placeholder="Categoria..." required>
                         <option *ngFor="let c of vehicleCategoryOptions">{{c}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-status_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <select [(ngModel)]="vehicleToEdit.status_validated" name="status_validatedEdit" id="myhouse-status_validatedEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <select [(ngModel)]="vehicleToEdit.status_validated" name="status_validatedEdit" id="myhouse-status_validatedEdit" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated">{{s}}</option>
                     </select>
                 </div>
@@ -1015,9 +1080,9 @@
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveEditVehicle()" data-modal-hide="myhouse-edit-vehicle-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="myhouse-edit-vehicle-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveEditVehicle()" data-modal-hide="myhouse-edit-vehicle-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="myhouse-edit-vehicle-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1031,9 +1096,9 @@
 
 <!-- Main modal new external vehicle -->
 <div id="myhouse-new-external-vehicle-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -1047,45 +1112,45 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-type_externalVehicleNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría</label>
-                    <select [(ngModel)]="externalVehicleToAdd.temp_visit_type" name="type_ExternalVehicleNew" id="myhouse-type_ExternalvehicleNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo de vehiculo..." required>
+                    <select [(ngModel)]="externalVehicleToAdd.temp_visit_type" name="type_ExternalVehicleNew" id="myhouse-type_ExternalvehicleNew" class="vc-field w-full" placeholder="Tipo de vehiculo..." required>
                         <option *ngFor="let t of temp_visit_type">{{t}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-external_license_plateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_plate" type="text" name="external_license_plateNew" id="myhouse-external_license_plateNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de placa..." required />
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_plate" type="text" name="external_license_plateNew" id="myhouse-external_license_plateNew" class="vc-field w-full" placeholder="Número de placa..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc. Responsable</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" type="text" name="externalDocNew" id="myhouse-externalDocNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Documento de identidad..." required/>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" type="text" name="externalDocNew" id="myhouse-externalDocNew" class="vc-field w-full" placeholder="Documento de identidad..." required/>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalNameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Responsable</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_name" type="text" name="externalNameNew" id="myhouse-externalNameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Datos del responsable..." required/>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_name" type="text" name="externalNameNew" id="myhouse-externalNameNew" class="vc-field w-full" placeholder="Datos del responsable..." required/>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalCelNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_cel" type="text" name="externalCelNew" id="myhouse-externalCelNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_cel" type="text" name="externalCelNew" id="myhouse-externalCelNew" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalStatus_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <!-- <input [(ngModel)]="userToAdd.entrance_role" type="text" name="entranceRoleNew" id="myhouse-entranceRoleNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Rol..." required /> -->
-                    <select [(ngModel)]="externalVehicleToAdd.status_validated" name="externalStatus_validatedNew" id="myhouse-externalStatus_validatedNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <!-- <input [(ngModel)]="userToAdd.entrance_role" type="text" name="entranceRoleNew" id="myhouse-entranceRoleNew" class="vc-field w-full" placeholder="Rol..." required /> -->
+                    <select [(ngModel)]="externalVehicleToAdd.status_validated" name="externalStatus_validatedNew" id="myhouse-externalStatus_validatedNew" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalStatus_reasonNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="myhouse-externalStatus_reasonNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="myhouse-externalStatus_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveNewExternalVehicle()" data-modal-hide="myhouse-new-external-vehicle-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="myhouse-new-external-vehicle-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveNewExternalVehicle()" data-modal-hide="myhouse-new-external-vehicle-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="myhouse-new-external-vehicle-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1097,9 +1162,9 @@
 
 <!-- Main modal edit vehicle -->
 <div id="myhouse-edit-external-vehicle-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -1113,45 +1178,45 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-type_externalVehicleEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría</label>
-                    <select [(ngModel)]="externalVehicleToEdit.temp_visit_type" name="type_ExternalVehicleEdit" id="myhouse-type_ExternalvehicleEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Tipo de vehiculo..." required>
+                    <select [(ngModel)]="externalVehicleToEdit.temp_visit_type" name="type_ExternalVehicleEdit" id="myhouse-type_ExternalvehicleEdit" class="vc-field w-full" placeholder="Tipo de vehiculo..." required>
                         <option *ngFor="let t of temp_visit_type">{{t}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-external_license_plateEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_plate" type="text" name="external_license_plateEdit" id="myhouse-external_license_plateEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de placa..." required />
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_plate" type="text" name="external_license_plateEdit" id="myhouse-external_license_plateEdit" class="vc-field w-full" placeholder="Número de placa..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc. Responsable</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="myhouse-externalDocEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Documento de identidad..." required/>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="myhouse-externalDocEdit" class="vc-field w-full" placeholder="Documento de identidad..." required/>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalNameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Responsable</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_name" type="text" name="externalNameEdit" id="myhouse-externalNameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Datos del responsable..." required/>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_name" type="text" name="externalNameEdit" id="myhouse-externalNameEdit" class="vc-field w-full" placeholder="Datos del responsable..." required/>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalCelEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_cel" type="text" name="externalCelEdit" id="myhouse-externalCelEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Número de celular..." required />
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_cel" type="text" name="externalCelEdit" id="myhouse-externalCelEdit" class="vc-field w-full" placeholder="Número de celular..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalStatus_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <!-- <input [(ngModel)]="userToEdit.entrance_role" type="text" name="entranceRoleEdit" id="myhouse-entranceRoleEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Rol..." required /> -->
-                    <select [(ngModel)]="externalVehicleToEdit.status_validated" name="externalStatus_validatedEdit" id="myhouse-externalStatus_validatedEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Estado..." required>
+                    <!-- <input [(ngModel)]="userToEdit.entrance_role" type="text" name="entranceRoleEdit" id="myhouse-entranceRoleEdit" class="vc-field w-full" placeholder="Rol..." required /> -->
+                    <select [(ngModel)]="externalVehicleToEdit.status_validated" name="externalStatus_validatedEdit" id="myhouse-externalStatus_validatedEdit" class="vc-field w-full" placeholder="Estado..." required>
                         <option *ngFor="let s of status_validated">{{s}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalStatus_reasonEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="myhouse-externalStatus_reasonEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Motivo..." required />
+                    <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="myhouse-externalStatus_reasonEdit" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveEditExternalVehicle()" data-modal-hide="myhouse-edit-external-vehicle-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="myhouse-edit-external-vehicle-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveEditExternalVehicle()" data-modal-hide="myhouse-edit-external-vehicle-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="myhouse-edit-external-vehicle-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1161,8 +1226,8 @@
 <button id="myhouse-new-pet-button" data-modal-target="myhouse-new-pet-modal" data-modal-toggle="myhouse-new-pet-modal" class="hidden" type="button" aria-hidden="true">Abrir modal nueva mascota</button>
 <!-- Modal nueva mascota -->
 <div id="myhouse-new-pet-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-lg max-h-full">
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+    <div class="vc-modal-panel-md">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Nueva mascota</h3>
                 <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white" data-modal-hide="myhouse-new-pet-modal">
@@ -1212,8 +1277,8 @@
                     </select>
                 </div>
             </div>
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveNewPet()" data-modal-hide="myhouse-new-pet-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveNewPet()" data-modal-hide="myhouse-new-pet-modal" type="button" class="vc-btn-primary">Guardar</button>
                 <button (click)="clean()" data-modal-hide="myhouse-new-pet-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white">Cancelar</button>
             </div>
         </div>
@@ -1251,8 +1316,8 @@
 <button id="myhouse-edit-pet-button" data-modal-target="myhouse-edit-pet-modal" data-modal-toggle="myhouse-edit-pet-modal" class="hidden" type="button" aria-hidden="true">Abrir modal editar mascota</button>
 <!-- Modal editar mascota -->
 <div id="myhouse-edit-pet-modal" appModalUppercase data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-lg max-h-full">
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+    <div class="vc-modal-panel-md">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Editar mascota</h3>
                 <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center dark:hover:bg-gray-600 dark:hover:text-white" data-modal-hide="myhouse-edit-pet-modal">
@@ -1293,8 +1358,8 @@
                     </select>
                 </div>
             </div>
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="saveEditPet()" data-modal-hide="myhouse-edit-pet-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
+            <div class="vc-modal-footer">
+                <button (click)="saveEditPet()" data-modal-hide="myhouse-edit-pet-modal" type="button" class="vc-btn-primary">Guardar</button>
                 <button (click)="clean()" data-modal-hide="myhouse-edit-pet-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white">Cancelar</button>
             </div>
         </div>

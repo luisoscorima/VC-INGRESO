@@ -1,6 +1,5 @@
-<div class="dashboard-wrap birthday-page min-h-screen dark:bg-gray-900">
-  <div class="vc-page-shell">
-    <div class="vc-card">
+<div class="vc-page min-h-screen">
+  <div class="vc-page-inner vc-card">
       <div class="vc-card-header">
         <div>
           <h1 class="vc-card-title">Cumpleaños</h1>
@@ -9,8 +8,7 @@
       </div>
 
       <div class="p-5 space-y-4">
-        <div class="vc-filter-panel">
-          <div class="flex flex-wrap items-center gap-4">
+        <div class="vc-filter-row">
             <div class="flex flex-col gap-1 min-w-[160px]">
               <label for="birthday-date" class="text-xs font-medium text-gray-700 dark:text-gray-300">Fecha</label>
               <input
@@ -19,7 +17,7 @@
                 name="birthdayDate"
                 [ngModel]="fechaInputYmd"
                 (ngModelChange)="onDateInput($event)"
-                class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-teal-500"
+                class="vc-field"
               />
             </div>
             <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
@@ -29,36 +27,49 @@
                 type="search"
                 name="birthdaySearch"
                 [(ngModel)]="searchTerm"
-                (ngModelChange)="currentPage = 1"
+                (ngModelChange)="onBirthdaySearchChange()"
                 placeholder="Nombre, documento, domicilio…"
                 class="vc-input-search"
                 autocomplete="off"
               />
             </div>
           </div>
-        </div>
 
         <div class="vc-table-wrap bg-white dark:bg-gray-950/50">
-          <table class="vc-table w-full text-left">
+          <table class="vc-table vc-table--expandable w-full text-left">
             <thead>
               <tr class="vc-thead-row">
-                <th *ngIf="showDocColumn" class="vc-th">N° documento</th>
+                <th class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
+                <th *ngIf="showDocColumn" class="vc-th vc-th-data-secondary">N° documento</th>
                 <th class="vc-th">Nombre</th>
-                <th class="vc-th">Fecha nac.</th>
-                <th class="vc-th">Domicilio</th>
+                <th class="vc-th vc-th-data-secondary">Fecha nac.</th>
+                <th class="vc-th vc-th-data-secondary">Domicilio</th>
                 <th class="vc-th text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let a of paginatedNeighbors" class="vc-tbody-row">
-                <td *ngIf="showDocColumn" class="vc-td whitespace-nowrap">{{ a.doc_number }}</td>
+              <ng-container *ngFor="let a of paginatedNeighbors">
+              <tr class="vc-tbody-row vc-row-summary"
+                  [class.vc-row-summary--open]="isBirthdayRowOpen(a)"
+                  (click)="toggleBirthdayRow(a)"
+                  [attr.aria-expanded]="isBirthdayRowOpen(a)">
+                <td class="vc-td vc-td-expand">
+                  <button type="button" class="vc-row-toggle"
+                      [attr.aria-label]="isBirthdayRowOpen(a) ? 'Ocultar detalle' : 'Ver detalle'"
+                      (click)="toggleBirthdayRow(a); $event.stopPropagation()">
+                    <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isBirthdayRowOpen(a)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </button>
+                </td>
+                <td *ngIf="showDocColumn" class="vc-td vc-td-data-secondary whitespace-nowrap">{{ a.doc_number }}</td>
                 <td class="vc-td whitespace-nowrap">
                   {{ a.first_name }} {{ a.paternal_surname
                   }}<span *ngIf="(a.maternal_surname || '').trim()"> {{ a.maternal_surname }}</span>
                 </td>
-                <td class="vc-td">{{ a.birth_date | date : "d 'de' MMMM" }}</td>
-                <td class="vc-td">{{ getHouseDisplay(a) }}</td>
-                <td class="vc-td text-right whitespace-nowrap">
+                <td class="vc-td vc-td-data-secondary">{{ a.birth_date | date : "d 'de' MMMM" }}</td>
+                <td class="vc-td vc-td-data-secondary">{{ getHouseDisplay(a) }}</td>
+                <td class="vc-td text-right whitespace-nowrap" (click)="$event.stopPropagation()">
                   <button
                     type="button"
                     (click)="felicitar(a)"
@@ -77,8 +88,27 @@
                   </button>
                 </td>
               </tr>
+              <tr class="vc-row-detail" *ngIf="isBirthdayRowOpen(a)">
+                <td class="vc-row-detail-cell" [attr.colspan]="birthdayTableColspan">
+                  <div class="vc-detail-list">
+                    <div *ngIf="showDocColumn" class="vc-detail-item">
+                      <span class="vc-detail-label">N° documento</span>
+                      <span class="vc-detail-value">{{ a.doc_number || '—' }}</span>
+                    </div>
+                    <div class="vc-detail-item">
+                      <span class="vc-detail-label">Fecha nac.</span>
+                      <span class="vc-detail-value">{{ a.birth_date | date : "d 'de' MMMM" }}</span>
+                    </div>
+                    <div class="vc-detail-item">
+                      <span class="vc-detail-label">Domicilio</span>
+                      <span class="vc-detail-value">{{ getHouseDisplay(a) || '—' }}</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              </ng-container>
               <tr *ngIf="!paginatedNeighbors.length">
-                <td [attr.colspan]="colCount" class="px-3 py-8 text-center text-gray-500 dark:text-gray-400">
+                <td [attr.colspan]="birthdayTableColspan" class="px-3 py-8 text-center text-gray-500 dark:text-gray-400">
                   <ng-container *ngIf="searchTerm.trim(); else noBirthdays">
                     No hay resultados para «{{ searchTerm }}» en este día.
                   </ng-container>
@@ -111,6 +141,5 @@
           </div>
         </div>
       </div>
-    </div>
   </div>
 </div>

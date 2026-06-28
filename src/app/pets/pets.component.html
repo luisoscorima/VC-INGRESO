@@ -1,5 +1,5 @@
-<div *ngIf="true" class="p-4 dark:bg-gray-900">
-    <div class="vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
+<div *ngIf="true" class="vc-page">
+    <div class="vc-page-inner vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
         <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Mascotas</h2>
         <div class="mb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <button *ngIf="canManagePetsCrud" type="button" (click)="newPet()" class="vc-btn-primary me-2 py-1.5">
@@ -8,7 +8,7 @@
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Total mascotas: {{ pets.length }}</span>
         </div>
 
-        <div class="mb-4 flex flex-col md:flex-row gap-2 md:items-center">
+        <div class="vc-filter-row">
             <input [(ngModel)]="searchTerm" type="text" placeholder="Buscar por nombre, especie o raza..." class="vc-input-search md:flex-1" />
             <select [(ngModel)]="selectedBlock" class="vc-select-sm">
                 <option value="">Mz: Todas</option>
@@ -21,15 +21,16 @@
         </div>
 
         <div class="vc-table-wrap">
-            <table class="vc-table text-left text-gray-600 dark:text-gray-300">
+            <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
                 <thead>
                     <tr class="vc-thead-row">
+                        <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                         <th scope="col" class="vc-th w-12"></th>
                         <th scope="col" class="vc-th">Nombre</th>
-                        <th scope="col" class="vc-th">Especie</th>
-                        <th scope="col" class="vc-th">Raza</th>
-                        <th scope="col" class="vc-th">Casa</th>
-                        <th scope="col" class="vc-th">Propietario</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary">Especie</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary">Raza</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary">Casa</th>
+                        <th scope="col" class="vc-th vc-th-data-secondary">Propietario</th>
                         <th scope="col" class="vc-th">Estado</th>
                         <th scope="col" class="vc-th text-right">
                             Acciones
@@ -38,7 +39,20 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let p of paginatedPets" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+                    <ng-container *ngFor="let p of paginatedPets">
+                    <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
+                        [class.vc-row-summary--open]="isRowOpen(p)"
+                        (click)="toggleRow(p)"
+                        [attr.aria-expanded]="isRowOpen(p)">
+                        <td class="vc-td vc-td-expand">
+                            <button type="button" class="vc-row-toggle"
+                                [attr.aria-label]="isRowOpen(p) ? 'Ocultar detalle' : 'Ver detalle'"
+                                (click)="toggleRow(p); $event.stopPropagation()">
+                                <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isRowOpen(p)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                        </td>
                         <td class="vc-td">
                             <div *ngIf="p.photo_url" class="w-10 h-10 rounded-full overflow-hidden">
                                 <img [src]="getPhotoUrl(p.photo_url)" alt="Foto" class="w-full h-full object-cover">
@@ -47,15 +61,15 @@
                                 <mat-icon class="!text-lg !w-5 !h-5">{{ getPetIcon(p.species) }}</mat-icon>
                             </div>
                         </td>
-                        <th scope="row" class="vc-td font-medium uppercase whitespace-nowrap">
+                        <th scope="row" class="vc-td font-medium uppercase">
                             {{p.name}}
                         </th>
-                        <td class="vc-td uppercase">{{p.species}}</td>
-                        <td class="vc-td uppercase">{{p.breed || '-'}}</td>
-                        <td class="vc-td uppercase">{{ getHouseDisplay(p) }}</td>
-                        <td class="vc-td uppercase">{{ getOwnerName(p.owner_id) }}</td>
+                        <td class="vc-td vc-td-data-secondary uppercase">{{p.species}}</td>
+                        <td class="vc-td vc-td-data-secondary uppercase">{{p.breed || '-'}}</td>
+                        <td class="vc-td vc-td-data-secondary uppercase">{{ getHouseDisplay(p) }}</td>
+                        <td class="vc-td vc-td-data-secondary uppercase">{{ getOwnerName(p.owner_id) }}</td>
                         <td class="vc-td uppercase">{{p.status_validated}}</td>
-                        <td class="vc-td text-right">
+                        <td class="vc-td text-right" (click)="$event.stopPropagation()">
                             <div class="inline-flex flex-wrap justify-end gap-1">
                             <button *ngIf="p.photo_url" type="button" (click)="openViewPhoto(p)" class="vc-action-btn vc-action-btn--view" title="Ver foto" aria-label="Ver foto">
                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -71,19 +85,42 @@
                             </div>
                         </td>
                     </tr>
+                    <tr class="vc-row-detail" *ngIf="isRowOpen(p)">
+                        <td class="vc-row-detail-cell" [attr.colspan]="tableColspan">
+                            <div class="vc-detail-list">
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Especie</span>
+                                    <span class="vc-detail-value">{{ p.species || '—' }}</span>
+                                </div>
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Raza</span>
+                                    <span class="vc-detail-value">{{ p.breed || '—' }}</span>
+                                </div>
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Casa</span>
+                                    <span class="vc-detail-value">{{ getHouseDisplay(p) || '—' }}</span>
+                                </div>
+                                <div class="vc-detail-item">
+                                    <span class="vc-detail-label">Propietario</span>
+                                    <span class="vc-detail-value">{{ getOwnerName(p.owner_id) || '—' }}</span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    </ng-container>
                 </tbody>
             </table>
         </div>
 
-        <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
-            <div class="flex items-center gap-2">
+        <div class="vc-pagination">
+            <div class="vc-pagination-meta">
                 <span>Filas por pagina</span>
                 <select [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange()" class="px-2 py-1 border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white">
                     <option *ngFor="let size of pageSizeOptions" [ngValue]="size">{{ size }}</option>
                 </select>
                 <span>Mostrando {{ filteredPets.length }} resultados</span>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="vc-pagination-nav">
                 <button type="button" (click)="previousPage()" [disabled]="currentPage === 1" class="vc-btn-outline">Anterior</button>
                 <span>Pagina {{ currentPage }} de {{ petsTotalPages }}</span>
                 <button type="button" (click)="nextPage()" [disabled]="currentPage >= petsTotalPages" class="vc-btn-outline">Siguiente</button>
@@ -99,9 +136,9 @@
 
 <!-- Main modal new pet -->
 <div id="pets-new-pet-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -115,14 +152,14 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-nameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombre</label>
-                    <input [(ngModel)]="petToAdd.name" type="text" name="nameNew" id="pets-nameNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Nombre..." required />
+                    <input [(ngModel)]="petToAdd.name" type="text" name="nameNew" id="pets-nameNew" class="vc-field w-full" placeholder="Nombre..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-speciesNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Especie</label>
-                    <select [(ngModel)]="petToAdd.species" name="speciesNew" id="pets-speciesNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required>
+                    <select [(ngModel)]="petToAdd.species" name="speciesNew" id="pets-speciesNew" class="vc-field w-full" required>
                         <option value="PERRO">Perro</option>
                         <option value="GATO">Gato</option>
                         <option value="AVE">Ave</option>
@@ -134,22 +171,22 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-breedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Raza</label>
-                    <input [(ngModel)]="petToAdd.breed" type="text" name="breedNew" id="pets-breedNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Raza..." />
+                    <input [(ngModel)]="petToAdd.breed" type="text" name="breedNew" id="pets-breedNew" class="vc-field w-full" placeholder="Raza..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-colorNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Color</label>
-                    <input [(ngModel)]="petToAdd.color" type="text" name="colorNew" id="pets-colorNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" placeholder="Color..." />
+                    <input [(ngModel)]="petToAdd.color" type="text" name="colorNew" id="pets-colorNew" class="vc-field w-full" placeholder="Color..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-houseIdNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Casa</label>
-                    <select [(ngModel)]="petToAdd.house_id" name="houseIdNew" id="pets-houseIdNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required>
+                    <select [(ngModel)]="petToAdd.house_id" name="houseIdNew" id="pets-houseIdNew" class="vc-field w-full" required>
                         <option value="">Seleccionar casa...</option>
                         <option *ngFor="let h of houses" [value]="h.house_id">Mz:{{ h.block_house }} Lt:{{ h.lot }}{{ h.apartment ? ' Dpto: ' + h.apartment : '' }}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-statusNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <select [(ngModel)]="petToAdd.status_validated" name="statusNew" id="pets-statusNew" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required>
+                    <select [(ngModel)]="petToAdd.status_validated" name="statusNew" id="pets-statusNew" class="vc-field w-full" required>
                         <option value="PERMITIDO">Permitido</option>
                         <option value="DENEGADO">Denegado</option>
                         <option value="OBSERVADO">Observado</option>
@@ -157,9 +194,9 @@
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="createPet()" data-modal-hide="pets-new-pet-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="pets-new-pet-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="createPet()" data-modal-hide="pets-new-pet-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="pets-new-pet-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>
@@ -172,9 +209,9 @@
 
 <!-- Main modal edit pet -->
 <div id="pets-edit-pet-modal" data-modal-backdrop="static" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-2xl max-h-full">
+    <div class="vc-modal-panel">
         <!-- Modal content -->
-        <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">
+        <div class="relative min-w-0 bg-white rounded-lg shadow dark:bg-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b rounded-t dark:border-gray-600">
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
@@ -188,14 +225,14 @@
                 </button>
             </div>
             <!-- Modal body -->
-            <div class="p-4 md:p-5 grid sm:grid-cols-2 grid-cols-1" *ngIf="petToEdit">
+            <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2" *ngIf="petToEdit">
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-nameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombre</label>
-                    <input [(ngModel)]="petToEdit.name" type="text" name="nameEdit" id="pets-nameEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" required />
+                    <input [(ngModel)]="petToEdit.name" type="text" name="nameEdit" id="pets-nameEdit" class="vc-field w-full" required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-speciesEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Especie</label>
-                    <select [(ngModel)]="petToEdit.species" name="speciesEdit" id="pets-speciesEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required>
+                    <select [(ngModel)]="petToEdit.species" name="speciesEdit" id="pets-speciesEdit" class="vc-field w-full" required>
                         <option value="PERRO">Perro</option>
                         <option value="GATO">Gato</option>
                         <option value="AVE">Ave</option>
@@ -207,21 +244,21 @@
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-breedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Raza</label>
-                    <input [(ngModel)]="petToEdit.breed" type="text" name="breedEdit" id="pets-breedEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" />
+                    <input [(ngModel)]="petToEdit.breed" type="text" name="breedEdit" id="pets-breedEdit" class="vc-field w-full" />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-colorEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Color</label>
-                    <input [(ngModel)]="petToEdit.color" type="text" name="colorEdit" id="pets-colorEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" />
+                    <input [(ngModel)]="petToEdit.color" type="text" name="colorEdit" id="pets-colorEdit" class="vc-field w-full" />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-houseIdEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Casa</label>
-                    <select [(ngModel)]="petToEdit.house_id" name="houseIdEdit" id="pets-houseIdEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required>
+                    <select [(ngModel)]="petToEdit.house_id" name="houseIdEdit" id="pets-houseIdEdit" class="vc-field w-full" required>
                         <option *ngFor="let h of houses" [value]="h.house_id">Mz:{{ h.block_house }} Lt:{{ h.lot }}{{ h.apartment ? ' Dpto: ' + h.apartment : '' }}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="pets-statusEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <select [(ngModel)]="petToEdit.status_validated" name="statusEdit" id="pets-statusEdit" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" required>
+                    <select [(ngModel)]="petToEdit.status_validated" name="statusEdit" id="pets-statusEdit" class="vc-field w-full" required>
                         <option value="PERMITIDO">Permitido</option>
                         <option value="DENEGADO">Denegado</option>
                         <option value="OBSERVADO">Observado</option>
@@ -229,9 +266,9 @@
                 </div>
             </div>
             <!-- Modal footer -->
-            <div class="flex items-center p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600">
-                <button (click)="updatePet()" data-modal-hide="pets-edit-pet-modal" type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Guardar</button>
-                <button (click)="clean()" data-modal-hide="pets-edit-pet-modal" type="button" class="py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">Cancelar</button>
+            <div class="vc-modal-footer">
+                <button (click)="updatePet()" data-modal-hide="pets-edit-pet-modal" type="button" class="vc-btn-primary">Guardar</button>
+                <button (click)="clean()" data-modal-hide="pets-edit-pet-modal" type="button" class="vc-btn-cancel">Cancelar</button>
             </div>
         </div>
     </div>

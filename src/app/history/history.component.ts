@@ -9,6 +9,11 @@ import { EntranceService } from '../entrance.service';
 import { AuthService } from '../auth.service';
 import { todayYmdInAppTimeZone } from '../app-date.util';
 import * as XLSX from 'xlsx';
+import {
+  ExpandableRowId,
+  isExpandableRowOpen,
+  toggleExpandableRow,
+} from '../shared/expandable-row';
 
 export interface HistoryAccessPointOption {
   id: number;
@@ -55,6 +60,12 @@ export class HistoryComponent implements OnInit {
 
   /** Columna documento: solo personal (admin/operario), no vecinos USUARIO. */
   showDocColumn = true;
+
+  expandedHistoryRowId: ExpandableRowId = null;
+
+  get historyTableColspan(): number {
+    return this.showDocColumn ? 12 : 11;
+  }
 
   constructor(
     private accessLogService: AccessLogService,
@@ -139,6 +150,22 @@ export class HistoryComponent implements OnInit {
   onFilterInput(value: string): void {
     this.filterQuery = value;
     this.pageIndex = 0;
+    this.expandedHistoryRowId = null;
+  }
+
+  getHistoryRowId(a: HistoryRow): string {
+    return `${a['doc_number'] ?? ''}-${a['date_entry'] ?? ''}-${a['access_point_name'] ?? ''}`;
+  }
+
+  isHistoryRowOpen(a: HistoryRow): boolean {
+    return isExpandableRowOpen(this.expandedHistoryRowId, this.getHistoryRowId(a));
+  }
+
+  toggleHistoryRow(a: HistoryRow): void {
+    this.expandedHistoryRowId = toggleExpandableRow(
+      this.expandedHistoryRowId,
+      this.getHistoryRowId(a)
+    );
   }
 
   toggleSort(key: string): void {
@@ -159,14 +186,17 @@ export class HistoryComponent implements OnInit {
 
   goPrevPage(): void {
     this.pageIndex = Math.max(0, this.pageIndex - 1);
+    this.expandedHistoryRowId = null;
   }
 
   goNextPage(): void {
     this.pageIndex = Math.min(this.totalPages - 1, this.pageIndex + 1);
+    this.expandedHistoryRowId = null;
   }
 
   onPageSizeChange(): void {
     this.pageIndex = 0;
+    this.expandedHistoryRowId = null;
   }
 
   exportExcel(): void {
@@ -194,6 +224,7 @@ export class HistoryComponent implements OnInit {
 
   onAccessPointChange(): void {
     this.pageIndex = 0;
+    this.expandedHistoryRowId = null;
     this.fetchHistory();
   }
 
@@ -206,6 +237,7 @@ export class HistoryComponent implements OnInit {
       return;
     }
     this.pageIndex = 0;
+    this.expandedHistoryRowId = null;
     this.fetchHistory();
   }
 

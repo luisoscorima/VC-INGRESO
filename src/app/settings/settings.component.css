@@ -28,6 +28,17 @@
   --mat-tab-header-active-focus-label-text-color: rgb(217 119 6);
   --mat-tab-header-active-hover-label-text-color: rgb(217 119 6);
   --mdc-tab-indicator-active-indicator-color: rgb(217 119 6);
+  min-width: 0;
+  max-width: 100%;
+}
+
+:host ::ng-deep .settings-tabs .mat-mdc-tab-header {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+:host ::ng-deep .settings-tabs .mat-mdc-tab-labels {
+  flex-wrap: nowrap;
 }
 
 .dark :host ::ng-deep .mat-mdc-tab-group {

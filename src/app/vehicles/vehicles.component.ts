@@ -8,6 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../api.service';
 import { AuthService } from '../auth.service';
 import { NavPermissionService } from '../nav-permission.service';
+import { ExpandableRowId, isExpandableRowOpen, toggleExpandableRow } from '../shared/expandable-row';
 import { PublicRegistrationService } from '../public-registration/public-registration.service';
 import {
   VEHICLE_TYPE_VALUES,
@@ -69,6 +70,11 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   externalCurrentPage: number = 1;
   externalPageSize: number = 10;
   pageSizeOptions: number[] = [10, 25, 50, 100];
+
+  expandedResidentRowId: ExpandableRowId = null;
+  expandedExternalRowId: ExpandableRowId = null;
+  readonly residentTableColspan = 7;
+  readonly externalTableColspan = 8;
 
   showViewPhotoDialog = false;
   viewPhotoUrl: string | null = null;
@@ -276,34 +282,64 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
 
   onResidentPageSizeChange(): void {
     this.residentCurrentPage = 1;
+    this.expandedResidentRowId = null;
   }
 
   previousResidentPage(): void {
     if (this.residentCurrentPage > 1) {
       this.residentCurrentPage -= 1;
+      this.expandedResidentRowId = null;
     }
   }
 
   nextResidentPage(): void {
     if (this.residentCurrentPage < this.vehiclesTotalPages) {
       this.residentCurrentPage += 1;
+      this.expandedResidentRowId = null;
     }
   }
 
   onExternalPageSizeChange(): void {
     this.externalCurrentPage = 1;
+    this.expandedExternalRowId = null;
   }
 
   previousExternalPage(): void {
     if (this.externalCurrentPage > 1) {
       this.externalCurrentPage -= 1;
+      this.expandedExternalRowId = null;
     }
   }
 
   nextExternalPage(): void {
     if (this.externalCurrentPage < this.externalVehiclesTotalPages) {
       this.externalCurrentPage += 1;
+      this.expandedExternalRowId = null;
     }
+  }
+
+  getResidentRowId(v: Vehicle): string | number {
+    return v.vehicle_id ?? `${v.type_vehicle}-${v.license_plate}`;
+  }
+
+  isResidentRowOpen(v: Vehicle): boolean {
+    return isExpandableRowOpen(this.expandedResidentRowId, this.getResidentRowId(v));
+  }
+
+  toggleResidentRow(v: Vehicle): void {
+    this.expandedResidentRowId = toggleExpandableRow(this.expandedResidentRowId, this.getResidentRowId(v));
+  }
+
+  getExternalRowId(ev: ExternalVehicle): string | number {
+    return ev.id ?? ev.temp_visit_id ?? `${ev.temp_visit_plate}-${ev.temp_visit_name}`;
+  }
+
+  isExternalRowOpen(ev: ExternalVehicle): boolean {
+    return isExpandableRowOpen(this.expandedExternalRowId, this.getExternalRowId(ev));
+  }
+
+  toggleExternalRow(ev: ExternalVehicle): void {
+    this.expandedExternalRowId = toggleExpandableRow(this.expandedExternalRowId, this.getExternalRowId(ev));
   }
 
   openViewPhoto(vehicle: Vehicle): void {
