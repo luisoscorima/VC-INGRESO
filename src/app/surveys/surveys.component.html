@@ -12,17 +12,17 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label class="block md:col-span-2">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Título</span>
-            <input [(ngModel)]="form.title" type="text" class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
+            <input [(ngModel)]="form.title" type="text" class="vc-field" />
           </label>
 
           <label class="block md:col-span-2">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Pregunta / descripción</span>
-            <textarea [(ngModel)]="form.description" rows="3" class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm"></textarea>
+            <textarea [(ngModel)]="form.description" rows="3" class="vc-field"></textarea>
           </label>
 
           <label class="block">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Tipo</span>
-            <select [(ngModel)]="form.question_type" class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
+            <select [(ngModel)]="form.question_type" class="vc-field">
               <option value="CLOSED">Cerrada (Si / No / Tal vez)</option>
               <option value="OPEN">Abierta</option>
               <option value="MULTIPLE">Opción múltiple (una sola respuesta)</option>
@@ -32,17 +32,17 @@
 
           <label class="block">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Inicio (opcional)</span>
-            <input [(ngModel)]="form.start_at" type="datetime-local" class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
+            <input [(ngModel)]="form.start_at" type="datetime-local" class="vc-field" />
           </label>
 
           <label class="block">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Fin (opcional)</span>
-            <input [(ngModel)]="form.end_at" type="datetime-local" class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm" />
+            <input [(ngModel)]="form.end_at" type="datetime-local" class="vc-field" />
           </label>
 
           <label class="block md:col-span-2" *ngIf="form.question_type === 'MULTIPLE' || form.question_type === 'CHECKBOX'">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Opciones (una por línea)</span>
-            <textarea [(ngModel)]="optionsText" rows="4" class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm"></textarea>
+            <textarea [(ngModel)]="optionsText" rows="4" class="vc-field"></textarea>
           </label>
         </div>
 
@@ -56,7 +56,7 @@
             <mat-icon class="!text-lg !w-5 !h-5">save</mat-icon>
             {{ editingId ? 'Actualizar' : 'Crear' }}
           </button>
-          <button *ngIf="editingId" type="button" (click)="startCreate()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-600">
+          <button *ngIf="editingId" type="button" (click)="startCreate()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 dark:border-gray-600 dark:text-gray-200">
             Cancelar
           </button>
         </div>

@@ -215,6 +215,11 @@ body {
   .vc-select-sm {
     @apply px-2 py-1.5 text-xs border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white focus:ring-1 focus:ring-teal-500 md:w-auto;
   }
+
+  /* Campos de formulario (encuestas, comunicados, etc.) */
+  .vc-field {
+    @apply mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500;
+  }
 }
 
 /*
@@ -225,4 +230,8 @@ button.vc-btn-primary,
 a.vc-btn-primary {
   background-color: #14b8a6;
   background-image: linear-gradient(to right, #2dd4bf, #14b8a6, #0d9488);
+}
+
+.dark .vc-field {
+  color-scheme: dark;
 }
