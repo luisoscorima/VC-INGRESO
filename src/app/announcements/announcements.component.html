@@ -24,50 +24,42 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label class="block md:col-span-2">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Título</span>
-            <input [(ngModel)]="form.title" type="text"
-              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <input [(ngModel)]="form.title" type="text" class="vc-field" />
           </label>
 
           <label class="block md:col-span-2">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Mensaje</span>
-            <textarea [(ngModel)]="form.message" rows="4"
-              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+            <textarea [(ngModel)]="form.message" rows="4" class="vc-field"></textarea>
           </label>
 
           <label class="block">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Inicio (opcional)</span>
-            <input [(ngModel)]="form.start_at" type="datetime-local"
-              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <input [(ngModel)]="form.start_at" type="datetime-local" class="vc-field" />
           </label>
 
           <label class="block">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Fin (opcional)</span>
-            <input [(ngModel)]="form.end_at" type="datetime-local"
-              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <input [(ngModel)]="form.end_at" type="datetime-local" class="vc-field" />
           </label>
 
           <label class="block">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Texto del botón (opcional)</span>
-            <input [(ngModel)]="form.cta_label" type="text"
-              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <input [(ngModel)]="form.cta_label" type="text" class="vc-field" />
           </label>
 
           <label class="block">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">URL del botón (opcional)</span>
-            <input [(ngModel)]="form.cta_url" type="text" placeholder="#/documentos o https://..."
-              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <input [(ngModel)]="form.cta_url" type="text" placeholder="#/documentos o https://..." class="vc-field" />
           </label>
 
           <label class="block">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Imagen (URL opcional)</span>
-            <input [(ngModel)]="form.image_url" type="text" placeholder="/uploads/public/announcements/..."
-              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <input [(ngModel)]="form.image_url" type="text" placeholder="/uploads/public/announcements/..." class="vc-field" />
           </label>
 
           <label class="block">
             <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Subir imagen</span>
-            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" (change)="onAnnouncementImageSelected($event)"
-              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" (change)="onAnnouncementImageSelected($event)" class="vc-field" />
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Sube JPG, PNG, WEBP o GIF (max 8MB).</p>
           </label>
         </div>
