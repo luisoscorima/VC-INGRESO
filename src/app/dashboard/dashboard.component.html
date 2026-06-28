@@ -269,10 +269,11 @@
           </div>
           <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Cantidad de ingresos por hora para ver horas punta.</p>
           <p class="text-xs font-medium text-amber-700 dark:text-amber-300 mb-2" *ngIf="!loadingHourChart && ingresosHoraTotalCount > 0">Total: {{ ingresosHoraTotalCount }} ingresos en el período</p>
-          <div class="flex items-end h-52 gap-0.5 pt-2" *ngIf="!loadingHourChart && ingresosHoraTotalCount > 0">
-            <div *ngFor="let bar of chartIngresosPorHora" class="flex-1 flex flex-col items-center min-w-0" [title]="(bar.count ?? 0) + ' ingresos'">
-              <div class="w-full max-w-[14px] mx-auto bg-gradient-to-t from-amber-400 to-amber-600 rounded-t transition-all min-h-[2px]" [style.height.%]="(bar.count ?? 0) > 0 && bar.value < 6 ? 6 : bar.value"></div>
-              <span class="text-[10px] text-gray-500 mt-1 truncate w-full text-center">{{ bar.label }}</span>
+          <div class="flex items-end h-40 gap-0.5 mb-1" *ngIf="!loadingHourChart && ingresosHoraTotalCount > 0">
+            <div *ngFor="let bar of chartIngresosPorHora" class="flex h-full flex-1 flex-col items-center justify-end min-w-0" [title]="(bar.count ?? 0) + ' ingresos'">
+              <div class="w-full max-w-[14px] mx-auto rounded-t bg-gradient-to-t from-amber-400 to-amber-600 transition-all"
+                [style.height.px]="ingressBarHeightPx(bar)"></div>
+              <span class="mt-1 w-full truncate text-center text-[10px] text-gray-500">{{ bar.label }}</span>
             </div>
           </div>
           <div *ngIf="loadingHourChart" class="h-52 flex items-center justify-center text-gray-500">Cargando…</div>
@@ -284,10 +285,13 @@
           <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Hoy: residentes, inquilinos, visitas y visitas externas (temporales).</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" *ngIf="distributionVisitors.length && distributionVisitorsTotal > 0">
             <div class="flex flex-col items-center justify-center">
-              <div class="relative w-36 h-36 rounded-full border-4 border-gray-200 dark:border-gray-600 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
-                <div class="text-center z-10">
-                  <span class="text-xl font-bold text-gray-800 dark:text-white">{{ distributionVisitorsTotal }}</span>
-                  <p class="text-xs text-gray-500">Ingresos hoy</p>
+              <div class="relative flex h-36 w-36 items-center justify-center rounded-full"
+                [ngStyle]="distributionDonutStyle()">
+                <div class="absolute inset-[12px] flex items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800">
+                  <div class="text-center z-10">
+                    <span class="text-xl font-bold text-gray-800 dark:text-white">{{ distributionVisitorsTotal }}</span>
+                    <p class="text-xs text-gray-500">Ingresos hoy</p>
+                  </div>
                 </div>
               </div>
             </div>

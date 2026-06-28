@@ -567,6 +567,44 @@ export class DashboardComponent implements OnInit {
     return (this.distributionVisitors || []).reduce((s, d) => s + (d.count || 0), 0);
   }
 
+  /** Altura en px para barras del gráfico por hora (evita height.% sin contenedor con altura fija). */
+  ingressBarHeightPx(bar: { count: number; value: number }): number {
+    if (!bar.count) {
+      return 0;
+    }
+    const maxBarPx = 152;
+    return Math.max(6, Math.round((bar.value / 100) * maxBarPx));
+  }
+
+  /** Anillo tipo donut con conic-gradient según conteos por categoría. */
+  distributionDonutStyle(): Record<string, string> | null {
+    const total = this.distributionVisitorsTotal;
+    if (!total) {
+      return null;
+    }
+    const colorByClass: Record<string, string> = {
+      'bg-emerald-500': '#10b981',
+      'bg-sky-500': '#0ea5e9',
+      'bg-amber-500': '#f59e0b',
+      'bg-violet-500': '#8b5cf6',
+    };
+    let acc = 0;
+    const stops: string[] = [];
+    for (const d of this.distributionVisitors) {
+      if (!d.count) {
+        continue;
+      }
+      const pct = (d.count / total) * 100;
+      const color = colorByClass[d.colorClass] ?? '#94a3b8';
+      stops.push(`${color} ${acc}% ${acc + pct}%`);
+      acc += pct;
+    }
+    if (!stops.length) {
+      return null;
+    }
+    return { background: `conic-gradient(${stops.join(', ')})` };
+  }
+
   /** Obtiene mes-día (MM-DD) desde birth_date para filtrar cumpleaños. */
   private getMonthDayFromBirthDate(birthDate: string | null | undefined): string | null {
     if (!birthDate) return null;
