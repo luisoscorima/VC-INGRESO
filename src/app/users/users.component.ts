@@ -428,7 +428,7 @@ export class UsersComponent implements OnInit, AfterViewInit{
   onToggleSystemAccessEdit(): void {
     if (this.enableSystemAccessEdit) {
       this.userToEdit.role_system = this.userToEdit.role_system || 'USUARIO';
-      this.userToEdit.force_password_change = Number(this.userToEdit.force_password_change ? 1 : 1);
+      this.userToEdit.force_password_change = Number(this.userToEdit.force_password_change ? 1 : 0) || 1;
       this.ensureSuggestedUsernameFor(this.userToEdit);
     }
   }
@@ -515,6 +515,12 @@ export class UsersComponent implements OnInit, AfterViewInit{
     }
     this.userToAdd.status_system = 'ACTIVO';
     this.userToAdd.force_password_change = Number(this.userToAdd.force_password_change ? 1 : 0);
+
+    const hid = Number(this.userToAdd.house_id) || 0;
+    if (hid <= 0 && isStaffRoleSystemValue(this.userToAdd.role_system)) {
+      this.userToAdd.property_category = '';
+      (this.userToAdd as any).person_type = null;
+    }
   
     // Verificar existencia del usuario en la base de datos
     this.usersService.getUserByDocNumber(this.userToAdd.doc_number).subscribe((resExistentUser: User) => {

@@ -28,7 +28,7 @@ class UserController extends Controller {
             return;
         }
         $sql = "SELECT u.user_id, u.person_id, u.role_system, u.username_system, u.house_id,
-                       u.status_validated, u.status_reason, u.status_system, u.is_active,
+                       u.status_validated, u.status_reason, u.status_system, u.is_active, u.force_password_change,
                        p.type_doc, p.doc_number, p.first_name, p.paternal_surname, p.maternal_surname,
                        p.gender, p.birth_date, p.cel_number, p.email, p.photo_url, p.civil_status,
                        p.person_type AS property_category,
@@ -66,7 +66,7 @@ class UserController extends Controller {
         }
         
         $sql = "SELECT u.user_id, u.person_id, u.role_system, u.username_system, u.house_id,
-                       u.status_validated, u.status_reason, u.status_system, u.is_active,
+                       u.status_validated, u.status_reason, u.status_system, u.is_active, u.force_password_change,
                        p.type_doc, p.doc_number, p.first_name, p.paternal_surname, p.maternal_surname,
                        p.gender, p.birth_date, p.cel_number, p.email, p.photo_url, p.civil_status,
                        p.person_type AS property_category,
@@ -157,7 +157,12 @@ class UserController extends Controller {
         }
         
         $personAllowed = ['type_doc', 'doc_number', 'first_name', 'paternal_surname', 'maternal_surname', 'gender', 'birth_date', 'cel_number', 'email', 'address', 'district', 'province', 'region', 'civil_status', 'photo_url', 'person_type', 'property_category', 'house_id', 'status_validated', 'status_system'];
-        $userAllowed = ['role_system', 'username_system', 'password_system', 'house_id', 'status_validated', 'status_reason', 'status_system'];
+        $userAllowed = ['role_system', 'username_system', 'password_system', 'house_id', 'status_validated', 'status_reason', 'status_system', 'force_password_change'];
+
+        $roleSystem = strtoupper(trim((string) ($data['role_system'] ?? 'USUARIO')));
+        $houseIdCreate = isset($data['house_id']) && $data['house_id'] !== '' && $data['house_id'] !== null
+            ? (int) $data['house_id'] : 0;
+        $staffWithoutHouse = in_array($roleSystem, ['OPERARIO', 'ADMINISTRADOR'], true) && $houseIdCreate <= 0;
         
         if ($existingPerson) {
             $personId = (int) $existingPerson->id;
@@ -170,7 +175,11 @@ class UserController extends Controller {
                 $pData['person_type'] = $pData['property_category'];
             }
             unset($pData['property_category']);
-            if (empty($pData['person_type'])) $pData['person_type'] = 'RESIDENTE';
+            $personTypeEmpty = !isset($pData['person_type'])
+                || trim((string) $pData['person_type']) === '';
+            if ($personTypeEmpty) {
+                $pData['person_type'] = $staffWithoutHouse ? null : 'RESIDENTE';
+            }
             $cols = implode(', ', array_keys($pData));
             $ph = implode(', ', array_fill(0, count($pData), '?'));
             $this->db->prepare("INSERT INTO persons ($cols) VALUES ($ph)")->execute(array_values($pData));
@@ -193,6 +202,9 @@ class UserController extends Controller {
         foreach ($userAllowed as $f) {
             if (isset($data[$f])) $uData[$f] = $data[$f];
         }
+        $uData['force_password_change'] = isset($data['force_password_change'])
+            ? ((int) $data['force_password_change'] ? 1 : 0)
+            : 1;
         if (isset($uData['password_system']) && $uData['password_system'] !== '') {
             $uData['password_system'] = password_hash($uData['password_system'], PASSWORD_DEFAULT);
         }
@@ -226,7 +238,8 @@ class UserController extends Controller {
         $this->db->prepare("INSERT INTO users ($cols) VALUES ($ph)")->execute(array_values($uData));
         $userId = (int) $this->db->lastInsertId();
         
-        $sql = "SELECT u.user_id, u.person_id, u.role_system, u.username_system, u.house_id, u.status_validated, u.status_reason, u.status_system, u.is_active,
+        $sql = "SELECT u.user_id, u.person_id, u.role_system, u.username_system, u.house_id, u.force_password_change,
+                   u.status_validated, u.status_reason, u.status_system, u.is_active,
                    p.type_doc, p.doc_number, p.first_name, p.paternal_surname, p.maternal_surname, p.gender, p.birth_date, p.cel_number, p.email, p.photo_url, p.civil_status, p.person_type AS property_category, p.address, p.district, p.province, p.region
                 FROM users u LEFT JOIN persons p ON u.person_id = p.id WHERE u.user_id = ? LIMIT 1";
         $stmt = $this->db->prepare($sql);
