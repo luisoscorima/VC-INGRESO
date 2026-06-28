@@ -7,6 +7,7 @@ import { ExternalVehicle } from '../externalVehicle';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../api.service';
 import { AuthService } from '../auth.service';
+import { NavPermissionService } from '../nav-permission.service';
 import { PublicRegistrationService } from '../public-registration/public-registration.service';
 import {
   VEHICLE_TYPE_VALUES,
@@ -79,18 +80,17 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     private api: ApiService,
     private auth: AuthService,
     private publicReg: PublicRegistrationService,
+    private navPerm: NavPermissionService,
   ){}
 
-  /** Administración y operarios: pestaña global de visitas temporales (todos los registros). */
   get showStaffExternalVehiclesTab(): boolean {
     const r = (this.auth.getUser()?.role_system ?? '').toString().trim().toUpperCase();
 
     return ['ADMINISTRADOR', 'OPERARIO'].includes(r);
   }
 
-  /** Alta/edición en gestión: solo administrador. */
   get canManageVehiclesCrud(): boolean {
-    return this.auth.isAdministratorRole();
+    return this.navPerm.canManage('vehicles');
   }
 
   ngOnInit(): void {

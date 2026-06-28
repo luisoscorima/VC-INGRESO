@@ -9,6 +9,7 @@ import { User } from '../user';
 import { EntranceService } from '../entrance.service';
 import { House } from '../house';
 import { AuthService } from '../auth.service';
+import { NavPermissionService } from '../nav-permission.service';
 
 @Component({
   selector: 'app-pets',
@@ -41,11 +42,12 @@ export class PetsComponent implements OnInit, AfterViewInit {
     private usersService: UsersService,
     private entranceService: EntranceService,
     private toastr: ToastrService,
-    private auth: AuthService
+    private auth: AuthService,
+    private navPerm: NavPermissionService
   ) {}
 
   get canManagePetsCrud(): boolean {
-    return this.auth.isAdministratorRole();
+    return this.navPerm.canManage('pets');
   }
 
   ngOnInit(): void {

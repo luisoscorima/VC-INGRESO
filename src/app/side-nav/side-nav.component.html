@@ -105,57 +105,22 @@
 
       <div class="my-4 border-t border-gray-200 dark:border-gray-700"></div>
 
-      <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Gestión</p>
+      <p *ngIf="showGestionNav()" class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Gestión</p>
       <ul class="space-y-0.5" *ngIf="showGestionNav()">
-        <li>
-          <a routerLink="/users" routerLinkActive="nav-item-active"
+        <li *ngFor="let mod of gestionModules">
+          <a [routerLink]="mod.route" routerLinkActive="nav-item-active"
             class="nav-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 hover:bg-gray-100">
-            <mat-icon class="nav-item-icon">person</mat-icon>
-            <span>Usuarios</span>
-          </a>
-        </li>
-        <li>
-          <a routerLink="/houses" routerLinkActive="nav-item-active"
-            class="nav-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 hover:bg-gray-100">
-            <mat-icon class="nav-item-icon">apartment</mat-icon>
-            <span>Viviendas</span>
-          </a>
-        </li>
-        <li>
-          <a routerLink="/vehicles" routerLinkActive="nav-item-active"
-            class="nav-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 hover:bg-gray-100">
-            <mat-icon class="nav-item-icon">directions_car</mat-icon>
-            <span>Vehículos</span>
-          </a>
-        </li>
-        <li>
-          <a routerLink="/pets" routerLinkActive="nav-item-active"
-            class="nav-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 hover:bg-gray-100">
-            <mat-icon class="nav-item-icon">pets</mat-icon>
-            <span>Mascotas</span>
-          </a>
-        </li>
-        <li *ngIf="showAnnouncementsNav()">
-          <a routerLink="/announcements" routerLinkActive="nav-item-active"
-            class="nav-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 hover:bg-gray-100">
-            <mat-icon class="nav-item-icon">campaign</mat-icon>
-            <span>Comunicados</span>
-          </a>
-        </li>
-        <li *ngIf="showSurveysNav()">
-          <a routerLink="/surveys" routerLinkActive="nav-item-active"
-            class="nav-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 hover:bg-gray-100">
-            <mat-icon class="nav-item-icon">fact_check</mat-icon>
-            <span>Encuestas</span>
+            <mat-icon class="nav-item-icon">{{ mod.icon }}</mat-icon>
+            <span>{{ mod.label }}</span>
           </a>
         </li>
       </ul>
       <ul class="space-y-0.5" *ngIf="showAccessPointsNav()">
-        <li>
-          <a routerLink="/access-points" routerLinkActive="nav-item-active"
+        <li *ngFor="let mod of adminModules">
+          <a [routerLink]="mod.route" routerLinkActive="nav-item-active"
             class="nav-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 hover:bg-gray-100">
-            <mat-icon class="nav-item-icon">sensor_door</mat-icon>
-            <span>Puntos de acceso</span>
+            <mat-icon class="nav-item-icon">{{ mod.icon }}</mat-icon>
+            <span>{{ mod.label }}</span>
           </a>
         </li>
       </ul>

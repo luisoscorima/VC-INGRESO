@@ -6,6 +6,8 @@ import { ApiService } from '../api.service';
 import { UsersService } from '../users.service';
 import { EntranceService } from '../entrance.service';
 import { ToastrService } from 'ngx-toastr';
+import { NavPermissionService } from '../nav-permission.service';
+import { NavModuleDef } from '../nav-modules.config';
 
 @Component({
   selector: 'app-side-nav',
@@ -15,6 +17,8 @@ import { ToastrService } from 'ngx-toastr';
 export class SideNavComponent extends AppComponent implements OnInit {
   uploadingPhoto = false;
   infoSectionExpanded = false;
+  gestionModules: NavModuleDef[] = [];
+  adminModules: NavModuleDef[] = [];
 
   constructor(
     router: Router,
@@ -22,9 +26,36 @@ export class SideNavComponent extends AppComponent implements OnInit {
     usersService: UsersService,
     entranceService: EntranceService,
     toastr: ToastrService,
-    api: ApiService
+    api: ApiService,
+    private navPerm: NavPermissionService
   ) {
     super(router, auth, usersService, entranceService, toastr, api);
+  }
+
+  ngOnInit(): void {
+    this.refreshNavModules();
+    this.navPerm.permissions$.subscribe(() => this.refreshNavModules());
+    if (this.auth.isAuthenticated()) {
+      this.navPerm.load().subscribe();
+    }
+  }
+
+  private refreshNavModules(): void {
+    if (!this.auth.isSessionRolePersonValid()) {
+      this.gestionModules = [];
+      this.adminModules = [];
+      return;
+    }
+    this.gestionModules = this.navPerm.getVisibleModules('gestion');
+    this.adminModules = this.navPerm.getVisibleModules('admin');
+  }
+
+  showGestionSection(): boolean {
+    return this.gestionModules.length > 0;
+  }
+
+  showAdminSection(): boolean {
+    return this.adminModules.length > 0;
   }
 
   onProfilePhotoClick(): void {
@@ -69,7 +100,6 @@ export class SideNavComponent extends AppComponent implements OnInit {
       return;
     }
 
-    // Ocurre antes del click: evita que el link retenga foco cuando Flowbite oculte el drawer.
     link.blur();
   }
 
@@ -107,10 +137,8 @@ export class SideNavComponent extends AppComponent implements OnInit {
 
     this.setMobileSidebarOpen(false);
 
-    // Fallback: fuerza estado oculto por si Flowbite no alcanza a cerrar durante el cambio de ruta.
     setTimeout(() => {
       this.setMobileSidebarOpen(false);
-
       document.body.classList.remove('overflow-hidden');
       this.removeMobileDrawerBackdrops();
     }, 0);
@@ -123,7 +151,6 @@ export class SideNavComponent extends AppComponent implements OnInit {
     return this.auth.isStaff();
   }
 
-  /** Staff (escáner) o quien puede generar QR de hogar. */
   showCodigoQrNav(): boolean {
     return this.auth.isStaff() || this.auth.canGenerateHouseAccessQr();
   }
@@ -132,22 +159,12 @@ export class SideNavComponent extends AppComponent implements OnInit {
     return this.auth.canAccessReservationsPage();
   }
 
-  /** Listados de gestión (admin u operario con combinación válida en sesión). */
   showGestionNav(): boolean {
-    const r = String(this.user?.role_system ?? '').toUpperCase();
-    return (r === 'ADMINISTRADOR' || r === 'OPERARIO') && this.auth.isSessionRolePersonValid();
+    return this.showGestionSection();
   }
 
   showAccessPointsNav(): boolean {
-    return this.auth.isAdministratorRole() && this.auth.isSessionRolePersonValid();
-  }
-
-  showAnnouncementsNav(): boolean {
-    return this.auth.isAdministratorRole() && this.auth.isSessionRolePersonValid();
-  }
-
-  showSurveysNav(): boolean {
-    return this.auth.isAdministratorRole() && this.auth.isSessionRolePersonValid();
+    return this.showAdminSection();
   }
 
   toggleInfoSection(): void {
@@ -155,7 +172,6 @@ export class SideNavComponent extends AppComponent implements OnInit {
   }
 
   private removeMobileDrawerBackdrops(): void {
-    // Limpia backdrops residuales del drawer móvil que pueden bloquear clics.
     const backdropSelectors = [
       '[drawer-backdrop]',
       '[data-drawer-backdrop]',

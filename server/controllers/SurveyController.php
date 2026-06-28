@@ -5,6 +5,7 @@ namespace Controllers;
 require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../utils/Response.php';
 
 use Utils\Response;
@@ -207,8 +208,8 @@ class SurveyController
     public static function index(): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
-            Response::error('Solo administradores pueden gestionar encuestas.', 403);
+        if (!canViewModule(getDbConnection(), $auth, 'surveys')) {
+            Response::error('Sin permiso para gestionar encuestas.', 403);
             return;
         }
         $pdo = getDbConnection();
@@ -248,7 +249,7 @@ class SurveyController
     public static function store(): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule(getDbConnection(), $auth, 'surveys')) {
             Response::error('Solo administradores pueden crear encuestas.', 403);
             return;
         }
@@ -291,7 +292,7 @@ class SurveyController
     public static function update(int $id): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule(getDbConnection(), $auth, 'surveys')) {
             Response::error('Solo administradores pueden editar encuestas.', 403);
             return;
         }
@@ -335,7 +336,7 @@ class SurveyController
     public static function destroy(int $id): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule(getDbConnection(), $auth, 'surveys')) {
             Response::error('Solo administradores pueden inhabilitar encuestas.', 403);
             return;
         }
@@ -435,7 +436,7 @@ class SurveyController
     public static function results(int $id): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule(getDbConnection(), $auth, 'surveys')) {
             Response::error('Solo administradores pueden ver resultados.', 403);
             return;
         }

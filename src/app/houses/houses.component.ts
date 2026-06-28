@@ -5,6 +5,7 @@ import { EntranceService } from '../entrance.service';
 import { initFlowbite } from 'flowbite';
 import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../auth.service';
+import { NavPermissionService } from '../nav-permission.service';
 
 @Component({
   selector: 'app-houses',
@@ -31,11 +32,11 @@ export class HousesComponent implements OnInit, AfterViewInit{
     private entranceService: EntranceService,
     private toastr: ToastrService,
     private auth: AuthService,
+    private navPerm: NavPermissionService,
   ) {}
 
-  /** Gestión global: solo administrador crea/edita. Operario: solo lectura. */
   get canManageHousesCrud(): boolean {
-    return this.auth.isAdministratorRole();
+    return this.navPerm.canManage('houses');
   }
 
   ngOnInit(){

@@ -175,6 +175,23 @@ if (str_starts_with($uri, '/api/v1/')) {
         }
     }
 
+    // ==================== NAV PERMISSIONS ====================
+    if ($path === 'config/nav-permissions' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/NavPermissionsController.php';
+        (new \Controllers\NavPermissionsController())->resolveForSession();
+        exit;
+    }
+    if ($path === 'admin/nav-permissions' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/NavPermissionsController.php';
+        (new \Controllers\NavPermissionsController())->adminMatrix();
+        exit;
+    }
+    if ($path === 'admin/nav-permissions' && $method === 'PUT') {
+        require_once __DIR__ . '/controllers/NavPermissionsController.php';
+        (new \Controllers\NavPermissionsController())->adminUpdate();
+        exit;
+    }
+
     // ==================== USERS ====================
     if (str_starts_with($path, 'users')) {
         require_once __DIR__ . '/controllers/UserController.php';

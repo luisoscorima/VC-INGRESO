@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../api.service';
 import { AuthService } from '../auth.service';
+import { NavPermissionService } from '../nav-permission.service';
 
 interface AnnouncementItem {
   id: number;
@@ -33,9 +34,14 @@ export class AnnouncementsComponent implements OnInit {
 
   constructor(
     public readonly auth: AuthService,
+    public readonly navPerm: NavPermissionService,
     private readonly api: ApiService,
     private readonly toastr: ToastrService
   ) {}
+
+  get canManageAnnouncements(): boolean {
+    return this.navPerm.canManage('announcements');
+  }
 
   ngOnInit(): void {
     this.loadRows();
@@ -92,7 +98,7 @@ export class AnnouncementsComponent implements OnInit {
   }
 
   save(): void {
-    if (!this.auth.isAdministratorRole()) {
+    if (!this.canManageAnnouncements) {
       this.toastr.error('Solo administradores.');
       return;
     }
@@ -131,7 +137,7 @@ export class AnnouncementsComponent implements OnInit {
   }
 
   toggleRowActive(row: AnnouncementItem): void {
-    if (!this.auth.isAdministratorRole()) {
+    if (!this.canManageAnnouncements) {
       this.toastr.error('Solo administradores.');
       return;
     }

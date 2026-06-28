@@ -9,6 +9,7 @@ namespace Controllers;
 require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../utils/Response.php';
 
 use Utils\Response;
@@ -160,7 +161,7 @@ class CatalogController
     public static function accessPointsStore(): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule(getDbConnection(), $auth, 'access_points')) {
             Response::error('Sin permiso para gestionar puntos de acceso', 403);
             return;
         }
@@ -248,7 +249,7 @@ class CatalogController
     public static function accessPointsUpdate(string $id): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule(getDbConnection(), $auth, 'access_points')) {
             Response::error('Sin permiso para gestionar puntos de acceso', 403);
             return;
         }

@@ -6,6 +6,7 @@ import { tap, map } from 'rxjs/operators';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { User } from './user';
 import { isResidentPersonType, isValidRolePersonPair, normalizePersonType } from './system-roles';
+import { NavPermissionService } from './nav-permission.service';
 
 const STORAGE_KEY = 'auth_user';
 const TOKEN_KEY = 'auth_token';
@@ -17,7 +18,11 @@ export class AuthService {
   private userSubject = new BehaviorSubject<User | null>(this.initFromStorage());
   user$ = this.userSubject.asObservable();
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+    private navPerm: NavPermissionService
+  ) {}
 
   private initFromStorage(): User | null {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -53,11 +58,13 @@ export class AuthService {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
         localStorage.setItem(TOKEN_KEY, res.token);
         this.userSubject.next(stored);
+        this.navPerm.load(true).subscribe();
       })
     ).pipe(map((res) => res.user));
   }
 
   logout(): void {
+    this.navPerm.clear();
     this.clearAuthState();
     this.router.navigate(['/login']);
   }

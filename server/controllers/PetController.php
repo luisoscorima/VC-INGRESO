@@ -11,6 +11,7 @@ require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/nav_permissions.php';
 
 use Utils\Response;
 
@@ -53,6 +54,10 @@ class PetController {
                     Response::json(['success' => false, 'error' => 'Indique house_id para listar mascotas'], 403);
                     return;
                 }
+            }
+            if (isStaffRole($auth) && empty($params['house_id']) && !canViewModule($this->pdo, $auth, 'pets')) {
+                Response::json(['success' => false, 'error' => 'Sin permiso'], 403);
+                return;
             }
             // Si filtra por casa, debe tener acceso a esa casa
             if (isset($params['house_id']) && $params['house_id'] !== '' && $params['house_id'] !== null) {
@@ -215,7 +220,7 @@ class PetController {
     public function store($data = []) {
         try {
             $auth = requireAuth();
-            if (isOperarioPorteriaSinVecindad($this->pdo, $auth)) {
+            if (isStaffRole($auth) && !canManageModule($this->pdo, $auth, 'pets')) {
                 Response::json(['success' => false, 'error' => 'Sin permiso para registrar mascotas (solo lectura)'], 403);
                 return;
             }
@@ -289,7 +294,7 @@ class PetController {
     public function update($id, $data = []) {
         try {
             $auth = requireAuth();
-            if (isOperarioPorteriaSinVecindad($this->pdo, $auth)) {
+            if (isStaffRole($auth) && !canManageModule($this->pdo, $auth, 'pets')) {
                 Response::json(['success' => false, 'error' => 'Sin permiso para editar mascotas (solo lectura)'], 403);
                 return;
             }
@@ -431,7 +436,7 @@ class PetController {
     public function destroy($id) {
         try {
             $auth = requireAuth();
-            if (isOperarioPorteriaSinVecindad($this->pdo, $auth)) {
+            if (isStaffRole($auth) && !canManageModule($this->pdo, $auth, 'pets')) {
                 Response::json(['success' => false, 'error' => 'Sin permiso para eliminar mascotas (solo lectura)'], 403);
                 return;
             }

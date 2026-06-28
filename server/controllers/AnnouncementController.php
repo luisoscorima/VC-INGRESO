@@ -5,6 +5,7 @@ namespace Controllers;
 require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../utils/Response.php';
 
 use Utils\Response;
@@ -83,12 +84,12 @@ class AnnouncementController
     public static function index(): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
-            Response::error('Solo administradores pueden gestionar comunicados.', 403);
+        $pdo = getDbConnection();
+        if (!canViewModule($pdo, $auth, 'announcements')) {
+            Response::error('Sin permiso para gestionar comunicados.', 403);
             return;
         }
 
-        $pdo = getDbConnection();
         self::ensureTable($pdo);
 
         $stmt = $pdo->query('SELECT * FROM announcements ORDER BY COALESCE(start_at, created_at) DESC, id DESC');
@@ -117,8 +118,8 @@ class AnnouncementController
     public static function store(): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
-            Response::error('Solo administradores pueden crear comunicados.', 403);
+        if (!canManageModule(getDbConnection(), $auth, 'announcements')) {
+            Response::error('Sin permiso para crear comunicados.', 403);
             return;
         }
         $body = self::readBody();
@@ -156,8 +157,8 @@ class AnnouncementController
     public static function update(int $id): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
-            Response::error('Solo administradores pueden editar comunicados.', 403);
+        if (!canManageModule(getDbConnection(), $auth, 'announcements')) {
+            Response::error('Sin permiso para editar comunicados.', 403);
             return;
         }
         $body = self::readBody();
@@ -201,8 +202,8 @@ class AnnouncementController
     public static function destroy(int $id): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
-            Response::error('Solo administradores pueden inhabilitar comunicados.', 403);
+        if (!canManageModule(getDbConnection(), $auth, 'announcements')) {
+            Response::error('Sin permiso para inhabilitar comunicados.', 403);
             return;
         }
         $pdo = getDbConnection();
@@ -215,8 +216,8 @@ class AnnouncementController
     public static function uploadImage(): void
     {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
-            Response::error('Solo administradores pueden subir imagenes.', 403);
+        if (!canManageModule(getDbConnection(), $auth, 'announcements')) {
+            Response::error('Sin permiso para subir imagenes.', 403);
             return;
         }
 

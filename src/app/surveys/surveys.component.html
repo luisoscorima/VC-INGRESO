@@ -3,11 +3,11 @@
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Gestión de encuestas</h2>
     <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">CRUD de encuestas para administrador (sin borrado físico).</p>
 
-    <div *ngIf="!auth.isAdministratorRole()" class="rounded-lg border border-dashed border-red-300 dark:border-red-700 p-6 text-center text-red-700 dark:text-red-300">
-      No tiene permisos para esta pantalla.
+    <div *ngIf="!canManageSurveys" class="rounded-lg border border-amber-200 dark:border-amber-800 p-4 mb-6 text-amber-800 dark:text-amber-200 text-sm">
+      Solo lectura: no tienes permiso para crear o editar encuestas.
     </div>
 
-    <ng-container *ngIf="auth.isAdministratorRole()">
+    <ng-container *ngIf="canManageSurveys">
       <section class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-4 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label class="block md:col-span-2">
@@ -61,6 +61,7 @@
           </button>
         </div>
       </section>
+    </ng-container>
 
       <section>
         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Encuestas registradas</h3>
@@ -78,7 +79,7 @@
                   {{ optionCountsText(s) }}
                 </p>
               </div>
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3" *ngIf="canManageSurveys">
                 <button type="button" (click)="editRow(s)" class="inline-flex items-center gap-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs">
                   <mat-icon class="!text-base !w-4 !h-4">edit</mat-icon>
                   Editar
@@ -92,7 +93,6 @@
           </li>
         </ul>
       </section>
-    </ng-container>
   </div>
 </div>
 

@@ -10,6 +10,7 @@ namespace Controllers;
 
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/license_plate.php';
 require_once __DIR__ . '/../helpers/vehicle_type_rules.php';
 
@@ -35,6 +36,10 @@ class VehicleController extends Controller {
             return;
         }
         if (!isStaffRole($auth)) {
+            Response::error('Sin permiso', 403);
+            return;
+        }
+        if (!canViewModule($this->db, $auth, 'vehicles')) {
             Response::error('Sin permiso', 403);
             return;
         }
@@ -102,7 +107,7 @@ class VehicleController extends Controller {
      */
     public function store($params = []) {
         $auth = requireAuth();
-        if (isOperarioPorteriaSinVecindad($this->db, $auth)) {
+        if (isStaffRole($auth) && !canManageModule($this->db, $auth, 'vehicles')) {
             Response::error('Sin permiso para registrar vehículos (solo lectura)', 403);
             return;
         }
@@ -161,7 +166,7 @@ class VehicleController extends Controller {
             }
             $data['owner_id'] = $tid;
             $data['category_entry'] = 'INQUILINO';
-        } elseif (isAdminRole($auth)) {
+        } elseif (canManageModule($this->db, $auth, 'vehicles')) {
             $ownerProp = getFirstPropietarioPersonIdForHouse($this->db, $houseId);
             if ($ownerProp === null || $ownerProp <= 0) {
                 Response::error('No hay propietario registrado para esta casa.', 400);
@@ -207,7 +212,7 @@ class VehicleController extends Controller {
      */
     public function updateVehicle($params = []) {
         $auth = requireAuth();
-        if (isOperarioPorteriaSinVecindad($this->db, $auth)) {
+        if (isStaffRole($auth) && !canManageModule($this->db, $auth, 'vehicles')) {
             Response::error('Sin permiso para editar vehículos (solo lectura)', 403);
             return;
         }
@@ -320,7 +325,7 @@ class VehicleController extends Controller {
      */
     public function destroy($params = []) {
         $auth = requireAuth();
-        if (isOperarioPorteriaSinVecindad($this->db, $auth)) {
+        if (isStaffRole($auth) && !canManageModule($this->db, $auth, 'vehicles')) {
             Response::error('Sin permiso para eliminar vehículos (solo lectura)', 403);
             return;
         }

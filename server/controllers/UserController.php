@@ -10,6 +10,7 @@ namespace Controllers;
 
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/nav_permissions.php';
 
 use Utils\Response;
 use Utils\Router;
@@ -23,7 +24,7 @@ class UserController extends Controller {
      */
     public function index($params = []) {
         $auth = requireAuth();
-        if (!isStaffRole($auth)) {
+        if (!canViewModule($this->db, $auth, 'users')) {
             Response::error('Sin permiso', 403);
             return;
         }
@@ -132,7 +133,7 @@ class UserController extends Controller {
      */
     public function store($params = []) {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule($this->db, $auth, 'users')) {
             Response::error('Solo administradores pueden crear usuarios', 403);
             return;
         }
@@ -266,7 +267,7 @@ class UserController extends Controller {
             Response::error('Usuario no encontrado', 404);
             return;
         }
-        if (strtoupper(trim($auth['role_system'] ?? '')) === 'OPERARIO') {
+        if (!canManageModule($this->db, $auth, 'users')) {
             Response::error('Sin permiso para modificar usuarios', 403);
             return;
         }

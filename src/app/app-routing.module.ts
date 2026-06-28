@@ -20,7 +20,7 @@ import { AuthGuard } from './auth.guard';
 import { MyHouseGuard } from './my-house.guard';
 import { CodigoQrGuard } from './qr/codigo-qr.guard';
 import { ReservationsGuard } from './reservations.guard';
-import { AccessPointsGuard } from './access-points.guard';
+import { ModuleGuard } from './module.guard';
 import { TutorialComponent } from './readonly/tutorial.component';
 import { DocumentsComponent } from './readonly/documents.component';
 import { EmergencyContactsComponent } from './readonly/emergency-contacts.component';
@@ -35,12 +35,12 @@ const routes: Routes = [
   { path: "history", component: HistoryComponent, canActivate: [AuthGuard] },
   { path: "hb", component: BirthdayComponent, canActivate: [AuthGuard] },
   { path: "settings", component: SettingsComponent, canActivate: [AuthGuard] },
-  { path: "users", component: UsersComponent, canActivate: [AuthGuard] },
-  { path: "houses", component: HousesComponent, canActivate: [AuthGuard] },
-  { path: "vehicles", component: VehiclesComponent, canActivate: [AuthGuard] },
+  { path: "users", component: UsersComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'users' } },
+  { path: "houses", component: HousesComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'houses' } },
+  { path: "vehicles", component: VehiclesComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'vehicles' } },
   { path: "my-house", component: MyHouseComponent, canActivate: [AuthGuard, MyHouseGuard] },
-  { path: "pets", component: PetsComponent, canActivate: [AuthGuard] },
-  { path: "access-points", component: AccessPointsComponent, canActivate: [AuthGuard, AccessPointsGuard] },
+  { path: "pets", component: PetsComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'pets' } },
+  { path: "access-points", component: AccessPointsComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'access_points' } },
   { path: "reservations", component: ReservationsComponent, canActivate: [AuthGuard, ReservationsGuard] },
   { path: "calendar", redirectTo: "reservations", pathMatch: "full" },
   { path: "codigo-qr", component: CodigoQrPageComponent, canActivate: [AuthGuard, CodigoQrGuard] },
@@ -48,8 +48,8 @@ const routes: Routes = [
   { path: "tutorials", component: TutorialComponent, canActivate: [AuthGuard] },
   { path: "documents", component: DocumentsComponent, canActivate: [AuthGuard] },
   { path: "emergency-contacts", component: EmergencyContactsComponent, canActivate: [AuthGuard] },
-  { path: "announcements", component: AnnouncementsComponent, canActivate: [AuthGuard] },
-  { path: "surveys", component: SurveysComponent, canActivate: [AuthGuard] },
+  { path: "announcements", component: AnnouncementsComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'announcements' } },
+  { path: "surveys", component: SurveysComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'surveys' } },
   //{ path: "", redirectTo: "/clientes", pathMatch: "full" },// Cuando es la raíz
   //{ path: "**", redirectTo: "/clientes" }
 ];

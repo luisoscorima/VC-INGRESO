@@ -9,6 +9,7 @@ namespace Controllers;
 
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/nav_permissions.php';
 
 use Utils\Response;
 
@@ -23,6 +24,10 @@ class HouseController extends Controller {
         $ownerExistsSql = "(EXISTS (SELECT 1 FROM persons p WHERE p.house_id = h.house_id AND p.person_type = 'PROPIETARIO')) AS owner_registered";
 
         if (isStaffRole($auth)) {
+            if (!canViewModule($this->db, $auth, 'houses')) {
+                Response::error('Sin permiso', 403);
+                return;
+            }
             $sql = "SELECT h.*, {$ownerExistsSql} FROM {$this->tableName} h ORDER BY h.house_id DESC";
             $stmt = $this->db->query($sql);
             $houses = $stmt->fetchAll(\PDO::FETCH_OBJ);
@@ -127,7 +132,7 @@ class HouseController extends Controller {
      */
     public function store($params = []) {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule($this->db, $auth, 'houses')) {
             Response::error('Solo administradores pueden crear casas', 403);
             return;
         }
@@ -162,7 +167,7 @@ class HouseController extends Controller {
      */
     public function updateHouse($params = []) {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule($this->db, $auth, 'houses')) {
             Response::error('Solo administradores pueden editar casas', 403);
             return;
         }
@@ -204,7 +209,7 @@ class HouseController extends Controller {
      */
     public function destroy($params = []) {
         $auth = requireAuth();
-        if (!isAdminRole($auth)) {
+        if (!canManageModule($this->db, $auth, 'houses')) {
             Response::error('Solo administradores pueden eliminar casas', 403);
             return;
         }

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../api.service';
 import { AuthService } from '../auth.service';
+import { NavPermissionService } from '../nav-permission.service';
 
 interface SurveyItem {
   id: number;
@@ -31,9 +32,14 @@ export class SurveysComponent implements OnInit {
 
   constructor(
     public readonly auth: AuthService,
+    public readonly navPerm: NavPermissionService,
     private readonly api: ApiService,
     private readonly toastr: ToastrService
   ) {}
+
+  get canManageSurveys(): boolean {
+    return this.navPerm.canManage('surveys');
+  }
 
   ngOnInit(): void {
     this.loadRows();
@@ -84,7 +90,7 @@ export class SurveysComponent implements OnInit {
   }
 
   save(): void {
-    if (!this.auth.isAdministratorRole()) {
+    if (!this.canManageSurveys) {
       this.toastr.error('Solo administradores.');
       return;
     }
@@ -126,7 +132,7 @@ export class SurveysComponent implements OnInit {
   }
 
   removeRow(row: SurveyItem): void {
-    if (!this.auth.isAdministratorRole()) {
+    if (!this.canManageSurveys) {
       return;
     }
     const nextState = !row.is_active;

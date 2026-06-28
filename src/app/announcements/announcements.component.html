@@ -5,11 +5,11 @@
       Solo administradores pueden crear, editar o inhabilitar comunicados.
     </p>
 
-    <div *ngIf="!auth.isAdministratorRole()" class="rounded-lg border border-dashed border-red-300 dark:border-red-700 p-6 text-center text-red-700 dark:text-red-300">
-      No tiene permisos para esta pantalla.
+    <div *ngIf="!canManageAnnouncements" class="rounded-lg border border-amber-200 dark:border-amber-800 p-4 mb-6 text-amber-800 dark:text-amber-200 text-sm">
+      Solo lectura: no tienes permiso para crear o editar comunicados.
     </div>
 
-    <ng-container *ngIf="auth.isAdministratorRole()">
+    <ng-container *ngIf="canManageAnnouncements">
       <section class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/20 p-4 mb-6">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">
@@ -91,6 +91,7 @@
           </button>
         </div>
       </section>
+    </ng-container>
 
       <section>
         <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Comunicados registrados</h3>
@@ -111,7 +112,7 @@
                   Inicio: {{ a.start_at || '—' }} | Fin: {{ a.end_at || '—' }} | Estado: {{ a.is_active ? 'Activo' : 'Inactivo' }}
                 </p>
               </div>
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3" *ngIf="canManageAnnouncements">
                 <button type="button" (click)="editRow(a)"
                   class="inline-flex items-center gap-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                   <mat-icon class="!text-base !w-4 !h-4">edit</mat-icon>
@@ -126,7 +127,6 @@
           </li>
         </ul>
       </section>
-    </ng-container>
   </div>
 </div>
 
