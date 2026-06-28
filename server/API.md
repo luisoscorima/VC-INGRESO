@@ -337,6 +337,27 @@ Parámetros query según `CatalogController.php`.
 
 ---
 
+## Registro de eventos (auditoría, solo ADMINISTRADOR)
+
+Tabla `event_logs` en MySQL. Las acciones de escritura relevantes (login, CRUD, permisos, etc.) se registran mediante [`server/helpers/event_log.php`](helpers/event_log.php). **No** incluye contraseñas ni tokens en `details_json`.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/v1/admin/event-logs` | Listado paginado. Solo `ADMINISTRADOR`. Query: `from`, `to` (YYYY-MM-DD o datetime; máx. **30 días** hacia atrás), `action`, `entity_type`, `actor_user_id`, `q` (búsqueda en resumen/usuario), `page`, `page_size` (máx. 200). |
+| GET | `/api/v1/admin/event-logs/actions` | Catálogo de códigos `action` distintos ya registrados (filtro UI). |
+
+**Retención:** el EVENT `ev_vc_purge_event_logs` elimina filas con `occurred_at` anterior a 30 días. Se ejecuta diariamente a las **03:00** (hora del servidor MySQL). Definido en [`database/vc_create_database.sql`](../database/vc_create_database.sql) y migración [`database/migrations/003_event_logs.sql`](../database/migrations/003_event_logs.sql). Requiere `event_scheduler=ON`.
+
+**UI:** pestaña *Registro de eventos* en **Configuración** (`/settings`), visible solo para administradores.
+
+**Migración en BD existente:**
+
+```bash
+mysql -u ... -p vc_db < database/migrations/003_event_logs.sql
+```
+
+---
+
 ## API RENIEC (referencia frontend)
 
 No es un endpoint de este servidor. Ejemplo de proveedor: `GET https://my.apidev.pro/api/dni/{numero_dni}`.

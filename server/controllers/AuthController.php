@@ -11,6 +11,7 @@ require_once __DIR__ . '/../token.php';
 require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../helpers/role_policy.php';
 require_once __DIR__ . '/../helpers/reservation_auto_complete.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 
@@ -32,6 +33,13 @@ class AuthController
         }
 
         $pdo = getDbConnection();
+        $logFailedLogin = static function () use ($pdo, $username): void {
+            recordEventLog($pdo, null, 'auth.login_failed', [
+                'summary' => 'Intento de inicio de sesión fallido',
+                'entity_type' => 'auth',
+                'actor_username' => $username,
+            ]);
+        };
 
         $sql = "SELECT u.user_id, u.person_id, u.is_active, u.role_system, u.house_id,
             u.status_validated, u.status_reason, u.status_system, u.force_password_change, u.password_system
@@ -43,11 +51,13 @@ class AuthController
         $user = $stmt->fetch(\PDO::FETCH_OBJ);
 
         if (!$user || $user->password_system === null || $user->password_system === '') {
+            $logFailedLogin();
             Response::error('Credenciales inválidas', 401);
             return;
         }
 
         if (isset($user->is_active) && (int)$user->is_active === 0) {
+            $logFailedLogin();
             Response::error('Cuenta deshabilitada', 401);
             return;
         }
@@ -60,6 +70,7 @@ class AuthController
             : hash_equals($stored, (string) $password);
 
         if (!$validPassword) {
+            $logFailedLogin();
             Response::error('Credenciales inválidas', 401);
             return;
         }
@@ -148,6 +159,16 @@ class AuthController
                 error_log('complete_expired_confirmed_reservations on admin login: ' . $e->getMessage());
             }
         }
+
+        recordEventLog($pdo, [
+            'user_id' => (int) $user->user_id,
+            'role_system' => (string) $user->role_system,
+            'username_system' => (string) ($user->username_system ?? $username),
+        ], 'auth.login_success', [
+            'summary' => 'Inicio de sesión exitoso: ' . ($user->username_system ?? $username),
+            'entity_type' => 'users',
+            'entity_id' => (int) $user->user_id,
+        ]);
 
         Response::json([
             'user' => $user,

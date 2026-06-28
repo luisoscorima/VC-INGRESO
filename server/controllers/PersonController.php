@@ -21,6 +21,7 @@ namespace Controllers;
 
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 
@@ -298,6 +299,11 @@ class PersonController extends Controller {
             $stmt->execute([(int)$filtered['house_id'], (int)$id, $relation]);
         }
         
+        recordEventLog($this->db, $auth, 'person.create', [
+            'summary' => 'Persona creada: ' . ($person->first_name ?? '') . ' ' . ($person->paternal_surname ?? ''),
+            'entity_type' => 'persons',
+            'entity_id' => $id,
+        ]);
         Response::created($person, 'Persona creada correctamente');
     }
     
@@ -369,7 +375,12 @@ class PersonController extends Controller {
         
         parent::update($id, $filtered, 'id');
         $person = $this->findById($id, 'id');
-        
+
+        recordEventLog($this->db, $auth, 'person.update', [
+            'summary' => 'Persona actualizada #' . $id,
+            'entity_type' => 'persons',
+            'entity_id' => $id,
+        ]);
         Response::success($person, 'Persona actualizada correctamente');
     }
     
@@ -411,6 +422,11 @@ class PersonController extends Controller {
         ], 'id');
         
         $person = $this->findById($id, 'id');
+        recordEventLog($this->db, $auth, 'person.validate', [
+            'summary' => 'Estado de persona #' . $id . ' → ' . $data['status_validated'],
+            'entity_type' => 'persons',
+            'entity_id' => $id,
+        ]);
         Response::success($person, 'Estado de validacion actualizado');
     }
     
@@ -435,7 +451,12 @@ class PersonController extends Controller {
         }
         
         $this->delete($id, 'id');
-        
+
+        recordEventLog($this->db, $auth, 'person.delete', [
+            'summary' => 'Persona eliminada #' . $id,
+            'entity_type' => 'persons',
+            'entity_id' => $id,
+        ]);
         Response::success(null, 'Persona eliminada correctamente');
     }
 }

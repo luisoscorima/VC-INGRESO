@@ -6,6 +6,7 @@ require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 require_once __DIR__ . '/../utils/Response.php';
 
 use Utils\Response;
@@ -286,7 +287,13 @@ class SurveyController
             self::parseNullableDateTime($body['end_at'] ?? null),
             (int) ($auth['user_id'] ?? 0),
         ]);
-        Response::created(['id' => (int) $pdo->lastInsertId()], 'Encuesta creada');
+        $surveyId = (int) $pdo->lastInsertId();
+        recordEventLog($pdo, $auth, 'survey.create', [
+            'summary' => 'Encuesta creada: ' . $title,
+            'entity_type' => 'surveys',
+            'entity_id' => $surveyId,
+        ]);
+        Response::created(['id' => $surveyId], 'Encuesta creada');
     }
 
     public static function update(int $id): void
@@ -330,6 +337,11 @@ class SurveyController
             self::parseNullableDateTime($body['end_at'] ?? null),
             $id,
         ]);
+        recordEventLog($pdo, $auth, 'survey.update', [
+            'summary' => 'Encuesta actualizada: ' . $title,
+            'entity_type' => 'surveys',
+            'entity_id' => $id,
+        ]);
         Response::success(null, 'Encuesta actualizada');
     }
 
@@ -344,6 +356,11 @@ class SurveyController
         self::ensureTables($pdo);
         $stmt = $pdo->prepare('UPDATE surveys SET is_active = 0 WHERE id = ?');
         $stmt->execute([$id]);
+        recordEventLog($pdo, $auth, 'survey.disable', [
+            'summary' => 'Encuesta inhabilitada #' . $id,
+            'entity_type' => 'surveys',
+            'entity_id' => $id,
+        ]);
         Response::success(null, 'Encuesta inhabilitada');
     }
 

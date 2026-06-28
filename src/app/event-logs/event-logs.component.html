@@ -1,0 +1,94 @@
+<div class="rounded-xl border border-gray-200 bg-white p-4 sm:p-6 shadow-lg dark:border-gray-600 dark:bg-gray-800 min-w-0">
+  <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Registro de eventos</h2>
+  <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+    Auditoría de acciones del sistema. Se conservan los últimos {{ retentionDays }} días (solo administrador).
+  </p>
+
+  <div class="mb-4 grid min-w-0 gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+    <div>
+      <label for="event-from" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Desde</label>
+      <input id="event-from" type="date" [(ngModel)]="fromDate" class="vc-field" />
+    </div>
+    <div>
+      <label for="event-to" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Hasta</label>
+      <input id="event-to" type="date" [(ngModel)]="toDate" class="vc-field" />
+    </div>
+    <div>
+      <label for="event-action" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Acción</label>
+      <select id="event-action" [(ngModel)]="filterAction" class="vc-field">
+        <option value="">Todas</option>
+        <option *ngFor="let a of actionOptions" [value]="a">{{ actionLabel(a) }}</option>
+      </select>
+    </div>
+    <div>
+      <label for="event-q" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Buscar</label>
+      <input id="event-q" type="search" [(ngModel)]="filterQuery" placeholder="Resumen, usuario..." class="vc-field" />
+    </div>
+  </div>
+
+  <div class="mb-4 flex flex-wrap gap-2">
+    <button type="button" (click)="applyFilters()" [disabled]="loading"
+      class="settings-btn-primary px-4 py-2 font-medium rounded-lg disabled:opacity-50">
+      {{ loading ? 'Cargando...' : 'Aplicar filtros' }}
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="py-8 text-center text-gray-500 dark:text-gray-400">Cargando eventos...</div>
+
+  <div *ngIf="!loading" class="vc-table-wrap">
+    <table class="vc-table text-sm text-left text-gray-700 dark:text-gray-300 w-full">
+      <thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700/50">
+        <tr class="vc-thead-row">
+          <th class="vc-th w-10"></th>
+          <th class="vc-th">Fecha</th>
+          <th class="vc-th">Usuario</th>
+          <th class="vc-th">Acción</th>
+          <th class="vc-th">Resumen</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let row of items">
+          <tr class="vc-tbody-row border-t border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30"
+            (click)="toggleDetails(row.id)">
+            <td class="vc-td text-center">
+              <mat-icon class="!text-base !w-4 !h-4 align-middle">{{ isRowOpen(row.id) ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </td>
+            <td class="vc-td whitespace-nowrap">{{ formatDateTime(row.occurred_at) }}</td>
+            <td class="vc-td">
+              <div class="font-medium">{{ row.actor_username || '—' }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ row.actor_role || '' }}</div>
+            </td>
+            <td class="vc-td whitespace-nowrap">{{ actionLabel(row.action) }}</td>
+            <td class="vc-td">{{ row.summary }}</td>
+          </tr>
+          <tr *ngIf="isRowOpen(row.id)" class="bg-gray-50/80 dark:bg-gray-900/40">
+            <td colspan="5" class="vc-td">
+              <div class="grid gap-2 text-xs sm:text-sm sm:grid-cols-2">
+                <div><span class="font-medium">Entidad:</span> {{ row.entity_type || '—' }} {{ row.entity_id ? '#' + row.entity_id : '' }}</div>
+                <div><span class="font-medium">IP:</span> {{ row.ip_address || '—' }}</div>
+                <div class="sm:col-span-2" *ngIf="row.details_json">
+                  <span class="font-medium">Detalle:</span>
+                  <pre class="mt-1 overflow-x-auto rounded bg-gray-100 dark:bg-gray-900 p-2 text-xs">{{ detailsPreview(row.details_json) }}</pre>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+        <tr *ngIf="items.length === 0">
+          <td colspan="5" class="vc-td py-8 text-center text-gray-500 dark:text-gray-400">No hay eventos en el rango seleccionado.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <mat-paginator
+    *ngIf="!loading && total > 0"
+    class="mt-4 bg-transparent"
+    [length]="total"
+    [pageIndex]="pageIndex"
+    [pageSize]="pageSize"
+    [pageSizeOptions]="pageSizeOptions"
+    (page)="onPageChange($event)"
+    aria-label="Paginación de eventos">
+  </mat-paginator>
+</div>

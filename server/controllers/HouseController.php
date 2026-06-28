@@ -10,6 +10,7 @@ namespace Controllers;
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 
@@ -159,6 +160,11 @@ class HouseController extends Controller {
         $houseId = $this->create($filtered);
         $house = $this->findById($houseId, 'house_id');
 
+        recordEventLog($this->db, $auth, 'house.create', [
+            'summary' => 'Vivienda creada: Mz ' . ($house->block_house ?? '') . ' Lt ' . ($house->lot ?? ''),
+            'entity_type' => 'houses',
+            'entity_id' => $houseId,
+        ]);
         Response::created($house, 'Casa creada correctamente');
     }
     
@@ -200,7 +206,13 @@ class HouseController extends Controller {
 
         parent::update($houseId, $filtered, 'house_id');
         $house = $this->findById($houseId, 'house_id');
-        
+
+        recordEventLog($this->db, $auth, 'house.update', [
+            'summary' => 'Vivienda actualizada #' . $houseId,
+            'entity_type' => 'houses',
+            'entity_id' => $houseId,
+            'details' => array_keys($filtered),
+        ]);
         Response::success($house, 'Casa actualizada correctamente');
     }
     
@@ -225,7 +237,12 @@ class HouseController extends Controller {
         }
 
         $this->delete($houseId, 'house_id');
-        
+
+        recordEventLog($this->db, $auth, 'house.delete', [
+            'summary' => 'Vivienda eliminada #' . $houseId,
+            'entity_type' => 'houses',
+            'entity_id' => $houseId,
+        ]);
         Response::success(null, 'Casa eliminada correctamente');
     }
 }

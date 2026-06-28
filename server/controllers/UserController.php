@@ -11,6 +11,7 @@ namespace Controllers;
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 use Utils\Router;
@@ -246,6 +247,12 @@ class UserController extends Controller {
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$userId]);
         $user = $stmt->fetch(\PDO::FETCH_OBJ);
+        recordEventLog($this->db, $auth, 'user.create', [
+            'summary' => 'Usuario creado: ' . ($user->username_system ?? $userId),
+            'entity_type' => 'users',
+            'entity_id' => $userId,
+            'details' => ['role_system' => $user->role_system ?? null],
+        ]);
         Response::created($user, 'Usuario creado correctamente');
     }
     
@@ -334,6 +341,12 @@ class UserController extends Controller {
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$userId]);
         $user = $stmt->fetch(\PDO::FETCH_OBJ);
+        recordEventLog($this->db, $auth, 'user.update', [
+            'summary' => 'Usuario actualizado: ' . ($user->username_system ?? $userId),
+            'entity_type' => 'users',
+            'entity_id' => $userId,
+            'details' => array_keys(array_merge($pData ?? [], $uData ?? [])),
+        ]);
         Response::success($user, 'Usuario actualizado correctamente');
     }
     
@@ -447,6 +460,12 @@ class UserController extends Controller {
         $userId = (int) $this->db->lastInsertId();
         $user = $this->findById($userId, 'user_id');
         unset($user->password_system);
+        recordEventLog($this->db, $auth, 'user.create_from_person', [
+            'summary' => 'Acceso al sistema creado para persona #' . $personId . ' (' . trim($data['username_system']) . ')',
+            'entity_type' => 'users',
+            'entity_id' => $userId,
+            'details' => ['person_id' => $personId, 'role_system' => $data['role_system']],
+        ]);
         Response::created($user, 'Usuario creado; la persona ya puede iniciar sesión');
     }
 
@@ -646,6 +665,11 @@ class UserController extends Controller {
         $hash = password_hash($newPass, PASSWORD_DEFAULT);
         $stmt = $this->db->prepare("UPDATE users SET password_system = ?, force_password_change = 0 WHERE user_id = ?");
         $stmt->execute([$hash, $userId]);
+        recordEventLog($this->db, $payload, 'auth.password_change', [
+            'summary' => 'Contraseña actualizada por el usuario',
+            'entity_type' => 'users',
+            'entity_id' => $userId,
+        ]);
         Response::success(null, 'Contraseña actualizada correctamente');
     }
 

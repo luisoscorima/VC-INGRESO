@@ -39,17 +39,16 @@
         </div>
 
         <div class="vc-table-wrap">
-            <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+            <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                 <thead>
                     <tr class="vc-thead-row">
-                        <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                         <th scope="col" class="vc-th w-12">Foto</th>
                         <th scope="col" class="vc-th">Nombre</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary">Usuario</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary">Domicilio</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary">Categoría</th>
+                        <th scope="col" class="vc-th">Usuario</th>
+                        <th scope="col" class="vc-th">Domicilio</th>
+                        <th scope="col" class="vc-th">Categoría</th>
                         <th scope="col" class="vc-th">Estado</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary">Número</th>
+                        <th scope="col" class="vc-th">Número</th>
                         <th scope="col" class="vc-th text-right">
                             Acciones
                             <span class="sr-only">Editar</span>
@@ -57,20 +56,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <ng-container *ngFor="let u of paginatedUsers">
-                    <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                        [class.vc-row-summary--open]="isUsersRowOpen(u)"
-                        (click)="toggleUsersRow(u)"
-                        [attr.aria-expanded]="isUsersRowOpen(u)">
-                        <td class="vc-td vc-td-expand">
-                            <button type="button" class="vc-row-toggle"
-                                [attr.aria-label]="isUsersRowOpen(u) ? 'Ocultar detalle' : 'Ver detalle'"
-                                (click)="toggleUsersRow(u); $event.stopPropagation()">
-                                <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isUsersRowOpen(u)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </button>
-                        </td>
+                    <tr *ngFor="let u of paginatedUsers" class="vc-tbody-row bg-white dark:bg-gray-900/40">
                         <td class="vc-td">
                             <div *ngIf="u.photo_url" class="w-10 h-10 rounded-full overflow-hidden">
                                 <img [src]="getPhotoUrl(u.photo_url)" alt="Foto" class="w-full h-full object-cover">
@@ -82,12 +68,12 @@
                         <th scope="row" class="vc-td font-medium">
                             {{ (u.paternal_surname+' '+u.maternal_surname+' '+u.first_name).toUpperCase() }}
                         </th>
-                        <td class="vc-td vc-td-data-secondary">{{u.username_system.toUpperCase()}}</td>
-                        <td class="vc-td vc-td-data-secondary">{{ getHouseLocation(u) }}</td>
-                        <td class="vc-td vc-td-data-secondary">{{ listCategoryLabel(u) }}</td>
+                        <td class="vc-td">{{u.username_system.toUpperCase()}}</td>
+                        <td class="vc-td">{{ getHouseLocation(u) }}</td>
+                        <td class="vc-td">{{ listCategoryLabel(u) }}</td>
                         <td class="vc-td">{{ (u.status_system || 'ACTIVO').toUpperCase() }}</td>
-                        <td class="vc-td vc-td-data-secondary">{{u.cel_number || '-'}}</td>
-                        <td class="vc-td text-right" (click)="$event.stopPropagation()">
+                        <td class="vc-td">{{u.cel_number || '-'}}</td>
+                        <td class="vc-td text-right">
                             <button *ngIf="canManageUsers" type="button" (click)="editUser(u)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -95,29 +81,6 @@
                             </button>
                         </td>
                     </tr>
-                    <tr class="vc-row-detail" *ngIf="isUsersRowOpen(u)">
-                        <td class="vc-row-detail-cell" [attr.colspan]="usersTableColspan">
-                            <div class="vc-detail-list">
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Usuario</span>
-                                    <span class="vc-detail-value">{{ u.username_system?.toUpperCase() || '—' }}</span>
-                                </div>
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Domicilio</span>
-                                    <span class="vc-detail-value">{{ getHouseLocation(u) || '—' }}</span>
-                                </div>
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Categoría</span>
-                                    <span class="vc-detail-value">{{ listCategoryLabel(u) || '—' }}</span>
-                                </div>
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Número</span>
-                                    <span class="vc-detail-value">{{ u.cel_number || '—' }}</span>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    </ng-container>
                 </tbody>
             </table>
         </div>
@@ -166,34 +129,20 @@
                 </select>
             </div>
             <div class="vc-table-wrap" *ngIf="personsWithoutUser.length > 0">
-                <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                     <thead>
                         <tr class="vc-thead-row">
-                            <th class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                             <th class="vc-th w-12">Foto</th>
                             <th class="vc-th">Documento</th>
                             <th class="vc-th">Nombre</th>
-                            <th class="vc-th vc-th-data-secondary">Domicilio</th>
-                            <th class="vc-th vc-th-data-secondary">Categoría</th>
-                            <th class="vc-th vc-th-data-secondary">Cel / Email</th>
+                            <th class="vc-th">Domicilio</th>
+                            <th class="vc-th">Categoría</th>
+                            <th class="vc-th">Cel / Email</th>
                             <th class="vc-th">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <ng-container *ngFor="let p of paginatedPersonsWithoutUser">
-                        <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                            [class.vc-row-summary--open]="isPersonsRowOpen(p)"
-                            (click)="togglePersonsRow(p)"
-                            [attr.aria-expanded]="isPersonsRowOpen(p)">
-                            <td class="vc-td vc-td-expand">
-                                <button type="button" class="vc-row-toggle"
-                                    [attr.aria-label]="isPersonsRowOpen(p) ? 'Ocultar detalle' : 'Ver detalle'"
-                                    (click)="togglePersonsRow(p); $event.stopPropagation()">
-                                    <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isPersonsRowOpen(p)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                    </svg>
-                                </button>
-                            </td>
+                        <tr *ngFor="let p of paginatedPersonsWithoutUser" class="vc-tbody-row bg-white dark:bg-gray-900/40">
                             <td class="vc-td">
                                 <div *ngIf="p.photo_url" class="w-10 h-10 rounded-full overflow-hidden">
                                     <img [src]="getPhotoUrl(p.photo_url)" alt="Foto" class="w-full h-full object-cover">
@@ -204,10 +153,10 @@
                             </td>
                             <td class="vc-td">{{ p.doc_number }}</td>
                             <td class="vc-td">{{ p.paternal_surname }} {{ p.maternal_surname }} {{ p.first_name }}</td>
-                            <td class="vc-td vc-td-data-secondary">{{ getHouseLocation(p) }}</td>
-                            <td class="vc-td vc-td-data-secondary">{{ listCategoryLabel(p) }}</td>
-                            <td class="vc-td vc-td-data-secondary">{{ p.cel_number || '-' }} / {{ p.email || '-' }}</td>
-                            <td class="vc-td" (click)="$event.stopPropagation()">
+                            <td class="vc-td">{{ getHouseLocation(p) }}</td>
+                            <td class="vc-td">{{ listCategoryLabel(p) }}</td>
+                            <td class="vc-td">{{ p.cel_number || '-' }} / {{ p.email || '-' }}</td>
+                            <td class="vc-td">
                                 <button *ngIf="canManageUsers" type="button" (click)="editPerson(p)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -215,25 +164,6 @@
                                 </button>
                             </td>
                         </tr>
-                        <tr class="vc-row-detail" *ngIf="isPersonsRowOpen(p)">
-                            <td class="vc-row-detail-cell" [attr.colspan]="personsTableColspan">
-                                <div class="vc-detail-list">
-                                    <div class="vc-detail-item">
-                                        <span class="vc-detail-label">Domicilio</span>
-                                        <span class="vc-detail-value">{{ getHouseLocation(p) || '—' }}</span>
-                                    </div>
-                                    <div class="vc-detail-item">
-                                        <span class="vc-detail-label">Categoría</span>
-                                        <span class="vc-detail-value">{{ listCategoryLabel(p) || '—' }}</span>
-                                    </div>
-                                    <div class="vc-detail-item sm:col-span-2">
-                                        <span class="vc-detail-label">Celular / Email</span>
-                                        <span class="vc-detail-value">{{ p.cel_number || '—' }} · {{ p.email || '—' }}</span>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        </ng-container>
                     </tbody>
                 </table>
             </div>

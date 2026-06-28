@@ -10,6 +10,7 @@ require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 require_once __DIR__ . '/../utils/Response.php';
 
 use Utils\Response;
@@ -233,6 +234,11 @@ class CatalogController
             );
             $rowStmt->execute([$id]);
             $row = $rowStmt->fetch(\PDO::FETCH_ASSOC);
+            recordEventLog($pdo, $auth, 'access_point.create', [
+                'summary' => 'Punto de acceso creado: ' . $name,
+                'entity_type' => 'access_points',
+                'entity_id' => $id,
+            ]);
             Response::success($row, 'Punto de acceso creado', 201);
         } catch (\PDOException $e) {
             if ((int) $e->getCode() === 23000 || str_contains($e->getMessage(), 'Duplicate')) {
@@ -374,6 +380,11 @@ class CatalogController
             );
             $rowStmt->execute([$apid]);
             $row = $rowStmt->fetch(\PDO::FETCH_ASSOC);
+            recordEventLog($pdo, $auth, 'access_point.update', [
+                'summary' => 'Punto de acceso actualizado: ' . ($row['name'] ?? $apid),
+                'entity_type' => 'access_points',
+                'entity_id' => $apid,
+            ]);
             Response::success($row, 'Punto de acceso actualizado');
         } catch (\PDOException $e) {
             if ((int) $e->getCode() === 23000 || str_contains($e->getMessage(), 'Duplicate')) {

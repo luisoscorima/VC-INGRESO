@@ -6,6 +6,7 @@ require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 require_once __DIR__ . '/../utils/Response.php';
 
 use Utils\Response;
@@ -151,6 +152,11 @@ class AnnouncementController
         $q = $pdo->prepare('SELECT * FROM announcements WHERE id = ? LIMIT 1');
         $q->execute([$id]);
         $row = $q->fetch(\PDO::FETCH_ASSOC);
+        recordEventLog($pdo, $auth, 'announcement.create', [
+            'summary' => 'Comunicado creado: ' . $title,
+            'entity_type' => 'announcements',
+            'entity_id' => $id,
+        ]);
         Response::created(self::normalizeRow($row ?: []), 'Comunicado creado');
     }
 
@@ -196,6 +202,11 @@ class AnnouncementController
             Response::notFound('Comunicado no encontrado.');
             return;
         }
+        recordEventLog($pdo, $auth, 'announcement.update', [
+            'summary' => 'Comunicado actualizado: ' . $title,
+            'entity_type' => 'announcements',
+            'entity_id' => $id,
+        ]);
         Response::success(self::normalizeRow($row), 'Comunicado actualizado');
     }
 

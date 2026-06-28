@@ -482,6 +482,29 @@ INSERT INTO `role_nav_permissions` (`role_system`, `module_key`, `can_view`, `ca
 ('OPERARIO', 'pets', 1, 0)
 ON DUPLICATE KEY UPDATE `can_view` = VALUES(`can_view`), `can_manage` = VALUES(`can_manage`);
 
+-- =============================================================================
+-- EVENT LOGS (auditoría de acciones; retención 30 días vía EVENT)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `event_logs` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `occurred_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `actor_user_id` INT UNSIGNED DEFAULT NULL,
+    `actor_role` VARCHAR(20) DEFAULT NULL,
+    `actor_username` VARCHAR(50) DEFAULT NULL,
+    `action` VARCHAR(80) NOT NULL,
+    `entity_type` VARCHAR(50) DEFAULT NULL,
+    `entity_id` VARCHAR(64) DEFAULT NULL,
+    `summary` VARCHAR(500) NOT NULL,
+    `details_json` JSON DEFAULT NULL,
+    `ip_address` VARCHAR(45) DEFAULT NULL,
+    `user_agent` VARCHAR(255) DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_event_logs_occurred_at` (`occurred_at`),
+    KEY `idx_event_logs_action` (`action`),
+    KEY `idx_event_logs_actor` (`actor_user_id`),
+    KEY `idx_event_logs_entity` (`entity_type`, `entity_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- =============================================================================
@@ -504,3 +527,14 @@ DO
   WHERE status = 'CONFIRMADA'
     AND end_date IS NOT NULL
     AND end_date < NOW();
+
+DROP EVENT IF EXISTS ev_vc_purge_event_logs;
+
+CREATE EVENT ev_vc_purge_event_logs
+ON SCHEDULE EVERY 1 DAY
+STARTS (TIMESTAMP(CURDATE()) + INTERVAL 3 HOUR)
+ON COMPLETION PRESERVE
+ENABLE
+COMMENT 'Elimina event_logs con más de 30 días'
+DO
+  DELETE FROM event_logs WHERE occurred_at < NOW() - INTERVAL 30 DAY;

@@ -191,6 +191,16 @@ if (str_starts_with($uri, '/api/v1/')) {
         (new \Controllers\NavPermissionsController())->adminUpdate();
         exit;
     }
+    if ($path === 'admin/event-logs/actions' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/EventLogController.php';
+        (new \Controllers\EventLogController())->actionsCatalog();
+        exit;
+    }
+    if ($path === 'admin/event-logs' && $method === 'GET') {
+        require_once __DIR__ . '/controllers/EventLogController.php';
+        (new \Controllers\EventLogController())->index();
+        exit;
+    }
 
     // ==================== USERS ====================
     if (str_starts_with($path, 'users')) {

@@ -12,6 +12,7 @@ require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 
@@ -273,7 +274,13 @@ class PetController {
             ]);
             
             $id = $this->pdo->lastInsertId();
-            
+
+            recordEventLog($this->pdo, $auth, 'pet.create', [
+                'summary' => 'Mascota registrada: ' . ($data['name'] ?? ('#' . $id)),
+                'entity_type' => 'pets',
+                'entity_id' => $id,
+            ]);
+
             Response::json([
                 'success' => true,
                 'data' => ['id' => $id, ...$data],
@@ -360,7 +367,13 @@ class PetController {
             $sql = "UPDATE pets SET " . implode(', ', $updates) . ", updated_at = NOW() WHERE id = ?";
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($values);
-            
+
+            recordEventLog($this->pdo, $auth, 'pet.update', [
+                'summary' => 'Mascota actualizada #' . $id,
+                'entity_type' => 'pets',
+                'entity_id' => $id,
+            ]);
+
             Response::json([
                 'success' => true,
                 'message' => 'Mascota actualizada exitosamente'
@@ -463,7 +476,13 @@ class PetController {
             }
             $stmt = $this->pdo->prepare("DELETE FROM pets WHERE id = ?");
             $stmt->execute([$id]);
-            
+
+            recordEventLog($this->pdo, $auth, 'pet.delete', [
+                'summary' => 'Mascota eliminada #' . $id,
+                'entity_type' => 'pets',
+                'entity_id' => $id,
+            ]);
+
             Response::json([
                 'success' => true,
                 'message' => 'Mascota eliminada exitosamente'

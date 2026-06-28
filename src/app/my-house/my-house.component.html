@@ -34,44 +34,30 @@
                 </button>
         
                 <div class="vc-table-wrap">
-                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                    <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                         <thead>
                             <tr class="vc-thead-row">
-                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Foto</th>
+                                <th scope="col" class="vc-th">Foto</th>
                                 <th scope="col" class="vc-th">Documento</th>
                                 <th scope="col" class="vc-th">Nombre</th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Categoria</th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Número</th>
+                                <th scope="col" class="vc-th">Categoria</th>
+                                <th scope="col" class="vc-th">Número</th>
                                 <th scope="col" class="vc-th">Estado</th>
                                 <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let fm of myResidents">
-                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                                [class.vc-row-summary--open]="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm))"
-                                (click)="toggleMyHouseRow('residents', getMyHouseUserRowId(fm))"
-                                [attr.aria-expanded]="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm))">
-                                <td class="vc-td vc-td-expand">
-                                    <button type="button" class="vc-row-toggle"
-                                        [attr.aria-label]="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm)) ? 'Ocultar detalle' : 'Ver detalle'"
-                                        (click)="toggleMyHouseRow('residents', getMyHouseUserRowId(fm)); $event.stopPropagation()">
-                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </button>
-                                </td>
-                                <td class="vc-td vc-td-data-secondary">
+                            <tr *ngFor="let fm of myResidents" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+                                <td class="vc-td">
                                   <img *ngIf="fm.photo_url" [src]="api.getPhotoUrl(fm.photo_url)" alt="Foto {{fm.first_name}}" class="photo-thumb" />
                                   <div *ngIf="!fm.photo_url" class="photo-avatar"><mat-icon>person</mat-icon></div>
                                 </td>
                                 <th scope="row" class="vc-td uppercase font-medium whitespace-nowrap">{{fm?.doc_number}}</th>
                                 <td class="vc-td uppercase">{{fm.first_name+' '+fm.paternal_surname+' '+fm.maternal_surname}}</td>
-                                <td class="vc-td vc-td-data-secondary uppercase">{{fm.property_category || fm.person_type || fm.relation_type}}</td>
-                                <td class="vc-td vc-td-data-secondary uppercase">{{fm.cel_number}}</td>
+                                <td class="vc-td uppercase">{{fm.property_category || fm.person_type || fm.relation_type}}</td>
+                                <td class="vc-td uppercase">{{fm.cel_number}}</td>
                                 <td class="vc-td uppercase">{{fm.status_system || fm.status_validated}}</td>
-                                <td class="vc-td text-right uppercase myhouse-actions-cell" (click)="$event.stopPropagation()">
+                                <td class="vc-td text-right uppercase myhouse-actions-cell">
                                     <button *ngIf="fm.photo_url" type="button" (click)="openViewPhoto(fm, 'Residente: '+fm.first_name+' '+fm.paternal_surname)" class="vc-action-btn vc-action-btn--view" title="Ver foto" aria-label="Ver foto">
                                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -82,22 +68,7 @@
                                     <button *ngIf="canEditResidentRow(fm)" type="button" (click)="editUser(fm)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('residents', getMyHouseUserRowId(fm))">
-                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseResidentsColspan">
-                                    <div class="vc-detail-list">
-                                        <div class="vc-detail-item">
-                                            <span class="vc-detail-label">Categoría</span>
-                                            <span class="vc-detail-value">{{ fm.property_category || fm.person_type || fm.relation_type || '—' }}</span>
-                                        </div>
-                                        <div class="vc-detail-item">
-                                            <span class="vc-detail-label">Número</span>
-                                            <span class="vc-detail-value">{{ fm.cel_number || '—' }}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            </ng-container>
-                            <tr *ngIf="myResidents.length === 0"><td [attr.colspan]="myHouseResidentsColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay residentes registrados</td></tr>
+                            <tr *ngIf="myResidents.length === 0"><td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay residentes registrados</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -108,42 +79,28 @@
                     Nuevo
                 </button>
                 <div class="vc-table-wrap">
-                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                    <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                         <thead>
                             <tr class="vc-thead-row">
-                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Foto</th>
+                                <th scope="col" class="vc-th">Foto</th>
                                 <th scope="col" class="vc-th">Documento</th>
                                 <th scope="col" class="vc-th">Nombre</th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Celular</th>
+                                <th scope="col" class="vc-th">Celular</th>
                                 <th scope="col" class="vc-th">Estado</th>
                                 <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let t of myTenants">
-                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                                [class.vc-row-summary--open]="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t))"
-                                (click)="toggleMyHouseRow('tenants', getMyHouseUserRowId(t))"
-                                [attr.aria-expanded]="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t))">
-                                <td class="vc-td vc-td-expand">
-                                    <button type="button" class="vc-row-toggle"
-                                        [attr.aria-label]="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t)) ? 'Ocultar detalle' : 'Ver detalle'"
-                                        (click)="toggleMyHouseRow('tenants', getMyHouseUserRowId(t)); $event.stopPropagation()">
-                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </button>
-                                </td>
-                                <td class="vc-td vc-td-data-secondary">
+                            <tr *ngFor="let t of myTenants" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+                                <td class="vc-td">
                                   <img *ngIf="t.photo_url" [src]="api.getPhotoUrl(t.photo_url)" alt="Foto {{t.first_name}}" class="photo-thumb" />
                                   <div *ngIf="!t.photo_url" class="photo-avatar"><mat-icon>person</mat-icon></div>
                                 </td>
                                 <td class="vc-td font-medium whitespace-nowrap">{{ t?.doc_number }}</td>
                                 <td class="vc-td">{{ t?.first_name }} {{ t?.paternal_surname }} {{ t?.maternal_surname }}</td>
-                                <td class="vc-td vc-td-data-secondary">{{ t?.cel_number }}</td>
+                                <td class="vc-td">{{ t?.cel_number }}</td>
                                 <td class="vc-td">{{ t?.status_system || t?.status_validated }}</td>
-                                <td class="vc-td text-right myhouse-actions-cell" (click)="$event.stopPropagation()">
+                                <td class="vc-td text-right myhouse-actions-cell">
                                     <button *ngIf="t.photo_url" type="button" (click)="openViewPhoto(t, 'Inquilino: '+t.first_name+' '+t.paternal_surname)" class="vc-action-btn vc-action-btn--view" title="Ver foto" aria-label="Ver foto">
                                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -154,18 +111,7 @@
                                     <button type="button" (click)="editUser(t)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('tenants', getMyHouseUserRowId(t))">
-                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseTenantsColspan">
-                                    <div class="vc-detail-list">
-                                        <div class="vc-detail-item">
-                                            <span class="vc-detail-label">Celular</span>
-                                            <span class="vc-detail-value">{{ t?.cel_number || '—' }}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            </ng-container>
-                            <tr *ngIf="myTenants.length === 0"><td [attr.colspan]="myHouseTenantsColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay inquilinos registrados</td></tr>
+                            <tr *ngIf="myTenants.length === 0"><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay inquilinos registrados</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -176,42 +122,28 @@
                     Nuevo
                 </button>
                 <div class="vc-table-wrap">
-                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                    <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                         <thead>
                             <tr class="vc-thead-row">
-                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Foto</th>
+                                <th scope="col" class="vc-th">Foto</th>
                                 <th scope="col" class="vc-th">Nombre</th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Especie</th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Raza</th>
+                                <th scope="col" class="vc-th">Especie</th>
+                                <th scope="col" class="vc-th">Raza</th>
                                 <th scope="col" class="vc-th">Estado</th>
                                 <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let pt of myPets">
-                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                                [class.vc-row-summary--open]="isMyHouseRowOpen('pets', getMyHousePetRowId(pt))"
-                                (click)="toggleMyHouseRow('pets', getMyHousePetRowId(pt))"
-                                [attr.aria-expanded]="isMyHouseRowOpen('pets', getMyHousePetRowId(pt))">
-                                <td class="vc-td vc-td-expand">
-                                    <button type="button" class="vc-row-toggle"
-                                        [attr.aria-label]="isMyHouseRowOpen('pets', getMyHousePetRowId(pt)) ? 'Ocultar detalle' : 'Ver detalle'"
-                                        (click)="toggleMyHouseRow('pets', getMyHousePetRowId(pt)); $event.stopPropagation()">
-                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('pets', getMyHousePetRowId(pt))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </button>
-                                </td>
-                                <td class="vc-td vc-td-data-secondary">
+                            <tr *ngFor="let pt of myPets" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+                                <td class="vc-td">
                                   <img *ngIf="pt?.photo_url" [src]="api.getPhotoUrl(pt.photo_url)" alt="Foto {{pt.name}}" class="photo-thumb" />
                                   <div *ngIf="!pt?.photo_url" class="photo-avatar"><mat-icon>pets</mat-icon></div>
                                 </td>
                                 <td class="vc-td font-medium">{{ pt?.name }}</td>
-                                <td class="vc-td vc-td-data-secondary">{{ pt?.species }}</td>
-                                <td class="vc-td vc-td-data-secondary">{{ pt?.breed || '-' }}</td>
+                                <td class="vc-td">{{ pt?.species }}</td>
+                                <td class="vc-td">{{ pt?.breed || '-' }}</td>
                                 <td class="vc-td uppercase">{{ pt?.status_system || pt?.status_validated }}</td>
-                                <td class="vc-td text-right myhouse-actions-cell" (click)="$event.stopPropagation()">
+                                <td class="vc-td text-right myhouse-actions-cell">
                                     <input type="file" #petPhotoInput [attr.id]="'myhouse-pet-photo-' + myPets.indexOf(pt)" accept="image/jpeg,image/png,image/gif" (change)="onPetPhotoSelect(myPets.indexOf(pt), $event)" class="hidden" />
                                     <button *ngIf="canTenantEditPet(pt)" type="button" class="vc-action-btn vc-action-btn--upload" [attr.title]="uploadingPetIndex === myPets.indexOf(pt) ? 'Cargando...' : 'Subir foto'" [disabled]="uploadingPetIndex === myPets.indexOf(pt)" (click)="document.getElementById('myhouse-pet-photo-' + myPets.indexOf(pt))?.click()" aria-label="Subir foto">
                                         <svg *ngIf="uploadingPetIndex !== myPets.indexOf(pt)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -232,22 +164,7 @@
                                     <button *ngIf="canTenantEditPet(pt)" type="button" (click)="editPet(pt)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('pets', getMyHousePetRowId(pt))">
-                                <td class="vc-row-detail-cell" [attr.colspan]="myHousePetsColspan">
-                                    <div class="vc-detail-list">
-                                        <div class="vc-detail-item">
-                                            <span class="vc-detail-label">Especie</span>
-                                            <span class="vc-detail-value">{{ pt?.species || '—' }}</span>
-                                        </div>
-                                        <div class="vc-detail-item">
-                                            <span class="vc-detail-label">Raza</span>
-                                            <span class="vc-detail-value">{{ pt?.breed || '—' }}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            </ng-container>
-                            <tr *ngIf="myPets.length === 0"><td [attr.colspan]="myHousePetsColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay mascotas registradas</td></tr>
+                            <tr *ngIf="myPets.length === 0"><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay mascotas registradas</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -259,42 +176,28 @@
                 </button>
         
                 <div class="vc-table-wrap">
-                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                    <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                         <thead>
                             <tr class="vc-thead-row">
-                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Foto</th>
+                                <th scope="col" class="vc-th">Foto</th>
                                 <th scope="col" class="vc-th">Tipo</th>
                                 <th scope="col" class="vc-th">Placa</th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Categoria</th>
+                                <th scope="col" class="vc-th">Categoria</th>
                                 <th scope="col" class="vc-th">Estado</th>
                                 <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let vh of myVehicles">
-                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                                [class.vc-row-summary--open]="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh))"
-                                (click)="toggleMyHouseRow('vehicles', getMyHouseVehicleRowId(vh))"
-                                [attr.aria-expanded]="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh))">
-                                <td class="vc-td vc-td-expand">
-                                    <button type="button" class="vc-row-toggle"
-                                        [attr.aria-label]="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh)) ? 'Ocultar detalle' : 'Ver detalle'"
-                                        (click)="toggleMyHouseRow('vehicles', getMyHouseVehicleRowId(vh)); $event.stopPropagation()">
-                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </button>
-                                </td>
-                                <td class="vc-td vc-td-data-secondary">
+                            <tr *ngFor="let vh of myVehicles" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+                                <td class="vc-td">
                                   <img *ngIf="vh?.photo_url" [src]="api.getPhotoUrl(vh.photo_url)" alt="Foto {{vh.license_plate}}" class="photo-thumb" />
                                   <div *ngIf="!vh?.photo_url" class="photo-avatar"><mat-icon>directions_car</mat-icon></div>
                                 </td>
                                 <th scope="row" class="vc-td uppercase font-medium whitespace-nowrap">{{vh?.type_vehicle}}</th>
                                 <td class="vc-td uppercase">{{ (vh?.license_plate || '').trim() ? vh?.license_plate : '—' }}</td>
-                                <td class="vc-td vc-td-data-secondary uppercase">{{vh?.category_entry}}</td>
+                                <td class="vc-td uppercase">{{vh?.category_entry}}</td>
                                 <td class="vc-td uppercase">{{ vh?.status_system || vh?.status_validated }}</td>
-                                <td class="vc-td text-right uppercase myhouse-actions-cell" (click)="$event.stopPropagation()">
+                                <td class="vc-td text-right uppercase myhouse-actions-cell">
                                     <input type="file" [attr.id]="'myhouse-vehicle-photo-' + myVehicles.indexOf(vh)" accept="image/jpeg,image/png,image/gif" (change)="onVehiclePhotoSelect(myVehicles.indexOf(vh), $event)" class="hidden" />
                                     <button *ngIf="canTenantEditVehicle(vh)" type="button" class="vc-action-btn vc-action-btn--upload" [attr.title]="uploadingVehicleIndex === myVehicles.indexOf(vh) ? 'Cargando...' : 'Subir foto'" [disabled]="uploadingVehicleIndex === myVehicles.indexOf(vh)" (click)="document.getElementById('myhouse-vehicle-photo-' + myVehicles.indexOf(vh))?.click()" aria-label="Subir foto">
                                         <svg *ngIf="uploadingVehicleIndex !== myVehicles.indexOf(vh)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -316,18 +219,7 @@
                                     <button *ngIf="canTenantEditVehicle(vh)" type="button" (click)="editVehicle(vh)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('vehicles', getMyHouseVehicleRowId(vh))">
-                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseVehiclesColspan">
-                                    <div class="vc-detail-list">
-                                        <div class="vc-detail-item">
-                                            <span class="vc-detail-label">Categoría</span>
-                                            <span class="vc-detail-value">{{ vh?.category_entry || '—' }}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            </ng-container>
-                            <tr *ngIf="myVehicles.length === 0"><td [attr.colspan]="myHouseVehiclesColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay vehículos registrados</td></tr>
+                            <tr *ngIf="myVehicles.length === 0"><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay vehículos registrados</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -339,53 +231,28 @@
                 </button>
         
                 <div class="vc-table-wrap">
-                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                    <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                         <thead>
                             <tr class="vc-thead-row">
-                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                                 <th scope="col" class="vc-th">DNI</th>
                                 <th scope="col" class="vc-th">Nombre</th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Categoria</th>
+                                <th scope="col" class="vc-th">Categoria</th>
                                 <th scope="col" class="vc-th">Estado</th>
                                 <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let mv of myVisits">
-                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                                [class.vc-row-summary--open]="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv))"
-                                (click)="toggleMyHouseRow('visits', getMyHouseUserRowId(mv))"
-                                [attr.aria-expanded]="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv))">
-                                <td class="vc-td vc-td-expand">
-                                    <button type="button" class="vc-row-toggle"
-                                        [attr.aria-label]="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv)) ? 'Ocultar detalle' : 'Ver detalle'"
-                                        (click)="toggleMyHouseRow('visits', getMyHouseUserRowId(mv)); $event.stopPropagation()">
-                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </button>
-                                </td>
+                            <tr *ngFor="let mv of myVisits" class="vc-tbody-row bg-white dark:bg-gray-900/40">
                                 <th scope="row" class="vc-td uppercase font-medium whitespace-nowrap">{{mv?.doc_number}}</th>
                                 <td class="vc-td uppercase">{{mv?.first_name}} {{mv?.paternal_surname}} {{mv?.maternal_surname}}</td>
-                                <td class="vc-td vc-td-data-secondary uppercase">{{mv?.property_category || mv?.person_type || mv?.relation_type}}</td>
+                                <td class="vc-td uppercase">{{mv?.property_category || mv?.person_type || mv?.relation_type}}</td>
                                 <td class="vc-td uppercase">{{mv?.status_system || mv?.status_validated}}</td>
-                                <td class="vc-td text-right uppercase" (click)="$event.stopPropagation()">
+                                <td class="vc-td text-right uppercase">
                                     <button *ngIf="canShowQrForPersonRow(mv)" type="button" (click)="openPersonAccessQr(mv, 'QR ingreso — visita ' + (mv.first_name||'') + ' ' + (mv.paternal_surname||''))" class="inline-flex items-center justify-center p-1 rounded text-violet-600 hover:bg-violet-100 dark:text-violet-400 dark:hover:bg-violet-900/30" title="QR de ingreso"><mat-icon class="!text-lg !w-5 !h-5">qr_code_2</mat-icon></button>
                                     <button type="button" (click)="editVisit(mv)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('visits', getMyHouseUserRowId(mv))">
-                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseVisitsColspan">
-                                    <div class="vc-detail-list">
-                                        <div class="vc-detail-item">
-                                            <span class="vc-detail-label">Categoría</span>
-                                            <span class="vc-detail-value">{{ mv?.property_category || mv?.person_type || mv?.relation_type || '—' }}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            </ng-container>
-                            <tr *ngIf="myVisits.length === 0"><td [attr.colspan]="myHouseVisitsColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay visitas registradas</td></tr>
+                            <tr *ngIf="myVisits.length === 0"><td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay visitas registradas</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -398,58 +265,29 @@
                 </button>
 
                 <div class="vc-table-wrap">
-                    <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+                    <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                         <thead>
                             <tr class="vc-thead-row">
-                                <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                                 <th scope="col" class="vc-th">Categoría</th>
                                 <th scope="col" class="vc-th">Placa</th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Responsable</th>
-                                <th scope="col" class="vc-th vc-th-data-secondary">Celular</th>
+                                <th scope="col" class="vc-th">Responsable</th>
+                                <th scope="col" class="vc-th">Celular</th>
                                 <th scope="col" class="vc-th">Estado</th>
                                 <th scope="col" class="vc-th text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <ng-container *ngFor="let ev of externalVehicles">
-                            <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                                [class.vc-row-summary--open]="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev))"
-                                (click)="toggleMyHouseRow('external', getMyHouseExternalRowId(ev))"
-                                [attr.aria-expanded]="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev))">
-                                <td class="vc-td vc-td-expand">
-                                    <button type="button" class="vc-row-toggle"
-                                        [attr.aria-label]="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev)) ? 'Ocultar detalle' : 'Ver detalle'"
-                                        (click)="toggleMyHouseRow('external', getMyHouseExternalRowId(ev)); $event.stopPropagation()">
-                                        <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </button>
-                                </td>
+                            <tr *ngFor="let ev of externalVehicles" class="vc-tbody-row bg-white dark:bg-gray-900/40">
                                 <th scope="row" class="vc-td font-medium uppercase whitespace-nowrap">{{ev.temp_visit_type}}</th>
                                 <td class="vc-td uppercase">{{ev.temp_visit_plate}}</td>
-                                <td class="vc-td vc-td-data-secondary uppercase">{{ev.temp_visit_name}}</td>
-                                <td class="vc-td vc-td-data-secondary uppercase">{{ev.temp_visit_cel}}</td>
+                                <td class="vc-td uppercase">{{ev.temp_visit_name}}</td>
+                                <td class="vc-td uppercase">{{ev.temp_visit_cel}}</td>
                                 <td class="vc-td uppercase">{{ev.status_system}}</td>
-                                <td class="vc-td text-right uppercase myhouse-actions-cell" (click)="$event.stopPropagation()">
+                                <td class="vc-td text-right uppercase myhouse-actions-cell">
                                     <button type="button" (click)="editExternalVehicle(ev)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                                 </td>
                             </tr>
-                            <tr class="vc-row-detail" *ngIf="isMyHouseRowOpen('external', getMyHouseExternalRowId(ev))">
-                                <td class="vc-row-detail-cell" [attr.colspan]="myHouseExternalColspan">
-                                    <div class="vc-detail-list">
-                                        <div class="vc-detail-item">
-                                            <span class="vc-detail-label">Responsable</span>
-                                            <span class="vc-detail-value">{{ ev.temp_visit_name || '—' }}</span>
-                                        </div>
-                                        <div class="vc-detail-item">
-                                            <span class="vc-detail-label">Celular</span>
-                                            <span class="vc-detail-value">{{ ev.temp_visit_cel || '—' }}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            </ng-container>
-                            <tr *ngIf="externalVehicles.length === 0"><td [attr.colspan]="myHouseExternalColspan" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay visitas externas registradas</td></tr>
+                            <tr *ngIf="externalVehicles.length === 0"><td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No hay visitas externas registradas</td></tr>
                         </tbody>
                     </table>
                 </div>

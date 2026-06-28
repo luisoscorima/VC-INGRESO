@@ -13,6 +13,7 @@ require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/license_plate.php';
 require_once __DIR__ . '/../helpers/vehicle_type_rules.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 
@@ -204,6 +205,11 @@ class VehicleController extends Controller {
 
         $vehicleId = $this->create($filtered);
         $vehicle = $this->findById($vehicleId, 'vehicle_id');
+        recordEventLog($this->db, $auth, 'vehicle.create', [
+            'summary' => 'Vehículo registrado: ' . ($vehicle->license_plate ?? ('#' . $vehicleId)),
+            'entity_type' => 'vehicles',
+            'entity_id' => $vehicleId,
+        ]);
         Response::created($vehicle, 'Vehículo creado correctamente');
     }
     
@@ -317,6 +323,11 @@ class VehicleController extends Controller {
         }
         parent::update($vehicleId, $filtered, 'vehicle_id');
         $vehicle = $this->findById($vehicleId, 'vehicle_id');
+        recordEventLog($this->db, $auth, 'vehicle.update', [
+            'summary' => 'Vehículo actualizado #' . $vehicleId,
+            'entity_type' => 'vehicles',
+            'entity_id' => $vehicleId,
+        ]);
         Response::success($vehicle, 'Vehículo actualizado correctamente');
     }
     
@@ -351,6 +362,11 @@ class VehicleController extends Controller {
             }
         }
         $this->delete($vehicleId, 'vehicle_id');
+        recordEventLog($this->db, $auth, 'vehicle.delete', [
+            'summary' => 'Vehículo eliminado #' . $vehicleId,
+            'entity_type' => 'vehicles',
+            'entity_id' => $vehicleId,
+        ]);
         Response::success(null, 'Vehículo eliminado correctamente');
     }
 }

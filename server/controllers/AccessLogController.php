@@ -11,6 +11,7 @@ require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../utils/Router.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 use Utils\Router;
@@ -179,6 +180,16 @@ class AccessLogController
             ]);
 
             $id = $this->pdo->lastInsertId();
+
+            recordEventLog($this->pdo, $auth, 'access_log.create', [
+                'summary' => 'Registro de acceso manual: ' . $data['type'],
+                'entity_type' => 'access_logs',
+                'entity_id' => $id,
+                'details' => [
+                    'access_point_id' => $data['access_point_id'],
+                    'type' => $data['type'],
+                ],
+            ]);
 
             Response::json([
                 'success' => true,

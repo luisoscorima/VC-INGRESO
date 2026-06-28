@@ -35,15 +35,14 @@
         </div>
 
         <div class="vc-table-wrap">
-            <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+            <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                 <thead>
                     <tr class="vc-thead-row">
-                        <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                         <th scope="col" class="vc-th">Manzana</th>
                         <th scope="col" class="vc-th">Lote</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary">Departamento</th>
+                        <th scope="col" class="vc-th">Departamento</th>
                         <th scope="col" class="vc-th">Estado</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary text-center">Registrada</th>
+                        <th scope="col" class="vc-th text-center">Registrada</th>
                         <th scope="col" class="vc-th text-right">
                             Acciones
                             <span class="sr-only">Editar</span>
@@ -51,25 +50,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <ng-container *ngFor="let h of paginatedHouses">
-                    <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                        [class.vc-row-summary--open]="isRowOpen(h)"
-                        (click)="toggleRow(h)"
-                        [attr.aria-expanded]="isRowOpen(h)">
-                        <td class="vc-td vc-td-expand">
-                            <button type="button" class="vc-row-toggle"
-                                [attr.aria-label]="isRowOpen(h) ? 'Ocultar detalle' : 'Ver detalle'"
-                                (click)="toggleRow(h); $event.stopPropagation()">
-                                <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isRowOpen(h)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </button>
-                        </td>
+                    <tr *ngFor="let h of paginatedHouses" class="vc-tbody-row bg-white dark:bg-gray-900/40">
                         <th scope="row" class="vc-td font-medium">{{h.block_house}}</th>
                         <td class="vc-td">{{h.lot}}</td>
-                        <td class="vc-td vc-td-data-secondary">{{h.apartment || '—'}}</td>
+                        <td class="vc-td">{{h.apartment || '—'}}</td>
                         <td class="vc-td">{{h.status_system.toUpperCase()}}</td>
-                        <td class="vc-td vc-td-data-secondary text-center align-middle">
+                        <td class="vc-td text-center align-middle">
                             <span *ngIf="isOwnerRegistered(h)" class="inline-flex text-green-600 dark:text-green-400" title="Tiene propietario registrado" aria-label="Sí, registrada">
                                 <svg class="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -81,7 +67,7 @@
                                 </svg>
                             </span>
                         </td>
-                        <td class="vc-td text-right" (click)="$event.stopPropagation()">
+                        <td class="vc-td text-right">
                             <button *ngIf="canManageHousesCrud" type="button" (click)="editHouse(h)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -89,21 +75,6 @@
                             </button>
                         </td>
                     </tr>
-                    <tr class="vc-row-detail" *ngIf="isRowOpen(h)">
-                        <td class="vc-row-detail-cell" [attr.colspan]="tableColspan">
-                            <div class="vc-detail-list">
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Departamento</span>
-                                    <span class="vc-detail-value">{{ h.apartment || '—' }}</span>
-                                </div>
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Registrada</span>
-                                    <span class="vc-detail-value">{{ isOwnerRegistered(h) ? 'Sí, con propietario' : 'No registrada' }}</span>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    </ng-container>
                 </tbody>
             </table>
         </div>

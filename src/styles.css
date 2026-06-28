@@ -10,7 +10,7 @@ body {
 }
 body {
   margin: 0;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "Trebuchet MS", sans-serif;
 }
 
 /* Backdrop del drawer de Flowbite: por debajo del sidebar para que en móvil se pueda tocar el menú */
@@ -102,7 +102,7 @@ body {
 
   /* Tarjeta principal con “glass” y borde discontinuo (Inicio, Reservas, etc.) */
   .vc-card {
-    @apply glass-effect rounded-xl border-2 border-dashed border-gray-200 shadow-lg dark:border-gray-600 overflow-hidden min-w-0;
+    @apply glass-effect rounded-xl border-2 border-dashed border-gray-200 shadow-lg dark:border-gray-600 min-w-0 overflow-x-hidden;
   }
 
   .vc-card-header {
@@ -126,9 +126,15 @@ body {
     @apply mb-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-900/30 p-4;
   }
 
-  /* Contenedor de tabla (misma línea que Reservaciones) */
+  /* Contenedor de tabla: scroll horizontal solo en la tabla, no en la página */
   .vc-table-wrap {
     @apply w-full min-w-0 max-w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .vc-table {
+    @apply w-max min-w-full text-sm;
   }
 
   /* Fila de filtros encima de tablas CRUD */
@@ -164,92 +170,6 @@ body {
 
   .vc-modal-footer {
     @apply flex flex-wrap items-center gap-2 p-4 md:p-5 border-t border-gray-200 rounded-b dark:border-gray-600;
-  }
-
-  /*
-   * Tabla expandible unificada (móvil: resumen + detalle; desktop: tabla completa).
-   * Usar en <table class="vc-table vc-table--expandable"> con:
-   * - .vc-th-expand / .vc-td-expand (chevron, solo móvil)
-   * - .vc-th-data-secondary / .vc-td-data-secondary (columnas extra en desktop)
-   * - segunda <tr class="vc-row-detail"> con .vc-detail-list
-   */
-  .vc-table--expandable .vc-th-expand,
-  .vc-table--expandable .vc-td-expand {
-    @apply w-10 p-0 text-center align-middle;
-  }
-
-  .vc-row-toggle {
-    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700;
-  }
-
-  .vc-row-toggle-icon {
-    @apply h-5 w-5 transition-transform duration-200;
-  }
-
-  .vc-row-toggle-icon--open {
-    transform: rotate(180deg);
-  }
-
-  .vc-row-summary {
-    @apply cursor-pointer;
-  }
-
-  .vc-row-summary--open {
-    @apply bg-teal-50/80 dark:bg-teal-900/20;
-  }
-
-  .vc-row-detail-cell {
-    @apply bg-gray-50/90 p-0 dark:bg-gray-800/60;
-  }
-
-  .vc-detail-list {
-    @apply grid grid-cols-1 gap-3 border-t border-gray-100 p-4 sm:grid-cols-2 dark:border-gray-700;
-  }
-
-  .vc-detail-item {
-    @apply min-w-0;
-  }
-
-  .vc-detail-label {
-    @apply block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400;
-  }
-
-  .vc-detail-value {
-    @apply mt-0.5 block text-sm text-gray-900 break-words dark:text-gray-100;
-  }
-
-  @media (max-width: 767.98px) {
-    .vc-table-wrap:has(.vc-table--expandable) {
-      @apply overflow-x-hidden;
-    }
-
-    .vc-table--expandable .vc-th-data-secondary,
-    .vc-table--expandable .vc-td-data-secondary {
-      display: none;
-    }
-  }
-
-  @media (min-width: 768px) {
-    .vc-table--expandable .vc-th-expand,
-    .vc-table--expandable .vc-td-expand {
-      display: none;
-    }
-
-    .vc-table--expandable .vc-row-detail {
-      display: none;
-    }
-
-    .vc-table--expandable .vc-row-summary {
-      cursor: default;
-    }
-
-    .vc-table--expandable .vc-row-summary--open {
-      @apply bg-transparent dark:bg-transparent;
-    }
-  }
-
-  .vc-table {
-    @apply min-w-full text-sm;
   }
 
   .vc-thead-row {

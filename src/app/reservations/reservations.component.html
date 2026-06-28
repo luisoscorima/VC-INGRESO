@@ -7,8 +7,11 @@
       <button
         type="button"
         (click)="goToday()"
-        class="self-start sm:self-center text-sm font-medium text-teal-700 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300"
+        class="vc-btn-outline self-start sm:self-center inline-flex items-center gap-1.5 px-4 py-2"
       >
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
         Ir a hoy
       </button>
     </div>
@@ -18,22 +21,22 @@
         Tu usuario no tiene una casa asignada: no puedes crear solicitudes. Si eres residente, contacta a administración.
       </div>
 
-      <!-- Área + navegación mes (una sola fila) -->
-      <div class="flex min-w-0 flex-nowrap items-center gap-2 sm:gap-3 overflow-x-auto pb-0.5">
-        <div class="min-w-0 flex-1">
+      <!-- Área + navegación mes -->
+      <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+        <div class="w-full min-w-0 sm:flex-1">
           <label for="calendar-area" class="sr-only">Área del calendario</label>
           <select
             id="calendar-area"
             name="calendarAreaFilter"
             [(ngModel)]="calendarAreaFilter"
             (change)="onCalendarAreaFilterChange()"
-            class="block w-full min-w-[12rem] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-white focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+            class="vc-field w-full"
           >
             <option [ngValue]="'ALL'">Todas las áreas</option>
             <option *ngFor="let a of areasSelectable" [ngValue]="areaId(a)">{{ areaOptionLabel(a) }}</option>
           </select>
         </div>
-        <div class="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div class="flex w-full shrink-0 items-center justify-center gap-1.5 sm:w-auto sm:gap-2">
           <button
             type="button"
             (click)="prevMonth()"

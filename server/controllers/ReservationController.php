@@ -14,6 +14,7 @@ require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../config/reservation_business_rules.php';
 require_once __DIR__ . '/../helpers/holidays_ics.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 use Utils\Router;
@@ -330,6 +331,13 @@ class ReservationController
 
             $id = $this->pdo->lastInsertId();
 
+            recordEventLog($this->pdo, $auth, 'reservation.create', [
+                'summary' => 'Reservación creada #' . $id,
+                'entity_type' => 'reservations',
+                'entity_id' => $id,
+                'details' => ['status' => $data['status'], 'house_id' => $data['house_id']],
+            ]);
+
             Response::json([
                 'success' => true,
                 'data' => ['id' => $id, 'message' => 'Reservación creada correctamente'],
@@ -463,6 +471,12 @@ class ReservationController
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($values);
 
+            recordEventLog($this->pdo, $auth, 'reservation.update', [
+                'summary' => 'Reservación actualizada #' . $id,
+                'entity_type' => 'reservations',
+                'entity_id' => $id,
+            ]);
+
             Response::json([
                 'success' => true,
                 'data' => ['id' => $id, 'message' => 'Reservación actualizada correctamente'],
@@ -548,6 +562,13 @@ class ReservationController
         try {
             $stmt = $this->pdo->prepare("UPDATE {$this->table} SET status = ? WHERE id = ?");
             $stmt->execute([$newStatus, $id]);
+
+            recordEventLog($this->pdo, $auth, 'reservation.status_change', [
+                'summary' => 'Reservación #' . $id . ' → ' . $newStatus,
+                'entity_type' => 'reservations',
+                'entity_id' => $id,
+                'details' => ['from' => $current, 'to' => $newStatus],
+            ]);
 
             Response::json([
                 'success' => true,

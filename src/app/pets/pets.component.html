@@ -21,16 +21,15 @@
         </div>
 
         <div class="vc-table-wrap">
-            <table class="vc-table vc-table--expandable text-left text-gray-600 dark:text-gray-300">
+            <table class="vc-table text-left text-gray-600 dark:text-gray-300">
                 <thead>
                     <tr class="vc-thead-row">
-                        <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
                         <th scope="col" class="vc-th w-12"></th>
                         <th scope="col" class="vc-th">Nombre</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary">Especie</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary">Raza</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary">Casa</th>
-                        <th scope="col" class="vc-th vc-th-data-secondary">Propietario</th>
+                        <th scope="col" class="vc-th">Especie</th>
+                        <th scope="col" class="vc-th">Raza</th>
+                        <th scope="col" class="vc-th">Casa</th>
+                        <th scope="col" class="vc-th">Propietario</th>
                         <th scope="col" class="vc-th">Estado</th>
                         <th scope="col" class="vc-th text-right">
                             Acciones
@@ -39,20 +38,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <ng-container *ngFor="let p of paginatedPets">
-                    <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-                        [class.vc-row-summary--open]="isRowOpen(p)"
-                        (click)="toggleRow(p)"
-                        [attr.aria-expanded]="isRowOpen(p)">
-                        <td class="vc-td vc-td-expand">
-                            <button type="button" class="vc-row-toggle"
-                                [attr.aria-label]="isRowOpen(p) ? 'Ocultar detalle' : 'Ver detalle'"
-                                (click)="toggleRow(p); $event.stopPropagation()">
-                                <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isRowOpen(p)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </button>
-                        </td>
+                    <tr *ngFor="let p of paginatedPets" class="vc-tbody-row bg-white dark:bg-gray-900/40">
                         <td class="vc-td">
                             <div *ngIf="p.photo_url" class="w-10 h-10 rounded-full overflow-hidden">
                                 <img [src]="getPhotoUrl(p.photo_url)" alt="Foto" class="w-full h-full object-cover">
@@ -64,12 +50,12 @@
                         <th scope="row" class="vc-td font-medium uppercase">
                             {{p.name}}
                         </th>
-                        <td class="vc-td vc-td-data-secondary uppercase">{{p.species}}</td>
-                        <td class="vc-td vc-td-data-secondary uppercase">{{p.breed || '-'}}</td>
-                        <td class="vc-td vc-td-data-secondary uppercase">{{ getHouseDisplay(p) }}</td>
-                        <td class="vc-td vc-td-data-secondary uppercase">{{ getOwnerName(p.owner_id) }}</td>
+                        <td class="vc-td uppercase">{{p.species}}</td>
+                        <td class="vc-td uppercase">{{p.breed || '-'}}</td>
+                        <td class="vc-td uppercase">{{ getHouseDisplay(p) }}</td>
+                        <td class="vc-td uppercase">{{ getOwnerName(p.owner_id) }}</td>
                         <td class="vc-td uppercase">{{p.status_validated}}</td>
-                        <td class="vc-td text-right" (click)="$event.stopPropagation()">
+                        <td class="vc-td text-right">
                             <div class="inline-flex flex-wrap justify-end gap-1">
                             <button *ngIf="p.photo_url" type="button" (click)="openViewPhoto(p)" class="vc-action-btn vc-action-btn--view" title="Ver foto" aria-label="Ver foto">
                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -85,29 +71,6 @@
                             </div>
                         </td>
                     </tr>
-                    <tr class="vc-row-detail" *ngIf="isRowOpen(p)">
-                        <td class="vc-row-detail-cell" [attr.colspan]="tableColspan">
-                            <div class="vc-detail-list">
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Especie</span>
-                                    <span class="vc-detail-value">{{ p.species || '—' }}</span>
-                                </div>
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Raza</span>
-                                    <span class="vc-detail-value">{{ p.breed || '—' }}</span>
-                                </div>
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Casa</span>
-                                    <span class="vc-detail-value">{{ getHouseDisplay(p) || '—' }}</span>
-                                </div>
-                                <div class="vc-detail-item">
-                                    <span class="vc-detail-label">Propietario</span>
-                                    <span class="vc-detail-value">{{ getOwnerName(p.owner_id) || '—' }}</span>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    </ng-container>
                 </tbody>
             </table>
         </div>

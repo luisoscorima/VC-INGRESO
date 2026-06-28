@@ -5,6 +5,7 @@ namespace Controllers;
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 
@@ -55,6 +56,10 @@ class NavPermissionsController extends Controller
             return;
         }
         saveAdminNavMatrix($this->db, $data);
+        recordEventLog($this->db, $auth, 'nav_permissions.update', [
+            'summary' => 'Matriz de permisos de navegación actualizada',
+            'entity_type' => 'nav_permissions',
+        ]);
         Response::success(getAdminNavMatrix($this->db), 'Permisos actualizados');
     }
 }

@@ -5,6 +5,8 @@ namespace Controllers;
 require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../db_connection.php';
+require_once __DIR__ . '/../helpers/event_log.php';
 
 use Utils\Response;
 
@@ -179,6 +181,12 @@ class ReadonlyDocumentsController
             return;
         }
 
+        recordEventLog(getDbConnection(), $auth, 'readonly_documents.update', [
+            'summary' => 'Documentos de solo lectura actualizados',
+            'entity_type' => 'readonly_documents',
+            'details' => ['documents_count' => count($data['documents'] ?? [])],
+        ]);
+
         Response::json(['success' => true, 'data' => $data]);
     }
 
@@ -240,6 +248,11 @@ class ReadonlyDocumentsController
         }
 
         $url = '/uploads/public/readonly-docs/' . $filename;
+        recordEventLog(getDbConnection(), $auth, 'readonly_documents.upload', [
+            'summary' => 'Documento subido: ' . ($title !== '' ? $title : $filename),
+            'entity_type' => 'readonly_documents',
+            'details' => ['url' => $url, 'ext' => $ext],
+        ]);
         Response::json([
             'success' => true,
             'data' => [

@@ -213,19 +213,28 @@ function sanitizeOutput($data) {
 }
 
 /**
- * Registrar acción en log de auditoría
+ * Registrar acción en log de auditoría (persiste en event_logs si hay BD).
  */
 function auditLog($action, $userId = null, $details = null) {
-    $timestamp = date('Y-m-d H:i:s');
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    
-    $logEntry = [
-        'timestamp' => $timestamp,
-        'action' => $action,
-        'user_id' => $userId,
-        'ip' => $ip,
-        'details' => $details
-    ];
-    
-    error_log('[AUDIT] ' . json_encode($logEntry));
+    try {
+        require_once __DIR__ . '/db_connection.php';
+        require_once __DIR__ . '/helpers/event_log.php';
+        $db = getDbConnection();
+        $auth = $userId !== null ? ['user_id' => (int) $userId] : null;
+        recordEventLog($db, $auth, (string) $action, [
+            'summary' => (string) $action,
+            'details' => $details,
+        ]);
+    } catch (\Throwable $e) {
+        $timestamp = date('Y-m-d H:i:s');
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $logEntry = [
+            'timestamp' => $timestamp,
+            'action' => $action,
+            'user_id' => $userId,
+            'ip' => $ip,
+            'details' => $details,
+        ];
+        error_log('[AUDIT] ' . json_encode($logEntry));
+    }
 }

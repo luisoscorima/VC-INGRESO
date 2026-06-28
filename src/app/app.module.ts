@@ -68,6 +68,7 @@ import { DocumentsComponent } from './readonly/documents.component';
 import { EmergencyContactsComponent } from './readonly/emergency-contacts.component';
 import { AnnouncementsComponent } from './announcements/announcements.component';
 import { SurveysComponent } from './surveys/surveys.component';
+import { EventLogsComponent } from './event-logs/event-logs.component';
 
 import { NgChartsModule } from 'ng2-charts';
 import { Chart, registerables } from 'chart.js';
@@ -104,6 +105,7 @@ Chart.register(...registerables);
         EmergencyContactsComponent,
         AnnouncementsComponent,
         SurveysComponent,
+        EventLogsComponent,
     ],
     bootstrap: [AppComponent], imports: [BrowserModule,
         AppRoutingModule,

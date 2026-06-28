@@ -24,18 +24,17 @@
     </div>
 
     <div class="vc-table-wrap">
-      <table class="vc-table vc-table--expandable text-gray-600 dark:text-gray-300">
+      <table class="vc-table text-gray-600 dark:text-gray-300">
         <thead>
           <tr class="vc-thead-row">
-            <th scope="col" class="vc-th vc-th-expand"><span class="sr-only">Detalle</span></th>
             <th scope="col" class="vc-th">Nombre</th>
             <th scope="col" class="vc-th">Tipo</th>
-            <th scope="col" class="vc-th vc-th-data-secondary">Ubicación</th>
-            <th scope="col" class="vc-th vc-th-data-secondary">Reserva</th>
+            <th scope="col" class="vc-th">Ubicación</th>
+            <th scope="col" class="vc-th">Reserva</th>
             <th scope="col" class="vc-th">Estado</th>
-            <th scope="col" class="vc-th vc-th-data-secondary">Aforo</th>
-            <th scope="col" class="vc-th vc-th-data-secondary">Aforo máx.</th>
-            <th scope="col" class="vc-th vc-th-data-secondary">Ocupación</th>
+            <th scope="col" class="vc-th">Aforo</th>
+            <th scope="col" class="vc-th">Aforo máx.</th>
+            <th scope="col" class="vc-th">Ocupación</th>
             <th scope="col" class="vc-th text-right">
               Acciones
               <span class="sr-only">Editar</span>
@@ -43,29 +42,16 @@
           </tr>
         </thead>
         <tbody>
-          <ng-container *ngFor="let p of paginatedPoints">
-          <tr class="vc-tbody-row vc-row-summary bg-white dark:bg-gray-900/40"
-              [class.vc-row-summary--open]="isRowOpen(p)"
-              (click)="toggleRow(p)"
-              [attr.aria-expanded]="isRowOpen(p)">
-            <td class="vc-td vc-td-expand">
-              <button type="button" class="vc-row-toggle"
-                [attr.aria-label]="isRowOpen(p) ? 'Ocultar detalle' : 'Ver detalle'"
-                (click)="toggleRow(p); $event.stopPropagation()">
-                <svg class="vc-row-toggle-icon" [class.vc-row-toggle-icon--open]="isRowOpen(p)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </button>
-            </td>
+          <tr *ngFor="let p of paginatedPoints" class="vc-tbody-row bg-white dark:bg-gray-900/40">
             <th scope="row" class="vc-td font-medium">{{ p.name }}</th>
             <td class="vc-td">{{ typeLabel(p.type) }}</td>
-            <td class="vc-td vc-td-data-secondary">{{ p.location || '—' }}</td>
-            <td class="vc-td vc-td-data-secondary">{{ siNo(p.permite_reserva) }}</td>
+            <td class="vc-td">{{ p.location || '—' }}</td>
+            <td class="vc-td">{{ siNo(p.permite_reserva) }}</td>
             <td class="vc-td">{{ isActiveLabel(p.is_active) }}</td>
-            <td class="vc-td vc-td-data-secondary">{{ siNo(p.controla_aforo) }}</td>
-            <td class="vc-td vc-td-data-secondary">{{ p.max_capacity ?? '—' }}</td>
-            <td class="vc-td vc-td-data-secondary">{{ p.current_capacity ?? '—' }}</td>
-            <td class="vc-td text-right" (click)="$event.stopPropagation()">
+            <td class="vc-td">{{ siNo(p.controla_aforo) }}</td>
+            <td class="vc-td">{{ p.max_capacity ?? '—' }}</td>
+            <td class="vc-td">{{ p.current_capacity ?? '—' }}</td>
+            <td class="vc-td text-right">
               <button type="button" (click)="editPoint(p)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -73,18 +59,6 @@
               </button>
             </td>
           </tr>
-          <tr class="vc-row-detail" *ngIf="isRowOpen(p)">
-            <td class="vc-row-detail-cell" [attr.colspan]="tableColspan">
-              <div class="vc-detail-list">
-                <div class="vc-detail-item"><span class="vc-detail-label">Ubicación</span><span class="vc-detail-value">{{ p.location || '—' }}</span></div>
-                <div class="vc-detail-item"><span class="vc-detail-label">Permite reservas</span><span class="vc-detail-value">{{ siNo(p.permite_reserva) }}</span></div>
-                <div class="vc-detail-item"><span class="vc-detail-label">Controla aforo</span><span class="vc-detail-value">{{ siNo(p.controla_aforo) }}</span></div>
-                <div class="vc-detail-item"><span class="vc-detail-label">Aforo máximo</span><span class="vc-detail-value">{{ p.max_capacity ?? '—' }}</span></div>
-                <div class="vc-detail-item"><span class="vc-detail-label">Ocupación actual</span><span class="vc-detail-value">{{ p.current_capacity ?? '—' }}</span></div>
-              </div>
-            </td>
-          </tr>
-          </ng-container>
         </tbody>
       </table>
     </div>
