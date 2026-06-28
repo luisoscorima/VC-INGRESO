@@ -15,19 +15,22 @@ Este documento consolida el **estado frente al plan de trabajo**, los **pendient
 
 El modelo de datos evolucionó hacia un enfoque **house-centric** (`house_members`, permisos, `GET /api/v1/houses/:id/members`). Parte de la documentación histórica distingue entre “vacío lógico” user ↔ person y el diseño actual con `person_id` en users; ver referencia técnica.
 
+**Avance reciente (jun 2026):** flujo de garita operativo (escáner QR, visitas externas con timer, incidencias), auditoría de eventos, permisos de módulos por rol, dashboard con aforo básico y refactor UI (tablas expandibles, dark mode).
+
 ---
 
 ## 2. Hito alcanzado: base de datos y backend coherentes
 
 ### Base de datos
 
-- **Script principal de esquema**: `database/vc_create_database.sql` crea la BD **vc_db**, tablas (entre otras: houses, users, access_points, persons, vehicles, temporary_visits, access_logs, temporary_access_logs, pets, reservations, house_members según versión del script) y claves foráneas. Init Docker: usuario root y esquema vía `database/init-docker.sh` donde aplique.
+- **Script principal de esquema**: `database/vc_create_database.sql` crea la BD **vc_db**, tablas (entre otras: houses, users, access_points, persons, vehicles, temporary_visits, temporary_visit_assignments, access_logs, temporary_access_logs, access_incidents, event_logs, nav_modules, pets, reservations, house_members, announcements, surveys según versión del script) y claves foráneas. Init Docker: usuario root y esquema vía `database/init-docker.sh` donde aplique.
+- **Migraciones incrementales**: `database/migrations/001_nav_permissions.sql` … `006_temporary_access_logs_improvements.sql` para BDs existentes.
 - **Datos de prueba**: `database/vc_dev_data.sql`.
 - **Licencias Crearttech**: `database/crearttech_clientes_schema.sql` (BD `crearttech_clientes`).
 
 ### Backend (API v1)
 
-- Controladores típicos: Auth, User, Person, House, Vehicle, ExternalVehicle, Pet, AccessLog, Reservation, PublicRegistration, Catalog.
+- Controladores típicos: Auth, User, Person, House, Vehicle, ExternalVehicle, Pet, AccessLog, AccessQr, AccessIncident, Reservation, PublicRegistration, Catalog, Announcement, Survey, NavPermissions, EventLog, ReadonlyDocuments.
 - Rutas en `server/index.php`; JWT con `requireAuth()`; registro público sin auth en rutas `public/*`.
 - Documentación de endpoints: [server/API.md](server/API.md) (fuente principal); contexto en [plans/REFERENCIA_TECNICA.md](plans/REFERENCIA_TECNICA.md).
 
@@ -47,9 +50,10 @@ El modelo de datos evolucionó hacia un enfoque **house-centric** (`house_member
 
 ### Servicios y componentes integrados
 
-- **Servicios**: ApiService, AuthService, UsersService, PetsService, ReservationsService, AccessLogService, EntranceService. UsersService y AccessLogService alineados con API v1.
-- **Componentes**: History (AccessLogService), Birthday (cumpleaños vía API), Pets, Reservaciones (vista mes + tabla), página Código QR (escáner + Mi QR), Webcam; rutas como `/pets`, `/reservations`, `/codigo-qr` (`/scanner` redirige); menú actualizado.
+- **Servicios**: ApiService, AuthService, UsersService, PetsService, ReservationsService, AccessLogService, EntranceService, QrAccessService, AccessIncidentService, EventLogService, NavPermissionService. UsersService y AccessLogService alineados con API v1.
+- **Componentes**: History (AccessLogService), Birthday (cumpleaños vía API), Pets, Reservaciones (vista mes + tabla), página Código QR (escáner + Mi QR), **Incidencias** (`/incidents`), **Auditoría de eventos** (pestaña en Configuración), Webcam; rutas como `/pets`, `/reservations`, `/codigo-qr` (`/scanner` redirige), `/incidents`; menú filtrado por permisos de módulo.
 - **Formulario de registro público**: secciones UI en [plans/REFERENCIA_TECNICA.md](plans/REFERENCIA_TECNICA.md) (§13); flujo de fotos (§11). Endpoints: [server/API.md](server/API.md) (registro público y uploads).
+- **Permisos de navegación**: matriz configurable por rol (ADMINISTRADOR / OPERARIO / USUARIO) en Configuración → Permisos; `ModuleGuard` en rutas de gestión; catálogo en `nav-modules.config.ts`.
 
 ### Correcciones UI realizadas (plan)
 
@@ -65,26 +69,30 @@ El modelo de datos evolucionó hacia un enfoque **house-centric** (`house_member
 
 ---
 
-## 4. Roadmap por fases (orden sugerido histórico)
+## 4. Roadmap por fases (actualizado junio 2026)
 
-### Fase 1 — Cerrar flujos clave
+### Fase 1 — Cerrar flujos clave *(parcialmente avanzada)*
 
-1. **Registro público (UI completa)**: secciones vivienda → propietario(s) → vehículos → mascotas; RENIEC en frontend; `POST /api/v1/public/register`; ruta pública sin login (ej. `/registro`).
-2. **Reservaciones** (áreas comunes): UI vista mes + solicitudes; consumo de `api/v1/reservations` (areas, availability, CRUD).
-3. **Mi Casa**: residentes, inquilinos, visitas, vehículos, mascotas, vehículos externos por casa; opcional pestaña Casa Club.
-4. **Dashboard Piscina / Aforo**: tiempo real con access-logs y access-points (`current_capacity`, `max_capacity`).
+1. **Registro público (UI completa)**: secciones vivienda → propietario(s) → vehículos → mascotas; RENIEC en frontend; `POST /api/v1/public/register`; ruta pública sin login (ej. `/registro`). *Pendiente.*
+2. **Reservaciones** (áreas comunes): UI vista mes + solicitudes; consumo de `api/v1/reservations`. *Base operativa; falta pulir flujo Casa Club y notificaciones.*
+3. **Mi Casa**: residentes, inquilinos, visitas, vehículos, mascotas, **visitas externas con asignación temporal y timer**. *Avanzado; ver §10.13.*
+4. **Escáner / Código QR en garita**: validación unificada (JWT, DNI, placa), registro INGRESO/EGRESO, selección multi-casa, incidencias desde escaneo. *Operativo en V1; ver §10.13.*
+5. **Dashboard Piscina / Aforo**: widget de ocupación en dashboard (staff y vecino). *Básico implementado; falta vista dedicada tiempo real / alertas de aforo.*
 
-### Fase 2 — Pulir y datos
+### Fase 2 — Pulir, datos y operación
 
-5. **Subida de fotos**: módulo coherente (vehículos, mascotas, perfil); endpoints y `photo_url` en BD.
-6. **Sustituir stubs del Catalog** cuando existan tablas/datos reales.
-7. **Licencias / pagos (Crearttech)**: API y UI sobre `crearttech_clientes` (clients, payment).
+6. **Subida de fotos**: módulo coherente (vehículos, mascotas, perfil, incidencias, visitas externas); endpoints y `photo_url` en BD. *Parcial.*
+7. **Incidencias de acceso**: listado, alta manual y desde escáner, foto adjunta, vínculo con logs. *Implementado; ver §10.13.*
+8. **Auditoría de eventos**: registro automático en acciones CRUD sensibles; consulta admin (30 días, paginado). *Implementado; ver §10.14.*
+9. **Sustituir stubs del Catalog** cuando existan tablas/datos reales.
+10. **Licencias / pagos (Crearttech)**: API y UI sobre `crearttech_clientes` (clients, payment). *Pendiente.*
 
-### Fase 3 — Producción y seguridad
+### Fase 3 — Producción, seguridad y calidad
 
-8. **Seguridad**: CSRF en acciones sensibles; rate limiting en login y registro público; HTTPS en despliegue.
-9. **Calidad**: OpenAPI/Swagger; tests backend; loading states y retry en frontend; interfaces tipadas.
-10. **Limpieza**: eliminar `bd.php`, `bdEntrance.php`, `bdData.php` y referencias a BDs legacy cuando el frontend no las use.
+11. **Seguridad**: CSRF en acciones sensibles; rate limiting en login y registro público; HTTPS en despliegue. *IP real en logs ya resuelta (Apache `RemoteIP`); ver §10.15.*
+12. **Calidad**: OpenAPI/Swagger; tests backend; loading states y retry en frontend; interfaces tipadas (limpieza de modelos legacy en frontend).
+13. **Limpieza**: eliminar `bd.php`, `bdEntrance.php`, `bdData.php` y referencias a BDs legacy cuando el frontend no las use.
+14. **Escáner V2**: soporte HID dedicado, pantalla garita fullscreen, WebSocket/polling para aforo en vivo.
 
 ---
 
@@ -93,22 +101,28 @@ El modelo de datos evolucionó hacia un enfoque **house-centric** (`house_member
 ### Prioridad alta
 
 - [ ] Controlador de **pagos / licencias** (API y UI Crearttech).
-- [ ] Completar **UI de Reservaciones** (Casa Club / áreas) y **Código QR** / escáner (puertas).
-- [ ] **Dashboard Piscina / Aforo** en tiempo real.
+- [ ] Completar **UI de Reservaciones** (Casa Club / áreas): aprobaciones, estados y notificaciones al vecino.
+- [ ] **Registro público** completo (UI multi-sección + RENIEC + ruta `/registro` sin login).
+- [ ] **Vista dedicada Aforo-Piscina** con actualización periódica (polling o WebSocket); el dashboard ya muestra ocupación básica.
 
 ### Prioridad media
 
-- [ ] **Módulo de gestión de imágenes** (upload, filesystem primero; S3 opcional después).
-- [ ] Mejoras de UI: Cumpleaños, Mascotas, Reservaciones, Código QR, Aforo-Piscina (crear).
-- [ ] Campo **qr_code** en `persons` y generador de QR.
+- [x] **Escáner / Código QR en garita** — validación, INGRESO/EGRESO, visitas externas multi-casa, cooldown visual, incidencias post-escaneo *(jun 2026)*.
+- [x] **Incidencias de acceso** — CRUD admin, modal desde escáner, foto, contexto de log *(jun 2026)*.
+- [x] **Permisos configurables** de pestañas de gestión por rol *(jun 2026)*.
+- [x] **Auditoría de eventos** — backend + pestaña admin en Configuración *(jun 2026)*.
+- [ ] **Módulo de gestión de imágenes** unificado (upload, filesystem; S3 opcional después). *Subidas dispersas ya funcionan en mascotas, vehículos, incidencias y visitas externas.*
+- [ ] Mejoras de UI restantes: registro público, Reservaciones (flujo completo), pantalla garita fullscreen.
+- [ ] Campo **qr_code** persistente en `persons` (hoy QR vía JWT en `access-qr/generate`).
 - [ ] Formulario genérico para registros futuros.
-- [ ] OpenAPI/Swagger; tests unitarios backend; interfaces tipadas; loading/retry.
-- [ ] **Eliminar legacy** de conexiones y BDs antiguas cuando no haya dependencias.
+- [ ] OpenAPI/Swagger; tests unitarios backend; interfaces tipadas; loading/retry global.
+- [ ] **Eliminar legacy** de conexiones y BDs antiguas cuando no haya dependencias. *Frontend: eliminados `clientes.service`, `collaborator.ts`, `payment.ts`, `area.ts`, diálogos legacy del dashboard.*
 
 ### Seguridad y despliegue
 
+- [x] **IP de cliente confiable** en logs de auditoría (`client_ip.php`, Apache `RemoteIP`, Docker) *(jun 2026)*.
 - [ ] Tokens CSRF.
-- [ ] Rate limiting API.
+- [ ] Rate limiting API (login, registro público, escaneo).
 - [ ] HTTPS en despliegue.
 
 ---
@@ -118,28 +132,35 @@ El modelo de datos evolucionó hacia un enfoque **house-centric** (`house_member
 ```
 mi-house/
 ├── residentes          # Persona tipo RESIDENTE
-├── visitas             # Persona tipo VISITA
+├── visitas             # Persona tipo VISITA (+ QR de ingreso)
 ├── inquilinos          # Persona tipo INQUILINO
-├── vehiculos           # Vehículos asociados
-├── vehiculos externos  # Visitas temporales
+├── vehículos           # Vehículos asociados (+ QR)
+├── visitas externas    # temporary_visits + asignaciones por casa (timer, vigencia)
 ├── mascotas            # Mascotas (por house_id)
-├── piscina             # Access point + aforo
-├── garita              # Access point
-├── formulario          # Registro genérico
+├── piscina             # Access point + aforo (widget en dashboard)
+├── garita              # Access point + escáner QR
+├── formulario          # Registro genérico (pendiente)
 └── casa-club           # Reservaciones (vista mes / API reservations)
 ```
 
 ---
 
-## 7. Visión MVP — Escáner unificado (notas del plan)
+## 7. Visión MVP — Escáner unificado (estado jun 2026)
 
-Versión 1 planteada como **módulo central** que captura lecturas (HID, cámara solo QR, manual DNI/placa), valida, resuelve identidad y registra el evento.
+Versión 1 como **módulo central** que captura lecturas, valida, resuelve identidad y registra el evento.
 
-- **HID**: principal para código de barras y QR.
-- **Cámara**: solo QR en V1 (sin barras por cámara).
-- **Manual**: obligatorio como respaldo.
-- **Identificación**: DNI/personas, placa vehículo, QR del sistema (permanente o temporal/regenerable).
-- **Generación de credenciales**: desde UI de usuario/visita (QR/barcode opcional); OCR/LPR pospuesto.
+| Capacidad | Estado |
+|-----------|--------|
+| **Cámara QR** (`qr-scanner.component`) | Implementado: punto de acceso, INGRESO/EGRESO, cooldown visual, visitas externas multi-casa |
+| **Manual DNI/placa** vía mismo endpoint `access-qr/scan` | Implementado en backend |
+| **QR del sistema** (JWT persona/vehículo) | `generate` + `validate` + escaneo |
+| **Visitas externas** con asignación y timer | Catálogo global + `temporary_visit_assignments`; entrada/salida en `temporary_access_logs` |
+| **Incidencias desde escaneo** | Modal post-validación con contexto del log |
+| **HID** (lector USB código de barras) | Pendiente — hoy la cámara captura texto; falta foco dedicado garita |
+| **OCR/LPR** | Pospuesto |
+
+- **Generación de credenciales**: desde Mi Casa (QR persona/visita/vehículo) y API `access-qr/generate`.
+- **Historial unificado**: `history-by-date` mezcla `access_logs` + `temporary_access_logs`.
 
 ---
 
@@ -176,6 +197,7 @@ stateDiagram-v2
 - **2026-03-16**: mejoras base (tablas, fotos, backend house members, domicilio en listados).
 - **2026-03-18**: carga de fotos en mascotas/vehículos y estandarización de modales.
 - **2026-05-07**: comunicados y encuestas (CRUD admin + UX de notificaciones y priorización en navbar).
+- **2026-06-27 / 2026-06-28**: permisos de navegación, auditoría de eventos, escáner garita, visitas externas con timer, incidencias, refactor UI (tablas expandibles, dark mode), dashboard simplificado, IP confiable en logs.
 
 ### 10.1 Mi Casa — Tablas (Residentes, Inquilinos, Mascotas, Vehículos)
 
@@ -258,6 +280,59 @@ stateDiagram-v2
   - `server/storage/readonly_data.json` ya no contiene bloque `announcements` (migrado a BD).
   - Script de esquema actualizado en `database/vc_create_database.sql` para tablas `announcements`, `surveys`, `survey_responses`.
 
+### 10.13 Actualización 2026-06-27/28 — Garita, visitas externas e incidencias
+
+- **Visitas externas (modelo house-centric)**:
+  - Migraciones `004_temporary_visit_assignments.sql`, `006_temporary_access_logs_improvements.sql`.
+  - Catálogo global `temporary_visits` ampliado (`photo_url`, notas, auditoría de usuario).
+  - Tabla `temporary_visit_assignments`: asignación visita → casa con `valid_from` / `valid_until` y estados ACTIVA|EXPIRADA|CANCELADA.
+  - `ExternalVehicleController` y helper `temporary_visit.php`: CRUD, asignaciones, expiración.
+  - Mi Casa: pestaña **Visitas externas**; escaneo con selección multi-casa (`scan` + `scan-confirm`).
+- **Registro de acceso temporal**:
+  - `POST /api/v1/access-logs/temporary` (entrada) y `/temporary/exit` (salida) con control de sesión abierta, permanencia y `stay_exceeded`.
+  - Historial unificado en `AccessLogController` (`access_logs` + `temporary_access_logs`).
+- **Escáner QR (`qr-scanner.component`)**:
+  - Punto de acceso y modo INGRESO/EGRESO persistidos en `localStorage`.
+  - Validación vía `access-qr/scan`; cooldown con imagen de estado; registro automático según modo.
+  - Flujo visitas externas: pending house selection → confirmación → log temporal.
+  - Botón de incidencia post-escaneo (permiso `incidents.manage`).
+- **Incidencias de acceso**:
+  - Migración `005_access_incidents.sql`; `AccessIncidentController` (listado, detalle, alta multipart).
+  - UI `/incidents` + `IncidentFormDialogComponent` (desde escáner o manual).
+  - Fuentes `scan` | `manual`; vínculo opcional a `access_log_id` o `temp_access_log_id`.
+- **Dashboard**:
+  - Eliminados diálogos legacy (`dialog-revalidar`, `dialog-select-sala`); componente reducido (~1400 líneas menos).
+  - Gráficos corregidos: barras por hora y donut de distribución de visitantes.
+  - Widget de **aforo piscina** (`poolOccupancy`) desde access-points con `controla_aforo`.
+
+### 10.14 Actualización 2026-06-28 — Auditoría de eventos
+
+- **Base de datos**: migración `003_event_logs.sql`; tabla `event_logs`; evento MySQL de purga a 30 días.
+- **Backend**: helper `event_log.php`; `EventLogController` (listado paginado, catálogo de acciones).
+- **Instrumentación**: hooks en Auth, User, Person, House, Vehicle, Pet, Reservation, Announcement, Survey, AccessLog, NavPermissions, ReadonlyDocuments y manejador de errores.
+- **Frontend**: `EventLogsComponent` embebido en Configuración → pestaña **Auditoría** (solo ADMINISTRADOR).
+- **API**: documentado en [server/API.md](server/API.md) (`GET /api/v1/admin/event-logs`, `/actions`).
+
+### 10.15 Actualización 2026-06-28 — Permisos de navegación e IP confiable
+
+- **Permisos configurables**:
+  - Migración `001_nav_permissions.sql`; tablas `nav_modules`, `nav_role_permissions`.
+  - `NavPermissionsController`, helper `nav_permissions.php`, `ModuleGuard` en rutas de gestión.
+  - UI matriz en Configuración → **Permisos de módulos** (view/manage por rol).
+  - Sidebar filtra entradas según permisos resueltos; corrección de etiquetas UTF-8 (`002_fix_nav_module_labels.sql`).
+- **Correcciones operativas**:
+  - Alta de **operario** sin domicilio ni categoría obligatorios (`UserController`).
+  - Restauración de datos de sesión en sidebar (`side-nav`); fix genérico en `NavPermissionService.getRaw`.
+- **IP de cliente**:
+  - Helper `client_ip.php`; Apache `RemoteIP` en Docker; IP registrada en `event_logs` y errores.
+
+### 10.16 Actualización 2026-06-27/28 — Refactor UI y dark mode
+
+- **Estilos compartidos**: clases `.vc-field`, `.vc-btn-*`, `.vc-tbody-row`, `.vc-td`; utilidad `expandable-row.ts` en tablas (Users, Vehicles, Pets, History, My House, etc.).
+- **Dark mode**: contraste en formularios (Comunicados, Encuestas), botones outline y campos globales en `styles.css`.
+- **Dependencias Angular**: actualización menor en `package.json`; limpieza de modelos/servicios legacy no usados (`clientes.service`, `collaborator.ts`, `payment.ts`, `area.ts`).
+- **Componentes pulidos**: Birthday, Houses, Settings, Access Points con layout responsive coherente.
+
 ---
 
 ## 11. Documentación del repositorio
@@ -269,6 +344,21 @@ stateDiagram-v2
 | Este archivo | Estado, roadmap, pendientes, mejoras implementadas |
 | [plans/REFERENCIA_TECNICA.md](plans/REFERENCIA_TECNICA.md) | Bases de datos, flujos, deploy, modelos, contexto ampliado |
 
+## 12. Próximas etapas sugeridas (post jun 2026)
+
+Orden recomendado según dependencias y valor operativo:
+
+| Etapa | Objetivo | Entregables clave |
+|-------|----------|-------------------|
+| **A** | Cerrar onboarding vecino | UI `/registro` multi-paso, RENIEC, validación “casa sin propietario duplicado” |
+| **B** | Garita producción | Modo pantalla completa, foco HID/USB, rate limit en `access-qr/scan`, pruebas en hardware real |
+| **C** | Aforo en vivo | Vista `/aforo-piscina` o panel garita con polling 5–10 s; alertas al 80/100 % |
+| **D** | Reservaciones Casa Club | Flujo solicitud → aprobación admin → notificación; calendario compartido por área |
+| **E** | Crearttech | `PaymentController` + panel suscripción / estado de licencia |
+| **F** | Calidad y despliegue | OpenAPI desde `API.md`, tests PHPUnit en controllers críticos, CSRF + HTTPS en prod |
+
+**Quick wins** (1–2 días cada uno): retry/loading en escáner e historial; tipar interfaces Angular restantes (`externalVehicle.ts` ya iniciado); documentar migraciones en README de `database/migrations/`.
+
 ---
 
-*Para nuevos entornos prevalece `database/vc_create_database.sql` (+ `vc_dev_data.sql` en desarrollo). Detalle en la referencia técnica §4.*
+*Para nuevos entornos prevalece `database/vc_create_database.sql` (+ `vc_dev_data.sql` en desarrollo). En BDs ya desplegadas, aplicar migraciones en orden numérico. Detalle en la referencia técnica §4.*

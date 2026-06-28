@@ -80,37 +80,46 @@ interface AccessPointOption {
             {{ scanEngineHint }}
           </p>
 
-          <div class="mb-3" *ngIf="accessPoints.length">
-            <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Punto de acceso</label>
-            <select
-              [(ngModel)]="selectedAccessPointId"
-              (ngModelChange)="onAccessPointChange($event)"
-              [disabled]="loadingPoints"
-              class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-teal-500 focus:ring-teal-500 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-teal-500 dark:focus:ring-teal-500">
-              <option [ngValue]="null">— Seleccione —</option>
-              <option *ngFor="let p of accessPoints" [ngValue]="p.id">{{ p.name }}</option>
-            </select>
-          </div>
-
-          <div class="mb-3">
-            <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Movimiento</label>
-            <div class="inline-flex w-full rounded-lg border border-gray-300 bg-gray-50 p-1 dark:border-gray-600 dark:bg-gray-700" role="group" aria-label="Entrada o salida">
-              <button
-                type="button"
-                (click)="setMovementMode('INGRESO')"
-                [class]="movementMode === 'INGRESO'
-                  ? 'flex-1 rounded-md bg-teal-600 px-3 py-2 text-sm font-medium text-white shadow'
-                  : 'flex-1 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600'">
-                Entrada
-              </button>
-              <button
-                type="button"
-                (click)="setMovementMode('EGRESO')"
-                [class]="movementMode === 'EGRESO'
-                  ? 'flex-1 rounded-md bg-amber-600 px-3 py-2 text-sm font-medium text-white shadow'
-                  : 'flex-1 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-600'">
-                Salida
-              </button>
+          <div
+            class="scanner-controls mb-3"
+            [class.scanner-controls--solo]="!accessPoints.length">
+            <div class="scanner-controls__point" *ngIf="accessPoints.length">
+              <label class="scanner-controls__label" for="scanner-access-point">Punto de acceso</label>
+              <select
+                id="scanner-access-point"
+                [(ngModel)]="selectedAccessPointId"
+                (ngModelChange)="onAccessPointChange($event)"
+                [disabled]="loadingPoints"
+                class="scanner-controls__select">
+                <option [ngValue]="null">— Seleccione —</option>
+                <option *ngFor="let p of accessPoints" [ngValue]="p.id">{{ p.name }}</option>
+              </select>
+            </div>
+            <div class="scanner-controls__movement">
+              <span class="scanner-controls__label" id="scanner-movement-label">Movimiento</span>
+              <div
+                class="movement-toggle"
+                role="group"
+                aria-labelledby="scanner-movement-label">
+                <button
+                  type="button"
+                  class="movement-toggle__btn"
+                  [class.movement-toggle__btn--active-in]="movementMode === 'INGRESO'"
+                  [attr.aria-pressed]="movementMode === 'INGRESO'"
+                  (click)="setMovementMode('INGRESO')">
+                  <mat-icon class="movement-toggle__icon" aria-hidden="true">login</mat-icon>
+                  <span class="movement-toggle__text">Entrada</span>
+                </button>
+                <button
+                  type="button"
+                  class="movement-toggle__btn"
+                  [class.movement-toggle__btn--active-out]="movementMode === 'EGRESO'"
+                  [attr.aria-pressed]="movementMode === 'EGRESO'"
+                  (click)="setMovementMode('EGRESO')">
+                  <mat-icon class="movement-toggle__icon" aria-hidden="true">logout</mat-icon>
+                  <span class="movement-toggle__text">Salida</span>
+                </button>
+              </div>
             </div>
           </div>
           <p *ngIf="!accessPoints.length && !loadingPoints" class="mb-3 text-sm text-amber-700 dark:text-amber-400">
@@ -305,6 +314,147 @@ interface AccessPointOption {
         .scanner-exit-mode {
           background-color: rgb(69 26 3 / 0.35) !important;
         }
+      }
+      .movement-toggle {
+        display: inline-flex;
+        gap: 2px;
+        padding: 3px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        background-color: #f3f4f6;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+      .scanner-controls {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 0.625rem;
+      }
+      .scanner-controls--solo {
+        justify-content: flex-end;
+      }
+      .scanner-controls__point {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+      .scanner-controls__movement {
+        flex: 0 0 auto;
+      }
+      .scanner-controls__label {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1.25;
+        color: #374151;
+      }
+      :host-context(.dark) .scanner-controls__label {
+        color: #d1d5db;
+      }
+      .scanner-controls__select {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        border-radius: 0.5rem;
+        border: 1px solid #d1d5db;
+        background-color: #f9fafb;
+        padding: 0.5rem 0.625rem;
+        font-size: 0.8125rem;
+        line-height: 1.25;
+        color: #111827;
+      }
+      .scanner-controls__select:focus {
+        outline: none;
+        border-color: #14b8a6;
+        box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.25);
+      }
+      .scanner-controls__select:disabled {
+        opacity: 0.6;
+      }
+      :host-context(.dark) .scanner-controls__select {
+        border-color: #4b5563;
+        background-color: #374151;
+        color: #ffffff;
+      }
+      :host-context(.dark) .movement-toggle {
+        border-color: #4b5563;
+        background-color: #1f2937;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+      .movement-toggle__btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-width: 4.75rem;
+        padding: 0.5rem 0.5rem;
+        border: none;
+        border-radius: 7px;
+        background-color: transparent;
+        color: #4b5563;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.25;
+        cursor: pointer;
+        transition:
+          background-color 0.15s ease,
+          color 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      @media (min-width: 380px) {
+        .movement-toggle__btn {
+          gap: 6px;
+          min-width: 5.75rem;
+          padding: 0.5rem 0.75rem;
+          font-size: 0.8125rem;
+        }
+      }
+      @media (min-width: 480px) {
+        .movement-toggle__btn {
+          min-width: 6.75rem;
+          padding: 0.5rem 0.875rem;
+        }
+      }
+      :host-context(.dark) .movement-toggle__btn {
+        color: #9ca3af;
+      }
+      .movement-toggle__btn:hover:not(.movement-toggle__btn--active-in):not(.movement-toggle__btn--active-out) {
+        background-color: rgba(0, 0, 0, 0.05);
+        color: #374151;
+      }
+      :host-context(.dark)
+        .movement-toggle__btn:hover:not(.movement-toggle__btn--active-in):not(.movement-toggle__btn--active-out) {
+        background-color: rgba(255, 255, 255, 0.06);
+        color: #e5e7eb;
+      }
+      .movement-toggle__btn--active-in {
+        background-color: #0d9488;
+        color: #ffffff;
+        box-shadow: 0 1px 3px rgba(13, 148, 136, 0.35);
+      }
+      .movement-toggle__btn--active-out {
+        background-color: #d97706;
+        color: #ffffff;
+        box-shadow: 0 1px 3px rgba(217, 119, 6, 0.35);
+      }
+      .movement-toggle__btn--active-in:hover,
+      .movement-toggle__btn--active-out:hover {
+        color: #ffffff;
+      }
+      .movement-toggle__icon {
+        width: 1rem !important;
+        height: 1rem !important;
+        font-size: 1rem !important;
+      }
+      @media (min-width: 380px) {
+        .movement-toggle__icon {
+          width: 1.125rem !important;
+          height: 1.125rem !important;
+          font-size: 1.125rem !important;
+        }
+      }
+      .movement-toggle__text {
+        white-space: nowrap;
       }
     `,
   ],
