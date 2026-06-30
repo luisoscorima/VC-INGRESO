@@ -5,6 +5,7 @@ import { AuthService } from '../auth.service';
 import { Router } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 import { UsersService } from '../users.service';
+import { VersionCheckService } from '../version-check.service';
 
 interface AnnouncementItem {
   id?: string | null;
@@ -56,9 +57,10 @@ export class NavBarComponent extends AppComponent implements OnInit {
     auth: AuthService,
     usersService: UsersService,
     toastr: ToastrService,
-    api: ApiService
+    api: ApiService,
+    versionCheck: VersionCheckService,
   ) {
-    super(router, auth, usersService, toastr, api);
+    super(router, auth, usersService, toastr, api, versionCheck);
   }
 
   override ngOnInit(): void {

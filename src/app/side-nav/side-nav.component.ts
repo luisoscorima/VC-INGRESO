@@ -6,6 +6,7 @@ import { ApiService } from '../api.service';
 import { UsersService } from '../users.service';
 import { ToastrService } from 'ngx-toastr';
 import { NavPermissionService } from '../nav-permission.service';
+import { VersionCheckService } from '../version-check.service';
 import { NavModuleDef } from '../nav-modules.config';
 import { User } from '../user';
 
@@ -26,9 +27,10 @@ export class SideNavComponent extends AppComponent implements OnInit {
     usersService: UsersService,
     toastr: ToastrService,
     api: ApiService,
+    versionCheck: VersionCheckService,
     private navPerm: NavPermissionService
   ) {
-    super(router, auth, usersService, toastr, api);
+    super(router, auth, usersService, toastr, api, versionCheck);
   }
 
   ngOnInit(): void {
