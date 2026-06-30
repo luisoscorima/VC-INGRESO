@@ -875,6 +875,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       if (p.person_type) {
         lines.push(`Tipo: ${p.person_type}`);
       }
+      this.appendHouseLine(data, lines, data.house_id ?? p.house_id);
       const url = this.api.getPhotoUrl(p.photo_url ?? null);
       this.heroImageUrl = url || null;
     } else if (data.kind === 'vehicle' && data.vehicle) {
@@ -888,9 +889,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       if (data.doc_number) {
         lines.push(`Doc. responsable: ${data.doc_number}`);
       }
-      if (data.house_id) {
-        lines.push(`Casa destino: #${data.house_id}`);
-      }
+      this.appendHouseLine(data, lines, data.house_id ?? v.house_id);
       if (data.operator_notes) {
         lines.push(`Notas: ${data.operator_notes}`);
       }
@@ -944,6 +943,32 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     } else {
       this.toastr.warning(snack);
     }
+  }
+
+  private appendHouseLine(data: AccessQrScanResult, lines: string[], houseId?: number | null): void {
+    if (!data.allow_entry) {
+      return;
+    }
+    const label =
+      (data.house_label && data.house_label.trim()) ||
+      this.resolveHouseLabelFromAssignment(data, houseId ?? data.house_id ?? null);
+    if (label) {
+      lines.push(`Domicilio: ${label}`);
+    } else if (houseId != null && houseId > 0) {
+      lines.push(`Domicilio: Casa #${houseId}`);
+    }
+  }
+
+  private resolveHouseLabelFromAssignment(
+    data: AccessQrScanResult,
+    houseId: number | null
+  ): string | null {
+    if (houseId == null || houseId <= 0) {
+      return null;
+    }
+    const assignment = (data.active_assignments ?? []).find((a) => a.house_id === houseId);
+    const label = assignment?.house_label?.trim();
+    return label || null;
   }
 
   private appendExternalTimerLines(data: AccessQrScanResult, lines: string[]): void {

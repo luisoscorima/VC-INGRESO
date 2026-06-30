@@ -17,6 +17,8 @@ export interface AccessQrScanResult {
   temp_visit_id?: number | null;
   assignment_id?: number | null;
   house_id?: number | null;
+  /** Texto legible del domicilio (Mz/Lt/Dpto). */
+  house_label?: string | null;
   license_plate?: string | null;
   status_validated: string;
   allow_entry: boolean;

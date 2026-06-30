@@ -409,16 +409,20 @@ class AccessQrController
         }
         $allow = $status !== 'DENEGADO';
         $bd = $person['birth_date'] ?? null;
+        $houseId = $this->resolvePrimaryHouseIdForPerson($person);
+        $houseLabel = $houseId !== null ? $this->fetchHouseLabel($houseId) : null;
 
         return [
             'source' => $source,
             'kind' => 'person',
-            'person' => $this->publicPerson($person),
+            'person' => $this->publicPerson($person, $houseId),
             'vehicle' => null,
             'person_id' => (int) $person['id'],
             'doc_number' => (string) $person['doc_number'],
             'vehicle_id' => null,
             'license_plate' => null,
+            'house_id' => $houseId,
+            'house_label' => $houseLabel,
             'status_validated' => $status,
             'allow_entry' => $allow,
             'is_birthday' => $this->isBirthdayToday($bd),
@@ -437,6 +441,8 @@ class AccessQrController
             $status = 'PERMITIDO';
         }
         $allow = $status !== 'DENEGADO';
+        $houseId = (int) ($vehicle['house_id'] ?? 0);
+        $houseLabel = $houseId > 0 ? $this->fetchHouseLabel($houseId) : null;
 
         return [
             'source' => $source,
@@ -447,6 +453,8 @@ class AccessQrController
             'doc_number' => null,
             'vehicle_id' => (int) $vehicle['vehicle_id'],
             'license_plate' => normalize_license_plate((string) $vehicle['license_plate']),
+            'house_id' => $houseId > 0 ? $houseId : null,
+            'house_label' => $houseLabel,
             'status_validated' => $status,
             'allow_entry' => $allow,
             'is_birthday' => false,
@@ -526,6 +534,19 @@ class AccessQrController
             ];
         }, $activeAssignments);
 
+        $houseLabel = null;
+        if ($houseId !== null && $houseId > 0) {
+            foreach ($activeForResponse as $assignmentRow) {
+                if ((int) $assignmentRow['house_id'] === $houseId && trim((string) $assignmentRow['house_label']) !== '') {
+                    $houseLabel = trim((string) $assignmentRow['house_label']);
+                    break;
+                }
+            }
+            if ($houseLabel === null) {
+                $houseLabel = $this->fetchHouseLabel($houseId);
+            }
+        }
+
         return [
             'source' => $source,
             'kind' => 'vehicle',
@@ -537,6 +558,7 @@ class AccessQrController
             'temp_visit_id' => $tempVisitId > 0 ? $tempVisitId : null,
             'assignment_id' => $assignmentId,
             'house_id' => $houseId,
+            'house_label' => $houseLabel,
             'license_plate' => $plate,
             'status_validated' => $status,
             'allow_entry' => $allow,
@@ -553,8 +575,10 @@ class AccessQrController
      * @param array<string,mixed> $p
      * @return array<string,mixed>
      */
-    private function publicPerson(array $p): array
+    private function publicPerson(array $p, ?int $houseId = null): array
     {
+        $resolvedHouseId = $houseId ?? (isset($p['house_id']) ? (int) $p['house_id'] : null);
+
         return [
             'id' => (int) $p['id'],
             'doc_number' => (string) $p['doc_number'],
@@ -565,7 +589,7 @@ class AccessQrController
             'birth_date' => $p['birth_date'] ?? null,
             'status_validated' => $p['status_validated'] ?? null,
             'person_type' => $p['person_type'] ?? null,
-            'house_id' => isset($p['house_id']) ? (int) $p['house_id'] : null,
+            'house_id' => $resolvedHouseId !== null && $resolvedHouseId > 0 ? $resolvedHouseId : null,
         ];
     }
 
@@ -625,5 +649,65 @@ class AccessQrController
         $d = (int) date('d', $ts);
 
         return $m === (int) date('m') && $d === (int) date('d');
+    }
+
+    /**
+     * Casa principal de la persona (persons.house_id o house_members activo).
+     *
+     * @param array<string,mixed> $person
+     */
+    private function resolvePrimaryHouseIdForPerson(array $person): ?int
+    {
+        $houseId = (int) ($person['house_id'] ?? 0);
+        if ($houseId > 0) {
+            return $houseId;
+        }
+        $personId = (int) ($person['id'] ?? 0);
+        if ($personId <= 0) {
+            return null;
+        }
+        $stmt = $this->pdo->prepare(
+            'SELECT house_id FROM house_members WHERE person_id = ? AND COALESCE(is_active, 1) = 1 ORDER BY is_primary DESC, id ASC LIMIT 1'
+        );
+        $stmt->execute([$personId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$row || empty($row['house_id'])) {
+            return null;
+        }
+
+        return (int) $row['house_id'];
+    }
+
+    private function fetchHouseLabel(int $houseId): ?string
+    {
+        if ($houseId <= 0) {
+            return null;
+        }
+        $stmt = $this->pdo->prepare(
+            'SELECT block_house, lot, apartment FROM houses WHERE house_id = ? LIMIT 1'
+        );
+        $stmt->execute([$houseId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+
+        return $this->formatHouseLabel($row);
+    }
+
+    /**
+     * @param array<string,mixed> $row
+     */
+    private function formatHouseLabel(array $row): string
+    {
+        $mz = strtoupper(trim((string) ($row['block_house'] ?? '')));
+        $lt = trim((string) ($row['lot'] ?? ''));
+        $apt = trim((string) ($row['apartment'] ?? ''));
+        $out = 'MZ:' . ($mz !== '' ? $mz : '-') . ' LT:' . ($lt !== '' ? $lt : '-');
+        if ($apt !== '') {
+            $out .= ' DPTO:' . strtoupper($apt);
+        }
+
+        return $out;
     }
 }
