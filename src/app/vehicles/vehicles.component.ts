@@ -45,6 +45,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   };
 
   uploadingNewVehiclePhoto = false;
+  uploadingNewExternalVehiclePhoto = false;
+  uploadingEditExternalVehiclePhoto = false;
   
   houses: House[] = [];
   
@@ -192,6 +194,59 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
         input.value = '';
       }
     });
+  }
+
+  onNewExternalVehiclePhotoPick(event: Event): void {
+    this.onExternalVehiclePhotoPick(event, 'add');
+  }
+
+  onEditExternalVehiclePhotoPick(event: Event): void {
+    this.onExternalVehiclePhotoPick(event, 'edit');
+  }
+
+  private onExternalVehiclePhotoPick(event: Event, mode: 'add' | 'edit'): void {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file || !file.type.startsWith('image/')) {
+      this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
+      return;
+    }
+    const target = mode === 'add' ? this.externalVehicleToAdd : this.externalVehicleToEdit;
+    if (mode === 'add') {
+      this.uploadingNewExternalVehiclePhoto = true;
+    } else {
+      this.uploadingEditExternalVehiclePhoto = true;
+    }
+    this.publicReg.uploadVehiclePhoto(file).subscribe({
+      next: (res) => {
+        if (mode === 'add') {
+          this.uploadingNewExternalVehiclePhoto = false;
+        } else {
+          this.uploadingEditExternalVehiclePhoto = false;
+        }
+        if (res.success && res.photo_url) {
+          target.photo_url = res.photo_url;
+          this.toastr.success('Foto de la visita cargada.');
+        } else {
+          this.toastr.error(res.error || 'Error al subir la foto.');
+        }
+        input.value = '';
+      },
+      error: (err) => {
+        if (mode === 'add') {
+          this.uploadingNewExternalVehiclePhoto = false;
+        } else {
+          this.uploadingEditExternalVehiclePhoto = false;
+        }
+        this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
+        input.value = '';
+      },
+    });
+  }
+
+  clearExternalVehiclePhoto(mode: 'add' | 'edit'): void {
+    const target = mode === 'add' ? this.externalVehicleToAdd : this.externalVehicleToEdit;
+    target.photo_url = undefined;
   }
 
   newVehicle(){
@@ -494,6 +549,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
         if (p.temp_visit_plate && !plate) target.temp_visit_plate = p.temp_visit_plate;
         if (p.temp_visit_doc && !doc) target.temp_visit_doc = p.temp_visit_doc;
         if (forEdit && p.photo_url) target.photo_url = p.photo_url;
+        if (!forEdit && p.photo_url) target.photo_url = p.photo_url;
         if (forEdit && p.operator_notes) target.operator_notes = p.operator_notes;
         this.toastr.info('Datos reutilizados del registro global');
       },

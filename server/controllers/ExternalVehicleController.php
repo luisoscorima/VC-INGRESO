@@ -192,7 +192,7 @@ class ExternalVehicleController extends Controller {
         $plateNorm = $plateRaw !== '' ? normalize_license_plate($plateRaw) : '';
         $docNorm = normalize_temp_visit_doc($doc);
 
-        $allowed = ['temp_visit_name', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system'];
+        $allowed = ['temp_visit_name', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
         $incoming = [];
         foreach ($allowed as $field) {
             if (isset($data[$field])) {
@@ -297,10 +297,10 @@ class ExternalVehicleController extends Controller {
         }
 
         $data = $this->getInput();
-        $allowed = ['temp_visit_name', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system'];
+        $allowed = ['temp_visit_name', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
 
         if ($isStaff) {
-            $allowed = array_merge($allowed, ['photo_url', 'operator_notes']);
+            $allowed[] = 'operator_notes';
         }
 
         $filtered = [];

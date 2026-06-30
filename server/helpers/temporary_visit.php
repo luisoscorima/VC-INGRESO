@@ -67,7 +67,7 @@ function find_temp_visit_profile(\PDO $pdo, ?string $plate, ?string $doc): ?arra
  */
 function merge_temp_visit_profile_fields(array $existing, array $incoming): array
 {
-    $mergeFields = ['temp_visit_name', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type'];
+    $mergeFields = ['temp_visit_name', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'photo_url'];
     $out = [];
     foreach ($mergeFields as $field) {
         if (!array_key_exists($field, $incoming)) {

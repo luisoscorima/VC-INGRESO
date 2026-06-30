@@ -995,6 +995,17 @@
                     <label for="myhouse-externalStatus_reasonNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
                     <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="myhouse-externalStatus_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
+                <div class="col-span-1 mb-2 mx-1 sm:col-span-2">
+                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto del vehículo <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
+                    <input type="file" accept="image/jpeg,image/png,image/gif" class="block w-full text-sm text-gray-900 dark:text-gray-300" (change)="onNewExternalVisitPhotoPick($event)" [disabled]="uploadingNewExternalVehiclePhoto" />
+                    <div class="mt-2 flex flex-wrap items-center gap-3" *ngIf="externalVehicleToAdd.photo_url">
+                        <img [src]="api.getPhotoUrl(externalVehicleToAdd.photo_url)" alt="Vista previa" class="h-20 w-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600" />
+                        <div class="flex flex-col gap-1">
+                            <p class="text-xs text-green-700 dark:text-green-400">Foto lista para guardar.</p>
+                            <button type="button" class="text-xs text-red-600 hover:underline w-fit" (click)="clearExternalVisitPhoto('add')">Quitar foto</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <!-- Modal footer -->
             <div class="vc-modal-footer">
@@ -1060,6 +1071,17 @@
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalStatus_reasonEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
                     <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="myhouse-externalStatus_reasonEdit" class="vc-field w-full" placeholder="Motivo..." required />
+                </div>
+                <div class="col-span-1 mb-2 mx-1 sm:col-span-2">
+                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto del vehículo <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
+                    <input type="file" accept="image/jpeg,image/png,image/gif" class="block w-full text-sm text-gray-900 dark:text-gray-300" (change)="onEditExternalVisitPhotoPick($event)" [disabled]="uploadingEditExternalVehiclePhoto" />
+                    <div class="mt-2 flex flex-wrap items-center gap-3" *ngIf="externalVehicleToEdit.photo_url">
+                        <img [src]="api.getPhotoUrl(externalVehicleToEdit.photo_url)" alt="Vista previa" class="h-20 w-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600" />
+                        <div class="flex flex-col gap-1">
+                            <p class="text-xs text-green-700 dark:text-green-400">Foto cargada.</p>
+                            <button type="button" class="text-xs text-red-600 hover:underline w-fit" (click)="clearExternalVisitPhoto('edit')">Quitar foto</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <!-- Modal footer -->
