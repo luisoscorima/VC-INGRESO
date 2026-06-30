@@ -22,6 +22,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { NavPermissionService } from '../nav-permission.service';
 import {
   IncidentFormDialogComponent,
+  INCIDENT_DIALOG_PANEL_CLASS,
 } from '../incidents/incident-form-dialog.component';
 import {
   IncidentFormDialogData,
@@ -841,6 +842,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     };
     this.dialog.open(IncidentFormDialogComponent, {
       width: 'min(480px, 96vw)',
+      panelClass: INCIDENT_DIALOG_PANEL_CLASS,
       data,
     });
   }

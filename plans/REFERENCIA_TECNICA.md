@@ -690,17 +690,17 @@ Cada push a `main` ejecuta [`.github/workflows/docker-publish.yml`](../.github/w
 - `ghcr.io/luisoscorima/vc-ingreso-api:main`
 - `ghcr.io/luisoscorima/vc-ingreso-frontend:main`
 
-En el servidor **no hace falta compilar Angular** (~40–140 s ahorrados). Solo pull + reinicio:
+En el servidor **no hace falta compilar Angular**. El script [`scripts/deploy-prod.sh`](../scripts/deploy-prod.sh) hace backup en `~/backups/vc-ingreso/`, pull GHCR y reinicio:
 
 ```bash
-set -euo pipefail
 cd ~/vc-ingreso
-
-# Una sola vez si los paquetes GHCR son privados:
-# echo <PAT con read:packages> | docker login ghcr.io -u TU_USUARIO --password-stdin
-
+chmod +x scripts/deploy-prod.sh   # primera vez
 ./scripts/deploy-prod.sh
 ```
+
+Variables opcionales: `VC_IMAGE_TAG=main-abc1234`, `VC_SKIP_BACKUP=1` (prueba sin backup), `VC_BACKUP_DIR`, `VC_KEEP_BACKUPS=3`.
+
+El **deploy en EC2 es manual** tras cada push que publique imágenes en GHCR (revisar Actions en verde, migraciones SQL si aplica, luego `./scripts/deploy-prod.sh`).
 
 O manualmente:
 

@@ -301,8 +301,64 @@ a.vc-btn-primary {
 }
 
 /* Fallback: botones outline con borde gris (p. ej. Cancelar, Editar) */
-.dark button.border-gray-200,
-.dark button.border-gray-300,
-.dark button.dark\:border-gray-600 {
-  color: rgb(229 231 235);
+/** Modal incidencias (MatDialog panelClass) */
+.dark .vc-incident-dialog .mat-mdc-dialog-surface {
+  background-color: #1f2937;
+  color: #f3f4f6;
 }
+
+.dark .vc-incident-dialog .mat-mdc-dialog-title,
+.vc-incident-dialog__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dark .vc-incident-dialog .mat-mdc-dialog-title,
+.dark .vc-incident-dialog__title {
+  color: #f9fafb;
+}
+
+.dark .vc-incident-dialog .mat-mdc-dialog-content {
+  color: #e5e7eb;
+}
+
+.dark .vc-incident-dialog .vc-incident-dialog__label {
+  color: #d1d5db;
+}
+
+.dark .vc-incident-dialog input[type="file"] {
+  color: #e5e7eb;
+  font-size: 0.875rem;
+}
+
+.dark .vc-incident-dialog input[type="file"]::file-selector-button {
+  margin-right: 0.5rem;
+  border: 1px solid #4b5563;
+  border-radius: 0.375rem;
+  background-color: #374151;
+  color: #f3f4f6;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.dark .vc-incident-dialog .mat-mdc-dialog-actions {
+  border-top: 1px solid #374151;
+}
+
+.dark .vc-incident-dialog .mat-mdc-button {
+  color: #e5e7eb !important;
+}
+
+.dark .vc-incident-dialog .mat-mdc-unelevated-button.mat-primary {
+  background-color: #d97706 !important;
+  color: #fff !important;
+}
+
+.dark .vc-incident-dialog .mat-mdc-unelevated-button.mat-primary:disabled {
+  background-color: #4b5563 !important;
+  color: #9ca3af !important;
+}
+

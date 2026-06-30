@@ -7,7 +7,7 @@ import {
   AccessIncidentService,
   IncidentFormDialogData,
 } from './access-incident.service';
-import { IncidentFormDialogComponent } from './incident-form-dialog.component';
+import { IncidentFormDialogComponent, INCIDENT_DIALOG_PANEL_CLASS } from './incident-form-dialog.component';
 import { NavPermissionService } from '../nav-permission.service';
 
 interface AccessPointOption {
@@ -85,6 +85,7 @@ export class IncidentsComponent implements OnInit {
     this.dialog
       .open(IncidentFormDialogComponent, {
         width: 'min(480px, 96vw)',
+        panelClass: INCIDENT_DIALOG_PANEL_CLASS,
         data,
       })
       .afterClosed()

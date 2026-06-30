@@ -8,6 +8,9 @@ import { ToastrService } from 'ngx-toastr';
 import { AccessIncidentService, IncidentFormDialogData } from './access-incident.service';
 import { ApiService } from '../api.service';
 
+/** panelClass para MatDialog (estilos en styles.css → .vc-incident-dialog) */
+export const INCIDENT_DIALOG_PANEL_CLASS = 'vc-incident-dialog';
+
 interface AccessPointOption {
   id: number;
   name: string;
@@ -18,13 +21,13 @@ interface AccessPointOption {
   standalone: true,
   imports: [CommonModule, FormsModule, MatDialogModule, MatIconModule, MatButtonModule],
   template: `
-    <h2 mat-dialog-title class="!text-lg !font-semibold">
+    <h2 mat-dialog-title class="vc-incident-dialog__title">
       {{ data.mode === 'scan' ? 'Incidencia del escaneo' : 'Nueva incidencia' }}
     </h2>
     <mat-dialog-content class="!pt-2">
       <div class="space-y-4">
         <div>
-          <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Punto de acceso</label>
+          <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">Punto de acceso</label>
           <select
             [(ngModel)]="accessPointId"
             [disabled]="!!data.lockAccessPoint || loadingPoints"
@@ -35,7 +38,7 @@ interface AccessPointOption {
         </div>
 
         <div>
-          <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Descripción</label>
+          <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">Descripción</label>
           <textarea
             [(ngModel)]="description"
             rows="4"
@@ -45,8 +48,12 @@ interface AccessPointOption {
         </div>
 
         <div>
-          <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Foto (opcional)</label>
-            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp" (change)="onPhotoSelected($event)" class="block w-full text-sm" />
+          <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">Foto (opcional)</label>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+            (change)="onPhotoSelected($event)"
+            class="block w-full text-sm text-gray-700" />
           <img
             *ngIf="photoPreview"
             [src]="photoPreview"
@@ -55,12 +62,11 @@ interface AccessPointOption {
         </div>
       </div>
     </mat-dialog-content>
-    <mat-dialog-actions align="end" class="!gap-2">
-      <button type="button" mat-button (click)="close()" [disabled]="saving">Cancelar</button>
+    <mat-dialog-actions align="end" class="!gap-2 !px-6 !pb-4">
+      <button type="button" class="vc-btn-cancel" (click)="close()" [disabled]="saving">Cancelar</button>
       <button
         type="button"
-        mat-flat-button
-        color="primary"
+        class="vc-btn-primary !px-5 !py-2.5"
         (click)="submit()"
         [disabled]="saving || !canSubmit">
         {{ saving ? 'Guardando…' : 'Registrar' }}
