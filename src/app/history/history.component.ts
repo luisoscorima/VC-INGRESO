@@ -336,13 +336,17 @@ export class HistoryComponent implements OnInit {
     this.fecha_inicial = today;
     this.fecha_final = today;
 
-    this.entranceService.getAllAccessPoints().subscribe({
+    this.entranceService.getAllAccessPoints({ includeInactive: true }).subscribe({
       next: (raw: unknown) => {
         const list = Array.isArray(raw) ? raw : [];
-        this.accessPointOptions = list.map((p: Record<string, unknown>) => ({
-          id: Number(p['id'] ?? p['ap_id'] ?? 0),
-          label: String(p['name'] ?? p['ap_location'] ?? p['location'] ?? `Punto ${p['id'] ?? ''}`),
-        })).filter((o) => o.id > 0);
+        this.accessPointOptions = list.map((p: Record<string, unknown>) => {
+          const name = String(p['name'] ?? p['ap_location'] ?? p['location'] ?? `Punto ${p['id'] ?? ''}`);
+          const active = Number(p['is_active'] ?? 1) === 1;
+          return {
+            id: Number(p['id'] ?? p['ap_id'] ?? 0),
+            label: active ? name : `${name} (INACTIVO)`,
+          };
+        }).filter((o) => o.id > 0);
 
         if (!this.accessPointOptions.length) {
           this.toastr.warning('No hay puntos de acceso configurados.');

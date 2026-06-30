@@ -566,10 +566,12 @@ export class QrScannerComponent implements OnInit, OnDestroy {
         next: (res) => {
           this.loadingPoints = false;
           const rows = (res.data ?? []) as AccessPointOption[];
-          this.accessPoints = rows.map((r: any) => ({
-            id: Number(r.id),
-            name: String(r.name ?? 'Punto'),
-          }));
+          this.accessPoints = rows
+            .filter((r: any) => Number(r?.is_active ?? 1) === 1)
+            .map((r: any) => ({
+              id: Number(r.id),
+              name: String(r.name ?? 'Punto'),
+            }));
           const saved = sessionStorage.getItem(ACCESS_POINT_STORAGE_KEY);
           const savedId = saved ? parseInt(saved, 10) : NaN;
           if (this.accessPoints.some((p) => p.id === savedId)) {
@@ -1116,6 +1118,9 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       body.vehicle_id = vid;
       body.person_id = null;
       body.doc_number = data.doc_number ?? null;
+      if (data.license_plate) {
+        body.license_plate = data.license_plate;
+      }
       if (!vid && data.license_plate) {
         body.observation = `${body.observation} | placa ${data.license_plate}`;
       }
@@ -1127,6 +1132,9 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     this.api.post('api/v1/access-logs', body).subscribe({
       next: (res) => {
         const logId = Number(res?.data?.id ?? 0) || 0;
+        const closed = !!res?.data?.closed;
+        const permanenceMinutes = Number(res?.data?.permanence_minutes ?? 0);
+
         if (logId > 0) {
           this.lastIncidentContext = {
             ...this.buildScanContext(data),
@@ -1134,9 +1142,21 @@ export class QrScannerComponent implements OnInit, OnDestroy {
           };
           this.incidentLogReady = true;
         }
+
+        if (closed && this.isExitMode()) {
+          const msg = `Salida registrada — permaneció ${permanenceMinutes} min`;
+          this.toastr.success(msg);
+          this.lastScanSummary = `${data.status_validated} — ${msg}`;
+        }
       },
-      error: () => {
-        this.toastr.error('No se pudo guardar el registro de acceso');
+      error: (err) => {
+        const msg =
+          err?.error?.error ||
+          err?.message ||
+          (this.isExitMode()
+            ? 'No hay entrada abierta para este registro'
+            : 'No se pudo guardar el registro de acceso');
+        this.toastr.error(msg);
       },
     });
   }

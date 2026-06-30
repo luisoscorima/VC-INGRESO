@@ -58,10 +58,14 @@ export class AccessLogService {
   // ==================== ACCESS POINTS ====================
 
   /**
-   * Obtiene todos los puntos de acceso
+   * Puntos de acceso. Por defecto solo activos; historial puede pedir `includeInactive: true`.
    */
-  getAllAccessPoints(): Observable<any> {
-    return this.api.getRaw('api/v1/access-logs/access-points');
+  getAllAccessPoints(options?: { includeInactive?: boolean }): Observable<any> {
+    const params: Record<string, string> = {};
+    if (options?.includeInactive) {
+      params['include_inactive'] = '1';
+    }
+    return this.api.getRaw('api/v1/access-logs/access-points', params);
   }
 
   /**

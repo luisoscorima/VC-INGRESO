@@ -251,8 +251,8 @@ Catálogo global reutilizable (placa **o** DNI) + asignaciones por casa con temp
 |--------|------|-------------|
 | GET | `/api/v1/access-logs` | Listar (filtros en query: `access_point_id`, `person_id`, `type`, fechas, `page`, `limit`, etc.). |
 | GET | `/api/v1/access-logs/:id` | Un registro. |
-| POST | `/api/v1/access-logs` | Crear ingreso/egreso. |
-| GET | `/api/v1/access-logs/access-points` | Puntos de acceso. |
+| POST | `/api/v1/access-logs` | Crear ingreso (`type: INGRESO`) o cerrar sesión (`type: EGRESO`: actualiza el último ingreso abierto del mismo punto + persona/vehículo/doc/placa; responde `closed`, `permanence_minutes`). |
+| GET | `/api/v1/access-logs/access-points` | Puntos de acceso activos por defecto (escáner, dashboard). Query `include_inactive=1` para historial. |
 | GET | `/api/v1/access-logs/history-by-date` | Por fecha y `access_point` (unificado: `access_logs` + `temporary_access_logs`). |
 | GET | `/api/v1/access-logs/history-by-range` | Por rango (`fecha_inicial`, `fecha_final`, `access_point` opcional; unificado). |
 | GET | `/api/v1/access-logs/history-by-client` | Por fecha, `access_point` y `doc` (documento o placa en externas). |

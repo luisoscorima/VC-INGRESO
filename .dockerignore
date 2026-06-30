@@ -1,0 +1,35 @@
+# Git y CI
+.git
+.github
+.gitignore
+
+# Dependencias y artefactos de build (se generan dentro de la imagen)
+node_modules
+dist
+.angular
+coverage
+
+# IDE y OS
+.idea
+.vscode
+*.swp
+.DS_Store
+Thumbs.db
+
+# Backups y datos locales
+*.sql
+backup_*
+uploads
+
+# Docs y planes (no necesarios en imagen)
+plans
+*.md
+!server/API.md
+
+# Entornos locales
+.env
+.env.*
+
+# Tests
+e2e
+karma.conf.js

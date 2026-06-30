@@ -1,6 +1,8 @@
 # Producción: frontend (nginx) + api + mysql (todo en contenedores).
-# Requiere: ng build --configuration=production (genera dist/Ingreso).
-# Uso: docker compose -f docker-compose.prod.yml up -d
+# Imágenes: GitHub Actions publica en GHCR (tag main). En el servidor: pull + up (sin --build).
+# Uso: docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
+# Build local (fallback): docker compose -f docker-compose.prod.yml up -d --build
+# Variables opcionales en .env: VC_IMAGE_TAG=main | VC_API_IMAGE | VC_FRONTEND_IMAGE
 # Nota: pensado para ir detrás de Nginx Proxy Manager, sin publicar puertos.
 services:
   mysql:
@@ -32,7 +34,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: vc-ingreso-api:prod
+    image: ${VC_API_IMAGE:-ghcr.io/luisoscorima/vc-ingreso-api:${VC_IMAGE_TAG:-main}}
+    pull_policy: always
     container_name: vc-ingreso-api
     env_file:
       - .env
@@ -65,7 +68,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    image: vc-ingreso-frontend:prod
+      args:
+        APP_VERSION: ${VC_IMAGE_TAG:-main}
+    image: ${VC_FRONTEND_IMAGE:-ghcr.io/luisoscorima/vc-ingreso-frontend:${VC_IMAGE_TAG:-main}}
+    pull_policy: always
     container_name: vc-ingreso-frontend
     depends_on:
       - api

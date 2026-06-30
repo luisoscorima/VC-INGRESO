@@ -683,7 +683,61 @@ docker run --rm \
 
 - `--rm` no elimina el volumen; solo el contenedor temporal.
 
-### 3. Flujo de despliegue seguro (bash)
+### 3. Flujo de despliegue (recomendado: imágenes desde GitHub Actions)
+
+Cada push a `main` ejecuta [`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) y publica en **GHCR**:
+
+- `ghcr.io/luisoscorima/vc-ingreso-api:main`
+- `ghcr.io/luisoscorima/vc-ingreso-frontend:main`
+
+En el servidor **no hace falta compilar Angular** (~40–140 s ahorrados). Solo pull + reinicio:
+
+```bash
+set -euo pipefail
+cd ~/vc-ingreso
+
+# Una sola vez si los paquetes GHCR son privados:
+# echo <PAT con read:packages> | docker login ghcr.io -u TU_USUARIO --password-stdin
+
+./scripts/deploy-prod.sh
+```
+
+O manualmente:
+
+```bash
+cd ~/vc-ingreso
+git pull --ff-only origin main
+# Migraciones SQL si hay archivos nuevos en database/migrations/
+docker compose -f docker-compose.prod.yml pull api frontend
+docker compose -f docker-compose.prod.yml up -d api frontend --remove-orphans
+```
+
+**Pin por commit** (rollback o deploy exacto):
+
+```bash
+export VC_IMAGE_TAG=main-1e1246b   # tag publicado por CI
+docker compose -f docker-compose.prod.yml pull api frontend
+docker compose -f docker-compose.prod.yml up -d api frontend
+```
+
+### 3b. Flujo legacy (build en el servidor)
+
+Solo si GHCR no está disponible:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+```
+
+### 3c. Usuarios con versión antigua en el navegador
+
+Si tras un deploy algunos usuarios siguen viendo pantallas viejas (p. ej. flujo de licencia ya eliminado):
+
+1. **Causa:** el navegador o NPM cacheó `index.html` y apunta a bundles JS antiguos.
+2. **Mitigación en app:** nginx sirve `index.html` y `version.json` con `Cache-Control: no-cache`; el frontend consulta `/version.json` y muestra aviso para recargar.
+3. **Mitigación operativa:** pedir recarga forzada (Ctrl+F5) o cerrar pestaña en garitas con sesión abierta días.
+4. **NPM (proxy):** no activar caché agresiva en el host del frontend; si existe, excluir `index.html` y `version.json`.
+
+### 3d. Flujo de despliegue seguro completo (bash, con backup de imágenes)
 
 ```bash
 set -euo pipefail
@@ -705,14 +759,13 @@ docker run --rm \
 echo "==> 3. Actualizar codigo"
 git fetch origin
 git checkout main
-git pull origin main
+git pull --ff-only origin main
 
-echo "==> 4. Build"
-docker compose -f docker-compose.prod.yml build
+echo "==> 4. Pull imágenes GHCR"
+docker compose -f docker-compose.prod.yml pull api frontend
 
 echo "==> 5. Reinicio controlado"
-docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d api frontend --remove-orphans
 
 echo "==> 6. Verificacion"
 docker compose -f docker-compose.prod.yml ps

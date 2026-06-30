@@ -269,6 +269,8 @@ class AccessIncidentController
         }
 
         try {
+            $this->pdo->beginTransaction();
+
             $stmt = $this->pdo->prepare(
                 "INSERT INTO access_incidents
                  (source, access_log_id, temp_access_log_id, access_point_id, house_id, person_id, vehicle_id,
@@ -311,13 +313,23 @@ class AccessIncidentController
                 ],
             ]);
 
+            $this->pdo->commit();
+
             $row = $this->fetchRowById($incidentId);
             $normalized = $this->normalizeRow($row ?: [], true);
             $normalized['access_context'] = $this->loadAccessContext($normalized);
             $normalized['has_access_context'] = !empty($normalized['access_context']);
 
             Response::created($normalized, 'Incidencia registrada');
+        } catch (\RuntimeException $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            Response::error($e->getMessage(), 400);
         } catch (\PDOException $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
             Response::error('Error al registrar incidencia: ' . $e->getMessage(), 500);
         }
     }
@@ -457,31 +469,46 @@ class AccessIncidentController
             return null;
         }
         if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
-            Response::error('Error al subir la imagen', 400);
-            exit;
+            throw new \RuntimeException($this->uploadErrorMessage((int) ($file['error'] ?? UPLOAD_ERR_OK)));
         }
 
-        $uploadDir = __DIR__ . '/../../uploads/incidents/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        // server/uploads/incidents (misma raíz que index.php sirve en GET /uploads/...)
+        $uploadDir = __DIR__ . '/../uploads/incidents/';
+        if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0755, true)) {
+            throw new \RuntimeException('No se pudo crear el directorio de almacenamiento de fotos.');
         }
 
         $ext = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
-        $allowedExts = ['jpg', 'jpeg', 'png', 'gif'];
+        $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         if (!in_array($ext, $allowedExts, true)) {
-            Response::error('Formato de imagen no permitido', 400);
-            exit;
+            throw new \RuntimeException('Formato de imagen no permitido. Use JPG, PNG, GIF o WEBP.');
+        }
+
+        $maxSize = 5 * 1024 * 1024;
+        if (($file['size'] ?? 0) > $maxSize) {
+            throw new \RuntimeException('La imagen no debe superar 5 MB.');
         }
 
         $filename = 'incident_' . $incidentId . '_' . time() . '.' . $ext;
         $filepath = $uploadDir . $filename;
 
         if (!move_uploaded_file($file['tmp_name'], $filepath)) {
-            Response::error('Error al guardar la imagen', 500);
-            exit;
+            throw new \RuntimeException('Error al guardar la imagen en el servidor.');
         }
 
         return '/uploads/incidents/' . $filename;
+    }
+
+    private function uploadErrorMessage(int $code): string
+    {
+        return match ($code) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'La imagen supera el tamaño máximo permitido (5 MB).',
+            UPLOAD_ERR_PARTIAL => 'La imagen se subió solo parcialmente. Intente de nuevo.',
+            UPLOAD_ERR_NO_TMP_DIR => 'El servidor no tiene carpeta temporal para subidas.',
+            UPLOAD_ERR_CANT_WRITE => 'El servidor no pudo escribir la imagen.',
+            UPLOAD_ERR_EXTENSION => 'La subida fue bloqueada por una extensión del servidor.',
+            default => 'Error al subir la imagen (código ' . $code . ').',
+        };
     }
 
     private function nullableInt($value): ?int

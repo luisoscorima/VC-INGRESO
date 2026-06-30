@@ -46,7 +46,7 @@ interface AccessPointOption {
 
         <div>
           <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Foto (opcional)</label>
-          <input type="file" accept="image/*" (change)="onPhotoSelected($event)" class="block w-full text-sm" />
+            <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp" (change)="onPhotoSelected($event)" class="block w-full text-sm" />
           <img
             *ngIf="photoPreview"
             [src]="photoPreview"

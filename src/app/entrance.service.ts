@@ -108,8 +108,16 @@ export class EntranceService {
     );
   }
 
-  getAllAccessPoints() {
-    return this.http.get(`${this.baseUrl}/api/v1/access-logs/access-points`).pipe(
+  /**
+   * Puntos de acceso operativos (garita, dashboard). Por defecto solo activos.
+   * Historial: `{ includeInactive: true }`.
+   */
+  getAllAccessPoints(options?: { includeInactive?: boolean }) {
+    const params: Record<string, string> = {};
+    if (options?.includeInactive) {
+      params['include_inactive'] = '1';
+    }
+    return this.http.get(`${this.baseUrl}/api/v1/access-logs/access-points`, { params }).pipe(
       map((r: any) => r?.data ?? r ?? [])
     );
   }

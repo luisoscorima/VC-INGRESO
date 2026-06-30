@@ -162,9 +162,20 @@ class AccessLogController
             return;
         }
 
+        $accessPointId = (int) $data['access_point_id'];
+        if (!$this->findActiveAccessPoint($accessPointId)) {
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
+            return;
+        }
+
         $createdByUserId = isset($auth['user_id']) ? (int)$auth['user_id'] : null;
 
         try {
+            if ($data['type'] === 'EGRESO') {
+                $this->closeOpenAccessLog($auth, $data, $accessPointId, $createdByUserId);
+                return;
+            }
+
             $stmt = $this->pdo->prepare("
                 INSERT INTO {$this->table} 
                 (access_point_id, person_id, doc_number, vehicle_id, type, observation, created_by_user_id, created_at) 
@@ -203,6 +214,147 @@ class AccessLogController
     }
 
     /**
+     * Cierra el último INGRESO abierto (misma persona/vehículo/doc/placa y punto de acceso).
+     * No crea fila EGRESO suelta: actualiza updated_at del ingreso como hora de salida.
+     */
+    private function closeOpenAccessLog(array $auth, array $data, int $accessPointId, ?int $createdByUserId): void
+    {
+        $personId = $this->nullablePositiveInt($data['person_id'] ?? null);
+        $vehicleId = $this->nullablePositiveInt($data['vehicle_id'] ?? null);
+        $docNumber = trim((string) ($data['doc_number'] ?? ''));
+        $licensePlate = $this->extractLicensePlateFromPayload($data);
+
+        $open = $this->findOpenAccessLogIngress($accessPointId, $personId, $vehicleId, $docNumber, $licensePlate);
+        if (!$open) {
+            Response::json(['success' => false, 'error' => 'No hay entrada abierta para este registro'], 422);
+            return;
+        }
+
+        $logId = (int) $open['id'];
+        $now = date('Y-m-d H:i:s');
+        $exitNote = trim((string) ($data['observation'] ?? ''));
+        $newObservation = trim((string) ($open['observation'] ?? ''));
+        if ($exitNote !== '') {
+            $newObservation = $newObservation !== ''
+                ? $newObservation . ' | SALIDA: ' . $exitNote
+                : 'SALIDA: ' . $exitNote;
+        } elseif ($newObservation !== '') {
+            $newObservation .= ' | SALIDA';
+        } else {
+            $newObservation = 'SALIDA';
+        }
+
+        try {
+            $stmt = $this->pdo->prepare(
+                "UPDATE {$this->table}
+                 SET updated_at = ?, observation = ?
+                 WHERE id = ? AND type = 'INGRESO' AND updated_at <= created_at"
+            );
+            $stmt->execute([$now, $newObservation, $logId]);
+
+            if ($stmt->rowCount() === 0) {
+                Response::json(['success' => false, 'error' => 'No hay entrada abierta para este registro'], 422);
+                return;
+            }
+
+            $entryTs = strtotime((string) ($open['created_at'] ?? ''));
+            $exitTs = strtotime($now);
+            $permanenceMinutes = ($entryTs !== false && $exitTs !== false && $exitTs >= $entryTs)
+                ? (int) max(0, round(($exitTs - $entryTs) / 60))
+                : 0;
+
+            recordEventLog($this->pdo, $auth, 'access_log.exit', [
+                'summary' => 'Salida registrada en log #' . $logId,
+                'entity_type' => 'access_logs',
+                'entity_id' => $logId,
+                'details' => [
+                    'access_point_id' => $accessPointId,
+                    'permanence_minutes' => $permanenceMinutes,
+                ],
+            ]);
+
+            Response::json([
+                'success' => true,
+                'data' => [
+                    'id' => $logId,
+                    'closed' => true,
+                    'permanence_minutes' => $permanenceMinutes,
+                    'message' => 'Salida registrada',
+                ],
+            ], 200);
+        } catch (\PDOException $e) {
+            Response::json(['success' => false, 'error' => 'Error al registrar salida: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function findOpenAccessLogIngress(
+        int $accessPointId,
+        ?int $personId,
+        ?int $vehicleId,
+        string $docNumber,
+        ?string $licensePlate
+    ): ?array {
+        $identitySql = '';
+        $identityParams = [];
+
+        if ($personId !== null) {
+            $identitySql = 'person_id = ?';
+            $identityParams[] = $personId;
+        } elseif ($vehicleId !== null) {
+            $identitySql = 'vehicle_id = ?';
+            $identityParams[] = $vehicleId;
+        } elseif ($docNumber !== '') {
+            $identitySql = 'doc_number = ?';
+            $identityParams[] = $docNumber;
+        } elseif ($licensePlate !== null && $licensePlate !== '') {
+            $identitySql = '(doc_number = ? OR observation LIKE ?)';
+            $identityParams[] = $licensePlate;
+            $identityParams[] = '%placa ' . $licensePlate . '%';
+        } else {
+            return null;
+        }
+
+        $sql = "SELECT id, created_at, updated_at, observation, person_id, vehicle_id, doc_number
+                FROM {$this->table}
+                WHERE type = 'INGRESO'
+                  AND access_point_id = ?
+                  AND updated_at <= created_at
+                  AND ({$identitySql})
+                ORDER BY created_at DESC
+                LIMIT 1";
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute(array_merge([$accessPointId], $identityParams));
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
+    private function extractLicensePlateFromPayload(array $data): ?string
+    {
+        $plate = trim((string) ($data['license_plate'] ?? ''));
+        if ($plate !== '') {
+            return strtoupper($plate);
+        }
+        $obs = (string) ($data['observation'] ?? '');
+        if (preg_match('/placa\s+([A-Za-z0-9-]+)/iu', $obs, $m)) {
+            return strtoupper(trim($m[1]));
+        }
+
+        return null;
+    }
+
+    private function nullablePositiveInt($value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $n = (int) $value;
+
+        return $n > 0 ? $n : null;
+    }
+
+    /**
      * POST /api/v1/access-logs/temporary
      * Registra ingreso de visita externa en temporary_access_logs.
      */
@@ -227,6 +379,11 @@ class AccessLogController
 
         if ($accessPointId <= 0 || $tempVisitId <= 0) {
             Response::json(['success' => false, 'error' => 'access_point_id y temp_visit_id requeridos'], 400);
+            return;
+        }
+
+        if (!$this->findActiveAccessPoint($accessPointId)) {
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
             return;
         }
 
@@ -334,6 +491,11 @@ class AccessLogController
             return;
         }
 
+        if (!$this->findActiveAccessPoint($accessPointId)) {
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
+            return;
+        }
+
         $open = fetch_open_temp_access_log($this->pdo, $tempVisitId, $houseId);
         if (!$open) {
             Response::json(['success' => false, 'error' => 'No hay entrada abierta para esta visita'], 422);
@@ -395,16 +557,41 @@ class AccessLogController
 
     /**
      * GET /api/v1/access-logs/access-points
-     * Listar puntos de acceso
+     * Puntos de acceso operativos (garita, escáner, filtros). Por defecto solo activos.
+     * Query opcional: include_inactive=1 para incluir inactivos (p. ej. filtros históricos).
      */
     public function accessPoints()
     {
         requireAuth();
 
-        $stmt = $this->pdo->query("SELECT * FROM access_points ORDER BY name");
+        $includeInactive = isset($_GET['include_inactive'])
+            && in_array(strtolower(trim((string) $_GET['include_inactive'])), ['1', 'true', 'yes'], true);
+
+        $sql = 'SELECT * FROM access_points';
+        if (!$includeInactive) {
+            $sql .= ' WHERE COALESCE(is_active, 1) = 1';
+        }
+        $sql .= ' ORDER BY name';
+
+        $stmt = $this->pdo->query($sql);
         $points = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         Response::json(['success' => true, 'data' => $points]);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function findActiveAccessPoint(int $accessPointId): ?array
+    {
+        if ($accessPointId <= 0) {
+            return null;
+        }
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM access_points WHERE id = ? AND COALESCE(is_active, 1) = 1 LIMIT 1'
+        );
+        $stmt->execute([$accessPointId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
     }
 
     /** GET ?fecha=&access_point= — id o nombre de punto. Incluye access_logs + temporary_access_logs. */
@@ -558,7 +745,11 @@ class AccessLogController
                 {$s('v.license_plate')} AS vehicle_plate,
                 {$s("CONCAT_WS(' ', NULLIF(h.block_house,''), NULLIF(CAST(h.lot AS CHAR),''), NULLIF(h.apartment,''))")} AS house_address,
                 al.created_at AS date_entry,
-                CASE WHEN al.type = 'EGRESO' THEN al.updated_at ELSE NULL END AS date_exit,
+                CASE
+                    WHEN al.type = 'INGRESO' AND al.updated_at > al.created_at THEN al.updated_at
+                    WHEN al.type = 'EGRESO' THEN al.updated_at
+                    ELSE NULL
+                END AS date_exit,
                 {$s("COALESCE(NULLIF(TRIM(al.observation), ''), NULLIF(p.status_validated, ''), '—')")} AS obs,
                 {$s("COALESCE(NULLIF(TRIM(u.username_system), ''), IF(al.created_by_user_id IS NOT NULL, CONCAT('#', al.created_by_user_id), NULL), '—')")} AS `operator`,
                 {$s("DATE_FORMAT(al.created_at, '%H:%i:%s')")} AS hour_entrance,

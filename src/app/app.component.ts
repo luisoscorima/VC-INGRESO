@@ -6,6 +6,7 @@ import { UsersService } from './users.service';
 import { MatSidenav } from '@angular/material/sidenav';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from './api.service';
+import { VersionCheckService } from './version-check.service';
 
 import { initFlowbite } from 'flowbite';
 import {
@@ -42,6 +43,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private usersService: UsersService,
     protected toastr: ToastrService,
     protected api: ApiService,
+    private versionCheck: VersionCheckService,
   ){}
 
   logout(){
@@ -54,6 +56,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit() {
     initFlowbite();
+    this.versionCheck.start();
     const saved = localStorage.getItem('theme');
     this.isDark = saved === 'dark';
     this.applyTheme();
