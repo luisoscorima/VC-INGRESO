@@ -73,7 +73,7 @@ Solo tres familias; **todo lo demás se rechaza** (no es caso de uso):
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| POST | `/api/v1/auth/login` | Body JSON: `username_system`, `password_system`. Respuesta: `user`, `person`, `my_houses`, `token` (JWT). Errores 400/401. |
+| POST | `/api/v1/auth/login` | Body JSON: `username_system`, `password_system`. Respuesta: `user`, `person`, `my_houses`, `token` (JWT). TTL del token configurable con `JWT_AUTH_TTL_SECONDS` (por defecto 30 días). Errores 400/401. |
 
 ---
 

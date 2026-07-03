@@ -14,7 +14,20 @@ function getJwtSecret() {
     return getenv('JWT_SECRET') ?: 'change_me';
 }
 
-function generateToken(array $payload, int $ttlSeconds = 28800) { // 8h
+/** TTL del JWT de login (segundos). Por defecto 30 días. */
+function getAuthTokenTtlSeconds(): int {
+    $raw = getenv('JWT_AUTH_TTL_SECONDS');
+    if ($raw !== false && $raw !== '' && ctype_digit(trim($raw))) {
+        $ttl = (int) trim($raw);
+        return max(3600, $ttl); // mínimo 1 h
+    }
+    return 2592000; // 30 días
+}
+
+function generateToken(array $payload, ?int $ttlSeconds = null) {
+    if ($ttlSeconds === null) {
+        $ttlSeconds = getAuthTokenTtlSeconds();
+    }
     $header = ['alg' => 'HS256', 'typ' => 'JWT'];
     $now = time();
     $payload['iat'] = $now;
