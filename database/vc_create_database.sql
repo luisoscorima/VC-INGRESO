@@ -196,6 +196,7 @@ CREATE TABLE `temporary_visits` (
     `temp_visit_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `registered_by_user_id` INT UNSIGNED NULL DEFAULT NULL COMMENT 'Primer registrante (legado)',
     `temp_visit_name` VARCHAR(100) DEFAULT NULL,
+    `temp_visit_company` VARCHAR(150) DEFAULT NULL COMMENT 'Empresa o negocio (delivery, taxi, etc.)',
     `temp_visit_doc` VARCHAR(15) DEFAULT NULL,
     `temp_visit_plate` VARCHAR(15) DEFAULT NULL,
     `temp_visit_cel` VARCHAR(15) DEFAULT NULL,

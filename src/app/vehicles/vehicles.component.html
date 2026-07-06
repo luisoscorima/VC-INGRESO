@@ -109,7 +109,7 @@
                 </div>
         
                 <div class="mb-4">
-                    <input [(ngModel)]="externalSearchTerm" type="text" placeholder="Buscar por categoría, placa o responsable..." class="vc-input-search" />
+                    <input [(ngModel)]="externalSearchTerm" type="text" placeholder="Buscar por categoría, placa, nombre o empresa..." class="vc-input-search" />
                 </div>
 
                 <div class="vc-table-wrap">
@@ -119,7 +119,8 @@
                                 <th scope="col" class="vc-th w-12"></th>
                                 <th scope="col" class="vc-th">Categoría</th>
                                 <th scope="col" class="vc-th">Placa</th>
-                                <th scope="col" class="vc-th">Responsable</th>
+                                <th scope="col" class="vc-th">Nombre visita externa</th>
+                                <th scope="col" class="vc-th">Empresa/Negocio</th>
                                 <th scope="col" class="vc-th">Celular</th>
                                 <th scope="col" class="vc-th">Estado</th>
                                 <th scope="col" class="vc-th text-right">
@@ -138,6 +139,7 @@
                                 <th scope="row" class="vc-td font-medium uppercase">{{ev.temp_visit_type}}</th>
                                 <td class="vc-td uppercase">{{ev.temp_visit_plate || '—'}}</td>
                                 <td class="vc-td uppercase">{{ev.temp_visit_name || '—'}}</td>
+                                <td class="vc-td uppercase">{{ev.temp_visit_company || '—'}}</td>
                                 <td class="vc-td uppercase">{{ev.temp_visit_cel || '—'}}</td>
                                 <td class="vc-td uppercase">{{ev.status_system}}</td>
                                 <td class="vc-td text-right">
@@ -396,20 +398,24 @@
                     </select>
                 </div>
                 <div class="min-w-0 w-full">
-                    <label for="vehicles-external_license_plateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa</label>
+                    <label for="vehicles-external_license_plateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa <span class="text-red-600">*</span></label>
                     <input [(ngModel)]="externalVehicleToAdd.temp_visit_plate" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="external_license_plateNew" id="vehicles-external_license_plateNew" class="vc-field w-full" placeholder="Número de placa..." required />
                 </div>
                 <div class="min-w-0 w-full">
-                    <label for="vehicles-externalDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc. Responsable</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="externalDocNew" id="vehicles-externalDocNew" class="vc-field w-full" placeholder="Documento de identidad..." required/>
+                    <label for="vehicles-externalNameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombre de Visita Externa <span class="text-red-600">*</span></label>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_name" type="text" name="externalNameNew" id="vehicles-externalNameNew" class="vc-field w-full" placeholder="Nombre de la visita externa..." required/>
                 </div>
                 <div class="min-w-0 w-full">
-                    <label for="vehicles-externalNameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Responsable</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_name" type="text" name="externalNameNew" id="vehicles-externalNameNew" class="vc-field w-full" placeholder="Datos del responsable..." required/>
+                    <label for="vehicles-externalCompanyNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Empresa/Negocio</label>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_company" type="text" name="externalCompanyNew" id="vehicles-externalCompanyNew" class="vc-field w-full" placeholder="Empresa o negocio (opcional)..." />
                 </div>
                 <div class="min-w-0 w-full">
-                    <label for="vehicles-externalCelNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_cel" type="text" name="externalCelNew" id="vehicles-externalCelNew" class="vc-field w-full" placeholder="Número de celular..." required />
+                    <label for="vehicles-externalDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc de Visita Externa</label>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="externalDocNew" id="vehicles-externalDocNew" class="vc-field w-full" placeholder="Documento de identidad (opcional)..."/>
+                </div>
+                <div class="min-w-0 w-full">
+                    <label for="vehicles-externalCelNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_cel" type="text" name="externalCelNew" id="vehicles-externalCelNew" class="vc-field w-full" placeholder="Número de celular..." />
                 </div>
                 <div class="min-w-0 w-full">
                     <label for="vehicles-externalStatus_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
@@ -475,20 +481,24 @@
                     </select>
                 </div>
                 <div class="min-w-0 w-full">
-                    <label for="vehicles-external_license_plateEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa</label>
+                    <label for="vehicles-external_license_plateEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa <span class="text-red-600">*</span></label>
                     <input [(ngModel)]="externalVehicleToEdit.temp_visit_plate" type="text" name="external_license_plateEdit" id="vehicles-external_license_plateEdit" class="vc-field w-full" placeholder="Número de placa..." required />
                 </div>
                 <div class="min-w-0 w-full">
-                    <label for="vehicles-externalDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc. Responsable</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="vehicles-externalDocEdit" class="vc-field w-full" placeholder="Documento de identidad..." required/>
+                    <label for="vehicles-externalNameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombre de Visita Externa <span class="text-red-600">*</span></label>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_name" type="text" name="externalNameEdit" id="vehicles-externalNameEdit" class="vc-field w-full" placeholder="Nombre de la visita externa..." required/>
                 </div>
                 <div class="min-w-0 w-full">
-                    <label for="vehicles-externalNameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Responsable</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_name" type="text" name="externalNameEdit" id="vehicles-externalNameEdit" class="vc-field w-full" placeholder="Datos del responsable..." required/>
+                    <label for="vehicles-externalCompanyEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Empresa/Negocio</label>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_company" type="text" name="externalCompanyEdit" id="vehicles-externalCompanyEdit" class="vc-field w-full" placeholder="Empresa o negocio (opcional)..." />
                 </div>
                 <div class="min-w-0 w-full">
-                    <label for="vehicles-externalCelEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_cel" type="text" name="externalCelEdit" id="vehicles-externalCelEdit" class="vc-field w-full" placeholder="Número de celular..." required />
+                    <label for="vehicles-externalDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc de Visita Externa</label>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="vehicles-externalDocEdit" class="vc-field w-full" placeholder="Documento de identidad (opcional)..."/>
+                </div>
+                <div class="min-w-0 w-full">
+                    <label for="vehicles-externalCelEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_cel" type="text" name="externalCelEdit" id="vehicles-externalCelEdit" class="vc-field w-full" placeholder="Número de celular..." />
                 </div>
                 <div class="min-w-0 w-full">
                     <label for="vehicles-externalStatus_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>

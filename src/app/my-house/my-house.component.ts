@@ -492,6 +492,9 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
         if (p.temp_visit_name) {
           this.externalVehicleToAdd.temp_visit_name = p.temp_visit_name;
         }
+        if (p.temp_visit_company) {
+          this.externalVehicleToAdd.temp_visit_company = p.temp_visit_company;
+        }
         if (p.temp_visit_cel) {
           this.externalVehicleToAdd.temp_visit_cel = p.temp_visit_cel;
         }
@@ -1559,11 +1562,7 @@ saveNewVehicle(): void {
 
   saveEditExternalVehicle(){
     // Validar campos obligatorios
-    if (
-      !this.externalVehicleToEdit.temp_visit_plate?.trim() ||
-      !this.externalVehicleToEdit.temp_visit_doc?.trim() ||
-      !this.externalVehicleToEdit.temp_visit_name?.trim()
-    ) {
+    if (!this.externalVehicleToEdit.temp_visit_plate?.trim() || !this.externalVehicleToEdit.temp_visit_name?.trim()) {
       this.toastr.error('Los campos obligatorios no pueden estar vacíos');
       this.clean();
       return;
@@ -1588,11 +1587,7 @@ saveNewVehicle(): void {
   
   saveNewExternalVehicle(): void {
     // Validar campos obligatorios
-    if (
-      !this.externalVehicleToAdd.temp_visit_plate?.trim() ||
-      !this.externalVehicleToAdd.temp_visit_doc?.trim() ||
-      !this.externalVehicleToAdd.temp_visit_name?.trim()
-    ) {
+    if (!this.externalVehicleToAdd.temp_visit_plate?.trim() || !this.externalVehicleToAdd.temp_visit_name?.trim()) {
       this.toastr.error('Los campos obligatorios no pueden estar vacíos');
       this.clean();
       return;

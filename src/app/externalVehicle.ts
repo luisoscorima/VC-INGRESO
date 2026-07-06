@@ -23,6 +23,7 @@ export class ExternalVehicle {
     public minutes_remaining?: number,
     /** Minutos elegidos al registrar (POST). */
     public duration_minutes?: number,
+    public temp_visit_company?: string,
     public photo_url?: string,
     public operator_notes?: string,
   ) { }

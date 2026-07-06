@@ -162,12 +162,17 @@ class ExternalVehicleController extends Controller {
         }
 
         $data = $this->getInput();
-        $doc = trim((string) ($data['temp_visit_doc'] ?? ''));
         $plateRaw = trim((string) ($data['temp_visit_plate'] ?? ''));
-        if ($doc === '' && $plateRaw === '') {
-            Response::error('Indique al menos placa o documento del responsable', 400);
+        $nameRaw = trim((string) ($data['temp_visit_name'] ?? ''));
+        if ($plateRaw === '') {
+            Response::error('Campo requerido faltante: temp_visit_plate', 400);
             return;
         }
+        if ($nameRaw === '') {
+            Response::error('Campo requerido faltante: temp_visit_name', 400);
+            return;
+        }
+        $doc = trim((string) ($data['temp_visit_doc'] ?? ''));
 
         $houseId = (int) ($data['house_id'] ?? $auth['house_id'] ?? 0);
         if ($houseId <= 0) {
@@ -192,7 +197,7 @@ class ExternalVehicleController extends Controller {
         $plateNorm = $plateRaw !== '' ? normalize_license_plate($plateRaw) : '';
         $docNorm = normalize_temp_visit_doc($doc);
 
-        $allowed = ['temp_visit_name', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
+        $allowed = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
         $incoming = [];
         foreach ($allowed as $field) {
             if (isset($data[$field])) {
@@ -297,7 +302,7 @@ class ExternalVehicleController extends Controller {
         }
 
         $data = $this->getInput();
-        $allowed = ['temp_visit_name', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
+        $allowed = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
 
         if ($isStaff) {
             $allowed[] = 'operator_notes';
@@ -316,6 +321,14 @@ class ExternalVehicleController extends Controller {
         if (array_key_exists('temp_visit_doc', $filtered)) {
             $dn = normalize_temp_visit_doc((string) $filtered['temp_visit_doc']);
             $filtered['temp_visit_doc'] = $dn === '' ? null : $dn;
+        }
+        if (isset($filtered['temp_visit_plate']) && $filtered['temp_visit_plate'] === null) {
+            Response::error('Campo requerido faltante: temp_visit_plate', 400);
+            return;
+        }
+        if (array_key_exists('temp_visit_name', $filtered) && trim((string) $filtered['temp_visit_name']) === '') {
+            Response::error('Campo requerido faltante: temp_visit_name', 400);
+            return;
         }
 
         if (empty($filtered)) {
