@@ -32,34 +32,34 @@ export class DashboardComponent implements OnInit {
   staffAccessPointId: number | null = null;
   staffAccessPointOptions: { id: number; label: string }[] = [];
 
-  /** Staff: cumpleaÃ±os del mes (persons?fecha_cumple=-MM-) */
+  /** Staff: cumpleaños del mes (persons?fecha_cumple=-MM-) */
   staffBirthdaysMonth: any[] = [];
   loadingStaffBirthdays = false;
-  /** Vecino: cumpleaÃ±os de la semana (Lunâ€“Dom) con Ã©nfasis ayer/hoy/maÃ±ana */
+  /** Vecino: cumpleaños de la semana (Lun–Dom) con énfasis ayer/hoy/mañana */
   neighborWeekBirthdays: any[] = [];
   loadingNeighborBirthdays = false;
-  /** Dashboard: ingresos (movement INGRESO) hoy â€” mismo origen que Historial, todos los puntos */
+  /** Dashboard: ingresos (movement INGRESO) hoy — mismo origen que Historial, todos los puntos */
   accessLogsCountToday = 0;
   loadingLogs = false;
-  /** Dashboard: Ãºltimos ingresos del dÃ­a (INGRESO) */
+  /** Dashboard: últimos ingresos del día (INGRESO) */
   lastAccessLogs: any[] = [];
   /** Dashboard: total casas registradas */
   housesCount: number | null = null;
   /** Dashboard: ingresos de personas hoy (tipo PERSONA, movement INGRESO) */
   personsTodayCount = 0;
-  /** Dashboard: ingresos de vehÃ­culos hoy (tipo VEHÃCULO, movement INGRESO) */
+  /** Dashboard: ingresos de vehículos hoy (tipo VEHÍCULO, movement INGRESO) */
   vehiclesTodayCount = 0;
   /** Primer punto con controla_aforo (prioridad nombre "piscina") */
   poolOccupancy: { name: string; current: number; max: number | null; percent: number | null } | null = null;
   loadingPool = false;
   /** Dashboard: alertas activas (restringidos/observados); sin endpoint por ahora */
   activeAlerts: any[] = [];
-  /** Dashboard: ingresos por hora para grÃ¡fico (opcional) */
+  /** Dashboard: ingresos por hora para gráfico (opcional) */
   chartIngresosPorHora: { label: string; value: number; count: number }[] = [];
   ingresosHoraTotalCount = 0;
-  /** Staff: pastel ingresos por categorÃ­a de persona */
+  /** Staff: pastel ingresos por categoría de persona */
   distributionVisitors: { label: string; percent: number; count: number; colorClass: string }[] = [];
-  /** Dashboard: prÃ³ximas reservas (primeras 5) */
+  /** Dashboard: próximas reservas (primeras 5) */
   upcomingReservations: any[] = [];
 
   isAdmin = false;
@@ -69,7 +69,7 @@ export class DashboardComponent implements OnInit {
   registeredVehiclesCount: number | null = null;
   petsCount: number | null = null;
 
-  /** Vecino: mÃ©tricas del dÃ­a (historial filtrado por sus casas en API) */
+  /** Vecino: métricas del día (historial filtrado por sus casas en API) */
   neighborVisitsTodayCount = 0;
   neighborLastVisitLogs: any[] = [];
   neighborUpcomingReservations: any[] = [];
@@ -108,24 +108,24 @@ export class DashboardComponent implements OnInit {
   get neighborHouseLabel(): string {
     const u = this.actualUser;
     if (!u) {
-      return 'â€”';
+      return '—';
     }
     const mz = (u.block_house ?? '').toString().trim();
     const lt = u.lot != null && String(u.lot).trim() !== '' ? String(u.lot) : '';
     if (mz && lt) {
-      return `Mz ${mz} â€” Lt ${lt}`;
+      return `Mz:${mz} Lt:${lt}`;
     }
     if (mz) {
-      return `Mz ${mz}`;
+      return `Mz:${mz}`;
     }
-    return 'â€”';
+    return '—';
   }
 
   get distributionVisitorsTotal(): number {
     return (this.distributionVisitors || []).reduce((s, d) => s + (d.count || 0), 0);
   }
 
-  /** Altura en px para barras del grÃ¡fico por hora (evita height.% sin contenedor con altura fija). */
+  /** Altura en px para barras del gráfico por hora (evita height.% sin contenedor con altura fija). */
   ingressBarHeightPx(bar: { count: number; value: number }): number {
     if (!bar.count) {
       return 0;
@@ -134,7 +134,7 @@ export class DashboardComponent implements OnInit {
     return Math.max(6, Math.round((bar.value / 100) * maxBarPx));
   }
 
-  /** Anillo tipo donut con conic-gradient segÃºn conteos por categorÃ­a. */
+  /** Anillo tipo donut con conic-gradient según conteos por categoría. */
   distributionDonutStyle(): Record<string, string> | null {
     const total = this.distributionVisitorsTotal;
     if (!total) {
@@ -163,7 +163,7 @@ export class DashboardComponent implements OnInit {
     return { background: `conic-gradient(${stops.join(', ')})` };
   }
 
-  /** Obtiene mes-dÃ­a (MM-DD) desde birth_date para filtrar cumpleaÃ±os. */
+  /** Obtiene mes-día (MM-DD) desde birth_date para filtrar cumpleaños. */
   private getMonthDayFromBirthDate(birthDate: string | null | undefined): string | null {
     if (!birthDate) return null;
     const d = typeof birthDate === 'string' && birthDate.includes('T') ? new Date(birthDate) : new Date(birthDate + (birthDate.includes('-') && birthDate.length === 10 ? 'T12:00:00' : ''));
@@ -424,7 +424,7 @@ export class DashboardComponent implements OnInit {
     const mon = mondayOfWeekYmd(todayStr);
     const yYesterday = addDaysYmd(todayStr, -1);
     const yTomorrow = addDaysYmd(todayStr, 1);
-    const dowShort = ['Lun', 'Mar', 'MiÃ©', 'Jue', 'Vie', 'SÃ¡b', 'Dom'];
+    const dowShort = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     const reqs: Observable<any>[] = [];
     const meta: { ymd: string; label: string }[] = [];
     for (let i = 0; i < 7; i++) {
@@ -436,7 +436,7 @@ export class DashboardComponent implements OnInit {
       } else if (ymd === yYesterday) {
         label = 'Ayer';
       } else if (ymd === yTomorrow) {
-        label = 'MaÃ±ana';
+        label = 'Mañana';
       }
       meta.push({ ymd, label });
       reqs.push(
@@ -493,12 +493,12 @@ export class DashboardComponent implements OnInit {
   }
 
   /**
-   * Solo ingresos con estado de validaciÃ³n / observaciÃ³n explÃ­citamente de riesgo.
-   * Evita tratar como alerta textos libres o estados permitidos (p. ej. notas de cumpleaÃ±os).
+   * Solo ingresos con estado de validación / observación explícitamente de riesgo.
+   * Evita tratar como alerta textos libres o estados permitidos (p. ej. notas de cumpleaños).
    */
   private isAlertIngressObs(obs: unknown): boolean {
     const raw = String(obs ?? '').trim();
-    if (!raw || raw === 'â€”' || raw === '-') {
+    if (!raw || raw === '—' || raw === '-') {
       return false;
     }
     const u = raw.toUpperCase();
@@ -655,7 +655,7 @@ export class DashboardComponent implements OnInit {
     const a = this.dayTrendStart;
     const b = this.dayTrendEnd;
     if (!a || !b || a > b) {
-      this.toastr.warning('Indica un rango de fechas vÃ¡lido (desde â‰¤ hasta).');
+      this.toastr.warning('Indica un rango de fechas válido (desde ≤ hasta).');
       return;
     }
     this.loadingDayTrend = true;
