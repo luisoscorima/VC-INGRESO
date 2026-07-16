@@ -30,6 +30,11 @@ DROP TABLE IF EXISTS `survey_responses`;
 DROP TABLE IF EXISTS `access_incidents`;
 DROP TABLE IF EXISTS `surveys`;
 DROP TABLE IF EXISTS `announcements`;
+DROP TABLE IF EXISTS `tutorial_videos`;
+DROP TABLE IF EXISTS `tutorial_topics`;
+DROP TABLE IF EXISTS `readonly_documents`;
+DROP TABLE IF EXISTS `emergency_contacts`;
+DROP TABLE IF EXISTS `readonly_settings`;
 DROP TABLE IF EXISTS `reservations`;
 DROP TABLE IF EXISTS `pets`;
 DROP TABLE IF EXISTS `temporary_visit_assignments`;
@@ -393,6 +398,91 @@ CREATE TABLE `announcements` (
     KEY `idx_start_at` (`start_at`),
     KEY `idx_end_at` (`end_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Comunicados visibles para usuarios autenticados';
+
+-- -----------------------------------------------------------------------------
+-- 11b. CONTENIDO READONLY (tutoriales, documentos, emergencias)
+-- -----------------------------------------------------------------------------
+CREATE TABLE `readonly_settings` (
+    `id` TINYINT UNSIGNED NOT NULL,
+    `authorization_url` VARCHAR(600) NOT NULL DEFAULT '',
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Ajustes globales de contenido readonly (fila id=1)';
+
+CREATE TABLE `readonly_documents` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `title` VARCHAR(180) NOT NULL,
+    `url` VARCHAR(600) NOT NULL,
+    `description` VARCHAR(500) DEFAULT NULL,
+    `doc_date` DATE DEFAULT NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_readonly_docs_sort` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Metadatos de documentos de solo lectura';
+
+CREATE TABLE `tutorial_topics` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `title` VARCHAR(180) NOT NULL,
+    `description` TEXT DEFAULT NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_tutorial_topics_sort` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Temas de tutoriales (YouTube)';
+
+CREATE TABLE `tutorial_videos` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `topic_id` INT UNSIGNED NOT NULL,
+    `title` VARCHAR(180) NOT NULL,
+    `youtube_id` VARCHAR(64) NOT NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_tutorial_videos_topic` (`topic_id`),
+    KEY `idx_tutorial_videos_sort` (`sort_order`),
+    CONSTRAINT `fk_tutorial_videos_topic`
+        FOREIGN KEY (`topic_id`) REFERENCES `tutorial_topics` (`id`)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Videos de tutoriales por tema';
+
+CREATE TABLE `emergency_contacts` (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `label` VARCHAR(180) NOT NULL,
+    `phone` VARCHAR(40) NOT NULL DEFAULT '',
+    `detail` VARCHAR(500) DEFAULT NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_emergency_contacts_sort` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Contactos de emergencia';
+
+INSERT INTO `readonly_settings` (`id`, `authorization_url`) VALUES
+(1, 'https://villa-club5.com/assets/docs/autorizacion-uso-datos-personales.html');
+
+INSERT INTO `readonly_documents` (`title`, `url`, `description`, `sort_order`) VALUES
+('Autorización de uso de datos personales', 'https://villa-club5.com/assets/docs/autorizacion-uso-datos-personales.html', 'PDF', 0),
+('Manual', 'https://bkpsitecpsnew.blob.core.windows.net/uploadsitecps/sites/8/2020/07/Manual_do_aluno_ingles.pdf', 'Manual de usuario del sistema', 1),
+('Instrucciones_de_uso_VC5', '/uploads/public/readonly-docs/20260507_020335_a8e66c82.docx', 'Instrucciones de Uso', 2),
+('RHE10704164306E00133', '/uploads/public/readonly-docs/20260507_020429_bf8d68c7.pdf', 'Recibo por honorarios', 3);
+
+INSERT INTO `tutorial_topics` (`id`, `title`, `description`, `sort_order`) VALUES
+(1, 'Registro e inicio de sesión', 'Videos cortos para registrarse y usar el portal.', 0);
+
+INSERT INTO `tutorial_videos` (`topic_id`, `title`, `youtube_id`, `sort_order`) VALUES
+(1, 'Bienvenida', '97ESs0ZXTnQ', 0),
+(1, 'Inicio de sesión', 'rbuYtrNUxg4', 1);
+
+INSERT INTO `emergency_contacts` (`label`, `phone`, `detail`, `sort_order`) VALUES
+('Emergencias generales', '105', 'Policia Nacional del Perú.', 0),
+('Ambulancia', '106', 'Ambulancia del SAMU - MINSA.', 1),
+('Bomberos', '544-0566', 'Compañía de Bomberos de Carabayllo N°164.', 2),
+('Serenazgo', '967747646', 'Número de serenazgo de la Municipalidad de Carabayllo.', 3),
+('Garita', '906019439', 'Número interno de la Garita de Villa Club 5.', 4);
 
 -- -----------------------------------------------------------------------------
 -- 12. ENCUESTAS (surveys)

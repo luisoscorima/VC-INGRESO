@@ -5,27 +5,99 @@
       Videos organizados por tema.
     </p>
 
-    <div *ngIf="topics.length === 0" class="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-6 text-center text-gray-600 dark:text-gray-400">
+    <div *ngIf="auth.isAdministratorRole()" class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/20 p-4">
+      <button type="button" (click)="toggleEditor()"
+        class="vc-btn-primary w-full flex items-center justify-between !px-3 !py-2 text-sm font-semibold mb-3">
+        <span>Administrar tutoriales</span>
+        <mat-icon class="!text-base !w-4 !h-4 transition-transform duration-200" [class.rotate-180]="editorOpen">expand_more</mat-icon>
+      </button>
+
+      <div *ngIf="editorOpen" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Nuevo tema</span>
+            <input [(ngModel)]="draftTopicTitle" type="text" placeholder="Título del tema"
+              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </label>
+          <label class="block">
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Descripción (opcional)</span>
+            <input [(ngModel)]="draftTopicDescription" type="text" placeholder="Descripción breve"
+              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </label>
+        </div>
+        <button type="button" [disabled]="saving" (click)="addTopic()"
+          class="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <mat-icon class="!text-lg !w-5 !h-5">playlist_add</mat-icon>
+          Agregar tema
+        </button>
+
+        <div class="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-3">
+          <label class="block">
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Tema para el video</span>
+            <select [(ngModel)]="selectedTopicIndex"
+              class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <option [ngValue]="null">Seleccione un tema</option>
+              <option *ngFor="let t of topics; let i = index" [ngValue]="i">{{ t.title }}</option>
+            </select>
+          </label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Título del video</span>
+              <input [(ngModel)]="draftVideoTitle" type="text"
+                class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </label>
+            <label class="block">
+              <span class="text-xs font-medium text-gray-600 dark:text-gray-400">YouTube ID o URL</span>
+              <input [(ngModel)]="draftYoutubeId" type="text" placeholder="97ESs0ZXTnQ o https://youtube.com/watch?v=..."
+                class="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </label>
+          </div>
+          <button type="button" [disabled]="saving" (click)="addVideo()"
+            class="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            <mat-icon class="!text-lg !w-5 !h-5">videocam</mat-icon>
+            Agregar video
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="loading" class="text-sm text-gray-500 dark:text-gray-400 mb-4">Cargando...</div>
+
+    <div *ngIf="!loading && topics.length === 0" class="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-6 text-center text-gray-600 dark:text-gray-400">
       <p class="mb-1">Aún no hay temas configurados.</p>
-      <p class="text-sm">El contenido se gestiona desde el backend.</p>
+      <p class="text-sm" *ngIf="auth.isAdministratorRole()">Use el panel de administración para agregar videos.</p>
     </div>
 
     <mat-accordion *ngIf="topics.length > 0" multi="true">
-      <mat-expansion-panel *ngFor="let topic of topics" class="mb-2 dark:bg-gray-800/80" [expanded]="true">
+      <mat-expansion-panel *ngFor="let topic of topics; let ti = index" class="mb-2 dark:bg-gray-800/80" [expanded]="true">
         <mat-expansion-panel-header>
-          <mat-panel-title class="text-gray-900 dark:text-white font-medium">
-            {{ topic.title }}
+          <mat-panel-title class="text-gray-900 dark:text-white font-medium flex items-center justify-between w-full pr-2">
+            <span>{{ topic.title }}</span>
           </mat-panel-title>
         </mat-expansion-panel-header>
-        <p *ngIf="topic.description" class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ topic.description }}</p>
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <p *ngIf="topic.description" class="text-sm text-gray-600 dark:text-gray-400">{{ topic.description }}</p>
+          <button *ngIf="auth.isAdministratorRole()" type="button" [disabled]="saving" (click)="removeTopic(ti)"
+            class="shrink-0 inline-flex items-center gap-1 rounded-lg border border-red-300 dark:border-red-800 px-2 py-1 text-xs text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-60">
+            <mat-icon class="!text-base !w-4 !h-4">delete</mat-icon>
+            Tema
+          </button>
+        </div>
 
         <div *ngIf="topic.videos.length === 0" class="text-sm text-gray-500 dark:text-gray-400 italic">
           Sin videos en este tema.
         </div>
 
         <div *ngIf="topic.videos.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div *ngFor="let v of topic.videos" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 p-4 shadow-sm">
-            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">{{ v.title }}</h3>
+          <div *ngFor="let v of topic.videos; let vi = index" class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 p-4 shadow-sm">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ v.title }}</h3>
+              <button *ngIf="auth.isAdministratorRole()" type="button" [disabled]="saving" (click)="removeVideo(ti, vi)"
+                class="inline-flex items-center rounded-md p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-60"
+                title="Quitar video">
+                <mat-icon class="!text-base !w-4 !h-4">close</mat-icon>
+              </button>
+            </div>
             <div class="relative w-full overflow-hidden rounded-lg bg-black aspect-video shadow-md">
               <iframe
                 [title]="v.title"

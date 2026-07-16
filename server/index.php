@@ -271,6 +271,22 @@ if (str_starts_with($uri, '/api/v1/')) {
         }
     }
 
+    if ($path === 'readonly/content/tutorials') {
+        require_once __DIR__ . '/controllers/ReadonlyDocumentsController.php';
+        if ($method === 'PUT') {
+            \Controllers\ReadonlyDocumentsController::updateTutorials();
+            exit;
+        }
+    }
+
+    if ($path === 'readonly/content/emergency-contacts') {
+        require_once __DIR__ . '/controllers/ReadonlyDocumentsController.php';
+        if ($method === 'PUT') {
+            \Controllers\ReadonlyDocumentsController::updateEmergencyContacts();
+            exit;
+        }
+    }
+
     // Compatibilidad: /readonly/documents (antiguo)
     if ($path === 'readonly/documents') {
         require_once __DIR__ . '/controllers/ReadonlyDocumentsController.php';
