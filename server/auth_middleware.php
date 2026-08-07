@@ -40,3 +40,50 @@ function requireAuth(bool $checkCsrf = false) {
 
     return $payload; // contains user_id, role_system, etc.
 }
+
+/**
+ * Auth del worker LPR (cámara fija). Acepta Authorization: Bearer <LPR_SERVICE_TOKEN>
+ * o cabecera X-LPR-Token. No es un JWT de usuario.
+ *
+ * @return array{user_id: null, role_system: string, source: string}
+ */
+function requireLprServiceAuth(): array
+{
+    $expected = trim((string) (getenv('LPR_SERVICE_TOKEN') ?: ''));
+    if ($expected === '') {
+        http_response_code(503);
+        echo json_encode(['error' => 'LPR_SERVICE_TOKEN no configurado']);
+        exit;
+    }
+
+    $headers = function_exists('getallheaders') ? getallheaders() : [];
+    if (!is_array($headers)) {
+        $headers = [];
+    }
+
+    $provided = '';
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    if (is_string($authHeader) && stripos($authHeader, 'Bearer ') === 0) {
+        $provided = trim(substr($authHeader, 7));
+    }
+    if ($provided === '') {
+        $provided = trim((string) (
+            $headers['X-LPR-Token']
+            ?? $headers['X-Lpr-Token']
+            ?? $headers['x-lpr-token']
+            ?? ''
+        ));
+    }
+
+    if ($provided === '' || !hash_equals($expected, $provided)) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Token LPR inválido']);
+        exit;
+    }
+
+    return [
+        'user_id' => null,
+        'role_system' => 'OPERARIO',
+        'source' => 'lpr_service',
+    ];
+}

@@ -72,6 +72,23 @@ services:
       - api
     restart: unless-stopped
 
+  lpr-worker:
+    build:
+      context: ./lpr-worker
+      dockerfile: Dockerfile
+    container_name: vc-ingreso-lpr-worker
+    env_file:
+      - .env
+    environment:
+      - TZ=America/Lima
+      - LPR_API_BASE_URL=${LPR_API_BASE_URL:-http://api/api/v1}
+      - LPR_SERVICE_TOKEN=${LPR_SERVICE_TOKEN:-change_me_lpr_service_token}
+      - LPR_REFRESH_CAMERAS_SEC=${LPR_REFRESH_CAMERAS_SEC:-30}
+      - LPR_LOG_LEVEL=${LPR_LOG_LEVEL:-INFO}
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   mysql_data:
   frontend_node_modules:

@@ -727,6 +727,39 @@ if (str_starts_with($uri, '/api/v1/')) {
         }
     }
 
+    // ==================== LPR (cámaras fijas garita) ====================
+    if (str_starts_with($path, 'lpr')) {
+        require_once __DIR__ . '/db_connection.php';
+        require_once __DIR__ . '/controllers/LprController.php';
+        $pdo = getDbConnection();
+        $lprController = new \Controllers\LprController($pdo);
+
+        if ($path === 'lpr/worker/cameras' && $method === 'GET') {
+            $lprController->workerCameras();
+            exit;
+        }
+        if ($path === 'lpr/events' && $method === 'GET') {
+            $lprController->listEvents();
+            exit;
+        }
+        if ($path === 'lpr/events' && $method === 'POST') {
+            $lprController->ingestEvent();
+            exit;
+        }
+        if ($path === 'lpr/cameras' && $method === 'GET') {
+            $lprController->listCameras();
+            exit;
+        }
+        if ($path === 'lpr/cameras' && $method === 'POST') {
+            $lprController->createCamera();
+            exit;
+        }
+        if (preg_match('#^lpr/cameras/(\d+)$#', $path, $m) && $method === 'PUT') {
+            $lprController->updateCamera((int) $m[1]);
+            exit;
+        }
+    }
+
     // ==================== ACCESS QR (vecinos generan, staff escanea) ====================
     if (str_starts_with($path, 'access-qr')) {
         require_once __DIR__ . '/db_connection.php';
@@ -907,6 +940,14 @@ echo json_encode([
             'POST /api/v1/access-qr/generate' => 'Generar token QR (person|vehicle)',
             'POST /api/v1/access-qr/validate' => 'Validar token QR (staff)',
             'POST /api/v1/access-qr/scan' => 'Escanear: JWT o DNI/placa manual (staff)',
+
+            // LPR (cámara fija)
+            'GET /api/v1/lpr/cameras' => 'Listar cámaras LPR (staff)',
+            'POST /api/v1/lpr/cameras' => 'Crear cámara LPR (admin)',
+            'PUT /api/v1/lpr/cameras/:id' => 'Actualizar cámara LPR (admin)',
+            'GET /api/v1/lpr/events' => 'Listar eventos LPR (staff)',
+            'POST /api/v1/lpr/events' => 'Ingesta detección LPR (worker token)',
+            'GET /api/v1/lpr/worker/cameras' => 'Cámaras activas para worker (token LPR)',
             
             // Reservations (Reservaciones Casa Club)
             'GET /api/v1/reservations' => 'Listar reservaciones',

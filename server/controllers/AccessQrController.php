@@ -278,6 +278,61 @@ class AccessQrController
     }
 
     /**
+     * Resolución de placa para LPR (sin Response HTTP).
+     *
+     * @return array<string,mixed>
+     */
+    public function resolveLicensePlate(string $rawPlate, string $source = 'lpr'): array
+    {
+        $plateNorm = normalize_license_plate($rawPlate);
+        if ($plateNorm === '') {
+            return [
+                'source' => $source,
+                'kind' => 'vehicle',
+                'person' => null,
+                'vehicle' => null,
+                'license_plate' => null,
+                'vehicle_id' => null,
+                'temp_visit_id' => null,
+                'status_validated' => 'DENEGADO',
+                'allow_entry' => false,
+                'is_birthday' => false,
+                'message' => 'Placa vacía o inválida',
+            ];
+        }
+
+        $stmt = $this->pdo->prepare(
+            'SELECT * FROM vehicles WHERE license_plate = ? LIMIT 1'
+        );
+        $stmt->execute([$plateNorm]);
+        $vehicle = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($vehicle) {
+            $data = $this->buildUnifiedFromVehicle($vehicle, $source);
+
+            return $data;
+        }
+
+        $tempVisit = find_temp_visit_profile($this->pdo, $plateNorm, null);
+        if ($tempVisit) {
+            return $this->buildUnifiedFromTemporaryVisit($tempVisit, $source);
+        }
+
+        return [
+            'source' => $source,
+            'kind' => 'vehicle',
+            'person' => null,
+            'vehicle' => null,
+            'license_plate' => $plateNorm,
+            'vehicle_id' => null,
+            'temp_visit_id' => null,
+            'status_validated' => 'DENEGADO',
+            'allow_entry' => false,
+            'is_birthday' => false,
+            'message' => 'Placa no registrada',
+        ];
+    }
+
+    /**
      * Confirmar ingreso de visita externa cuando hay varias casas activas.
      */
     public function scanConfirm(): void

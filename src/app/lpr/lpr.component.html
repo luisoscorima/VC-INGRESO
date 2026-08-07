@@ -1,0 +1,192 @@
+<div class="vc-page">
+  <div class="vc-page-inner vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
+    <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Cámaras LPR</h2>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+      Reconocimiento automático de placas con cámara IP en garita. Placa autorizada → ingreso automático;
+      denegada → alerta al personal.
+    </p>
+
+    <div class="lpr-tabs mb-4">
+      <button
+        type="button"
+        class="lpr-tab"
+        [class.lpr-tab--active]="tab === 'events'"
+        (click)="tab = 'events'">
+        Eventos en vivo
+      </button>
+      <button
+        type="button"
+        class="lpr-tab"
+        [class.lpr-tab--active]="tab === 'cameras'"
+        (click)="tab = 'cameras'">
+        Cámaras
+      </button>
+    </div>
+
+    <!-- Eventos -->
+    <section *ngIf="tab === 'events'">
+      <div class="mb-3 flex items-center justify-between gap-2">
+        <span class="text-sm text-gray-600 dark:text-gray-400">
+          Actualización automática cada 4 s
+        </span>
+        <button type="button" class="vc-btn-outline py-1 px-3" (click)="loadEvents(true)">
+          Refrescar
+        </button>
+      </div>
+
+      <p *ngIf="loadingEvents" class="text-sm text-gray-500">Cargando eventos…</p>
+
+      <div class="vc-table-wrap" *ngIf="!loadingEvents">
+        <table class="vc-table text-gray-600 dark:text-gray-300">
+          <thead>
+            <tr class="vc-thead-row">
+              <th class="vc-th">Hora</th>
+              <th class="vc-th">Placa</th>
+              <th class="vc-th">Resultado</th>
+              <th class="vc-th">Cámara</th>
+              <th class="vc-th">Dir.</th>
+              <th class="vc-th">Conf.</th>
+              <th class="vc-th">Mensaje</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let e of events" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+              <td class="vc-td whitespace-nowrap">{{ e.created_at }}</td>
+              <td class="vc-td font-semibold tracking-wide">{{ e.license_plate }}</td>
+              <td class="vc-td">
+                <span [class]="resultClass(e.result)">{{ e.result }}</span>
+              </td>
+              <td class="vc-td">{{ e.camera_name || ('#' + e.camera_id) }}</td>
+              <td class="vc-td">{{ e.direction }}</td>
+              <td class="vc-td">{{ e.confidence != null ? (e.confidence | number:'1.2-2') : '—' }}</td>
+              <td class="vc-td">{{ e.message || e.status_validated || '—' }}</td>
+            </tr>
+            <tr *ngIf="!events.length">
+              <td class="vc-td text-center text-gray-500" colspan="7">Sin eventos aún</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Cámaras -->
+    <section *ngIf="tab === 'cameras'">
+      <div class="mb-4 flex flex-wrap items-center gap-2" *ngIf="canManage">
+        <button type="button" class="vc-btn-primary py-1.5 px-4" (click)="startCreate()">
+          Nueva cámara
+        </button>
+      </div>
+
+      <div
+        *ngIf="canManage && showForm"
+        class="mb-6 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+        <h3 class="text-base font-semibold mb-3 text-gray-900 dark:text-white">
+          {{ editingId != null ? 'Editar cámara #' + editingId : 'Nueva cámara' }}
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label class="lpr-field">
+            <span>Nombre</span>
+            <input class="vc-input-search" [(ngModel)]="form.name" placeholder="Garita entrada" />
+          </label>
+          <label class="lpr-field">
+            <span>Punto de acceso</span>
+            <select class="vc-input-search" [(ngModel)]="form.access_point_id">
+              <option [ngValue]="null">— Seleccione —</option>
+              <option *ngFor="let p of accessPoints" [ngValue]="p.id">{{ p.name }}</option>
+            </select>
+          </label>
+          <label class="lpr-field">
+            <span>Dirección</span>
+            <select class="vc-input-search" [(ngModel)]="form.direction">
+              <option value="INGRESO">INGRESO</option>
+              <option value="EGRESO">EGRESO</option>
+            </select>
+          </label>
+          <label class="lpr-field">
+            <span>Estado</span>
+            <select class="vc-input-search" [(ngModel)]="form.is_enabled">
+              <option [ngValue]="1">Activa</option>
+              <option [ngValue]="0">Inactiva</option>
+            </select>
+          </label>
+          <label class="lpr-field sm:col-span-2">
+            <span>Snapshot HTTP (recomendado)</span>
+            <input
+              class="vc-input-search"
+              [(ngModel)]="form.snapshot_url"
+              placeholder="http://192.168.1.50/cgi-bin/snapshot.cgi" />
+          </label>
+          <label class="lpr-field sm:col-span-2">
+            <span>Stream RTSP</span>
+            <input
+              class="vc-input-search"
+              [(ngModel)]="form.stream_url"
+              placeholder="rtsp://user:pass@192.168.1.50:554/stream1" />
+          </label>
+          <label class="lpr-field">
+            <span>Confianza mínima</span>
+            <input
+              type="number"
+              step="0.05"
+              min="0.1"
+              max="0.99"
+              class="vc-input-search"
+              [(ngModel)]="form.min_confidence" />
+          </label>
+          <label class="lpr-field">
+            <span>Debounce (s)</span>
+            <input type="number" min="5" class="vc-input-search" [(ngModel)]="form.debounce_seconds" />
+          </label>
+          <label class="lpr-field">
+            <span>Intervalo poll (ms)</span>
+            <input type="number" min="200" class="vc-input-search" [(ngModel)]="form.poll_interval_ms" />
+          </label>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <button type="button" class="vc-btn-primary py-1.5 px-4" (click)="saveCamera()">Guardar</button>
+          <button type="button" class="vc-btn-outline py-1.5 px-4" (click)="cancelEdit()">Cancelar</button>
+        </div>
+      </div>
+
+      <p *ngIf="!canManage" class="mb-3 text-sm text-amber-700 dark:text-amber-300">
+        Solo lectura: un administrador configura las cámaras.
+      </p>
+
+      <p *ngIf="loadingCameras" class="text-sm text-gray-500">Cargando cámaras…</p>
+
+      <div class="vc-table-wrap" *ngIf="!loadingCameras">
+        <table class="vc-table text-gray-600 dark:text-gray-300">
+          <thead>
+            <tr class="vc-thead-row">
+              <th class="vc-th">Nombre</th>
+              <th class="vc-th">Punto</th>
+              <th class="vc-th">Dir.</th>
+              <th class="vc-th">Estado</th>
+              <th class="vc-th">Última señal</th>
+              <th class="vc-th text-right" *ngIf="canManage">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of cameras" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+              <td class="vc-td font-medium">{{ c.name }}</td>
+              <td class="vc-td">{{ c.access_point_name || c.access_point_id }}</td>
+              <td class="vc-td">{{ c.direction }}</td>
+              <td class="vc-td">{{ enabledLabel(c.is_enabled) }}</td>
+              <td class="vc-td">{{ c.last_seen_at || '—' }}</td>
+              <td class="vc-td text-right" *ngIf="canManage">
+                <button type="button" class="vc-action-btn vc-action-btn--edit" (click)="startEdit(c)" title="Editar">
+                  Editar
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="!cameras.length">
+              <td class="vc-td text-center text-gray-500" [attr.colspan]="canManage ? 6 : 5">
+                No hay cámaras configuradas
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>

@@ -17,6 +17,7 @@ export const NAV_MODULE_DEFS: NavModuleDef[] = [
   { key: 'surveys', label: 'Encuestas', route: '/surveys', section: 'gestion', icon: 'fact_check', sortOrder: 60 },
   { key: 'incidents', label: 'Incidencias', route: '/incidents', section: 'gestion', icon: 'report_problem', sortOrder: 65 },
   { key: 'access_points', label: 'Puntos de acceso', route: '/access-points', section: 'admin', icon: 'sensor_door', sortOrder: 70 },
+  { key: 'lpr', label: 'Cámaras LPR', route: '/lpr', section: 'admin', icon: 'videocam', sortOrder: 75 },
 ];
 
 export const NAV_PERMISSION_ROLES = ['ADMINISTRADOR', 'OPERARIO', 'USUARIO'] as const;

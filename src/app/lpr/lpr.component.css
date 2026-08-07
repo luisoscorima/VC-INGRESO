@@ -1,0 +1,75 @@
+.lpr-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  padding-bottom: 0.5rem;
+}
+
+.lpr-tab {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0.4rem 0.85rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.lpr-tab--active {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0f766e;
+  opacity: 1;
+}
+
+:host-context(.dark) .lpr-tab--active {
+  background: rgba(45, 212, 191, 0.15);
+  color: #5eead4;
+}
+
+.lpr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.lpr-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.lpr-badge--ok {
+  background: rgba(16, 185, 129, 0.18);
+  color: #047857;
+}
+
+.lpr-badge--alert {
+  background: rgba(245, 158, 11, 0.2);
+  color: #b45309;
+}
+
+.lpr-badge--muted {
+  background: rgba(100, 116, 139, 0.18);
+  color: #475569;
+}
+
+:host-context(.dark) .lpr-badge--ok {
+  color: #6ee7b7;
+}
+
+:host-context(.dark) .lpr-badge--alert {
+  color: #fcd34d;
+}
+
+:host-context(.dark) .lpr-badge--muted {
+  color: #cbd5e1;
+}

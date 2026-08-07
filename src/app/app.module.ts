@@ -68,6 +68,7 @@ import { AnnouncementsComponent } from './announcements/announcements.component'
 import { SurveysComponent } from './surveys/surveys.component';
 import { IncidentsComponent } from './incidents/incidents.component';
 import { EventLogsComponent } from './event-logs/event-logs.component';
+import { LprComponent } from './lpr/lpr.component';
 
 import { authInterceptor } from './auth.interceptor';
 import { errorInterceptor } from './error.interceptor';
@@ -101,6 +102,7 @@ import { errorInterceptor } from './error.interceptor';
         SurveysComponent,
         IncidentsComponent,
         EventLogsComponent,
+        LprComponent,
     ],
     bootstrap: [AppComponent], imports: [BrowserModule,
         AppRoutingModule,
