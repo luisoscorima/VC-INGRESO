@@ -29,3 +29,50 @@
   justify-content: center;
   flex-wrap: wrap;
 }
+
+.history-source-badge {
+  display: inline-flex;
+  border-radius: 0.375rem;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.history-source-badge--camera {
+  background: #ccfbf1;
+  color: #115e59;
+}
+
+.history-photo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 65%);
+}
+
+.history-photo-modal {
+  width: min(100%, 56rem);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 0.75rem;
+  background: white;
+  padding: 1rem;
+  text-align: right;
+}
+
+.history-photo-modal img {
+  width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  background: #0f172a;
+}
+
+.dark .history-photo-modal {
+  background: #1f2937;
+}

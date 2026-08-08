@@ -64,6 +64,15 @@
           placeholder="Documento, nombre, domicilio, punto de acceso…"
           class="vc-input-search w-full" />
       </div>
+      <div class="w-full sm:w-48">
+        <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Origen</label>
+        <select [(ngModel)]="sourceFilter" (ngModelChange)="onSourceFilterChange()" class="vc-select-sm w-full">
+          <option value="">Todos</option>
+          <option value="manual">Manual</option>
+          <option value="qr">QR</option>
+          <option value="camera">Cámara</option>
+        </select>
+      </div>
       <button
         type="button"
         [disabled]="loading || !filteredRows.length"
@@ -92,6 +101,9 @@
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('access_point_name')">
               Punto de acceso {{ sortIndicator('access_point_name') }}
             </th>
+            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('entry_source')">
+              Origen {{ sortIndicator('entry_source') }}
+            </th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('date_entry')">
               Ingreso {{ sortIndicator('date_entry') }}
             </th>
@@ -112,6 +124,7 @@
               Operario {{ sortIndicator('operator') }}
             </th>
             <th scope="col" class="vc-th"></th>
+            <th scope="col" class="vc-th">Foto</th>
             <th scope="col" class="vc-th" *ngIf="showIncidentsColumn">Incid.</th>
             <th scope="col" class="vc-th">Detalle</th>
           </tr>
@@ -126,6 +139,11 @@
             <td class="vc-td">{{ a.name }}</td>
             <td class="vc-td">{{ a.house_address }}</td>
             <td class="vc-td max-w-[200px] truncate" [title]="a.access_point_name || ''">{{ a.access_point_name || '—' }}</td>
+            <td class="vc-td">
+              <span class="history-source-badge" [class.history-source-badge--camera]="isCameraRow(a)">
+                {{ entrySourceLabel(a) }}
+              </span>
+            </td>
             <td class="vc-td whitespace-nowrap">{{ a.date_entry | date : 'dd/MM/yyyy HH:mm' }}</td>
             <td class="vc-td whitespace-nowrap">
               <ng-container *ngIf="a.date_exit; else noExit">{{ a.date_exit | date : 'dd/MM/yyyy HH:mm' }}</ng-container>
@@ -151,6 +169,16 @@
                 class="text-amber-600 dark:text-amber-400">
                 warning
               </mat-icon>
+            </td>
+            <td class="vc-td">
+              <button
+                *ngIf="a.access_photo_url"
+                type="button"
+                class="vc-btn-outline"
+                (click)="showHistoryPhoto(a)">
+                Ver
+              </button>
+              <span *ngIf="!a.access_photo_url">—</span>
             </td>
             <td class="vc-td text-center" *ngIf="showIncidentsColumn">
               <button
@@ -218,5 +246,12 @@
         </button>
       </div>
     </div>
+  </div>
+</div>
+
+<div *ngIf="historyPhotoOpen" class="history-photo-overlay" (click)="historyPhotoOpen = false">
+  <div class="history-photo-modal" (click)="$event.stopPropagation()">
+    <img *ngIf="selectedHistoryPhotoUrl" [src]="selectedHistoryPhotoUrl" alt="Evidencia del acceso" />
+    <button type="button" class="vc-btn-primary mt-3" (click)="historyPhotoOpen = false">Cerrar</button>
   </div>
 </div>

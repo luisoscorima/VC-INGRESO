@@ -1,0 +1,92 @@
+.camera-tab {
+  border-bottom: 2px solid transparent;
+  padding: 0.65rem 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.camera-tab--active {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.camera-label {
+  margin-bottom: 0.25rem;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.camera-status,
+.camera-result {
+  display: inline-flex;
+  border-radius: 0.375rem;
+  padding: 0.2rem 0.5rem;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.camera-status--inactive,
+.camera-result[data-result='DENIED'] {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.camera-result[data-result='IGNORED_DUPLICATE'] {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.camera-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 65%);
+}
+
+.camera-modal,
+.camera-photo {
+  width: min(100%, 32rem);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 0.75rem;
+  background: white;
+  padding: 1.25rem;
+  box-shadow: 0 20px 50px rgb(15 23 42 / 30%);
+}
+
+.camera-modal h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.camera-photo {
+  width: min(100%, 56rem);
+  text-align: right;
+}
+
+.camera-photo img {
+  width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  background: #0f172a;
+}
+
+:host-context(.dark) .camera-label {
+  color: #cbd5e1;
+}
+
+:host-context(.dark) .camera-modal,
+:host-context(.dark) .camera-photo {
+  background: #1f2937;
+  color: #f8fafc;
+}

@@ -53,6 +53,7 @@ export class HistoryComponent implements OnInit {
   allRows: HistoryRow[] = [];
 
   filterQuery = '';
+  sourceFilter: '' | 'manual' | 'qr' | 'camera' = '';
   sortKey: keyof HistoryRow | string = 'date_entry';
   sortAsc = false;
 
@@ -67,9 +68,11 @@ export class HistoryComponent implements OnInit {
   showIncidentsColumn = false;
 
   expandedHistoryRowId: ExpandableRowId = null;
+  historyPhotoOpen = false;
+  selectedHistoryPhotoUrl: string | null = null;
 
   get historyTableColspan(): number {
-    let cols = this.showDocColumn ? 13 : 12;
+    let cols = this.showDocColumn ? 15 : 14;
     if (this.showIncidentsColumn) cols += 1;
     return cols;
   }
@@ -87,6 +90,9 @@ export class HistoryComponent implements OnInit {
 
   get filteredRows(): HistoryRow[] {
     let rows = [...this.allRows];
+    if (this.sourceFilter) {
+      rows = rows.filter((r) => String(r['entry_source'] ?? 'manual').toLowerCase() === this.sourceFilter);
+    }
     const f = this.filterQuery.trim().toLowerCase();
     if (f) {
       rows = rows.filter((r) =>
@@ -250,6 +256,7 @@ export class HistoryComponent implements OnInit {
       DATOS: r['name'],
       DOMICILIO: r['house_address'],
       PUNTO_ACCESO: r['access_point_name'],
+      ORIGEN: this.entrySourceLabel(r),
       INGRESO: r['date_entry'],
       SALIDA: r['date_exit'],
       ...(this.hasExternalRows ? { PERMANENCIA_MIN: this.formatPermanence(r) } : {}),
@@ -266,6 +273,27 @@ export class HistoryComponent implements OnInit {
     this.pageIndex = 0;
     this.expandedHistoryRowId = null;
     this.fetchHistory();
+  }
+
+  onSourceFilterChange(): void {
+    this.pageIndex = 0;
+    this.expandedHistoryRowId = null;
+  }
+
+  entrySourceLabel(row: HistoryRow): string {
+    const source = String(row['entry_source'] ?? 'manual').toLowerCase();
+    return source === 'camera' ? 'Cámara' : source === 'qr' ? 'QR' : 'Manual';
+  }
+
+  isCameraRow(row: HistoryRow): boolean {
+    return String(row['entry_source'] ?? '').toLowerCase() === 'camera';
+  }
+
+  showHistoryPhoto(row: HistoryRow): void {
+    const url = this.api.getPhotoUrl(String(row['access_photo_url'] ?? ''));
+    if (!url) return;
+    this.selectedHistoryPhotoUrl = url;
+    this.historyPhotoOpen = true;
   }
 
   onDateRangeChange(): void {

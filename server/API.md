@@ -259,7 +259,7 @@ Catálogo global reutilizable (placa **o** DNI) + asignaciones por casa con temp
 
 `GET /api/v1/access-logs/history-by-range` incluye `incident_count` por fila solo para staff con permiso **Ver** en módulo `incidents`.
 
-Columnas unificadas de historial (además de las ya existentes): `log_source` (`REGISTRY` \| `EXTERNAL`), `movement_type`, `assignment_valid_until`, `authorized_duration_minutes`, `stay_deadline`, `permanence_minutes`, `stay_exceeded`, `session_open` (solo relevantes en filas `EXTERNAL`).
+Columnas unificadas de historial (además de las ya existentes): `log_source` (`REGISTRY` \| `EXTERNAL`), `entry_source` (`manual` \| `qr` \| `camera`), `access_photo_url`, `movement_type`, `assignment_valid_until`, `authorized_duration_minutes`, `stay_deadline`, `permanence_minutes`, `stay_exceeded`, `session_open` (las últimas son relevantes en filas `EXTERNAL`).
 
 ---
 
@@ -273,6 +273,21 @@ Solo **staff** con permiso **Ver** en módulo `incidents` (`nav_modules` / Ajust
 | GET | `/api/v1/access-incidents/:id` | Detalle con `access_context` si hay log asociado. |
 | GET | `/api/v1/access-incidents/by-log/:logRef` | Incidencias de un registro (`id>0` → `access_logs`, `id<0` → `temporary_access_logs`). |
 | POST | `/api/v1/access-incidents` | Crear (`multipart/form-data`). Campos: `description` (req), `access_point_id` (req), `source` (`scan`\|`manual`), `photo?` (archivo). Modo `scan`: `access_log_id` o `temp_access_log_id` + snapshot opcional. Modo `manual`: sin IDs de log. |
+
+---
+
+## Cámaras LPR
+
+Las lecturas LPR se guardan en `camera_access_events` y nunca en `access_incidents`. Solo una lectura autorizada crea un ingreso en `access_logs` o `temporary_access_logs`.
+
+| Método | Ruta | Autenticación / descripción |
+|--------|------|-----------------------------|
+| GET | `/api/v1/access-cameras` | JWT y permiso `cameras.view`. Lista dispositivos sin exponer la clave. |
+| POST | `/api/v1/access-cameras` | JWT y `cameras.manage`. Crea cámara y devuelve `api_key` una sola vez. |
+| PUT | `/api/v1/access-cameras/:id` | JWT y `cameras.manage`. Actualiza punto, estado y debounce. |
+| POST | `/api/v1/access-cameras/:id/rotate-key` | JWT y `cameras.manage`. Invalida la clave anterior y devuelve la nueva una vez. |
+| GET | `/api/v1/camera-access/events` | JWT y `cameras.view`. Filtros: fecha, cámara, punto, placa, resultado y paginación. |
+| POST | `/api/v1/camera-access/ingest` | `X-Camera-Key` o Bearer de cámara. Multipart: `license_plate`, `confidence?`, `captured_at?`, `photo?`. |
 
 ---
 

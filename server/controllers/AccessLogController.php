@@ -169,6 +169,7 @@ class AccessLogController
         }
 
         $createdByUserId = isset($auth['user_id']) ? (int)$auth['user_id'] : null;
+        $entrySource = strtolower(trim((string) ($data['entry_source'] ?? 'manual'))) === 'qr' ? 'qr' : 'manual';
 
         try {
             if ($data['type'] === 'EGRESO') {
@@ -178,8 +179,8 @@ class AccessLogController
 
             $stmt = $this->pdo->prepare("
                 INSERT INTO {$this->table} 
-                (access_point_id, person_id, doc_number, vehicle_id, type, observation, created_by_user_id, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                (access_point_id, person_id, doc_number, vehicle_id, type, observation, entry_source, created_by_user_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
 
             $stmt->execute([
@@ -189,6 +190,7 @@ class AccessLogController
                 $data['vehicle_id'] ?? null,
                 $data['type'],
                 $data['observation'] ?? null,
+                $entrySource,
                 $createdByUserId
             ]);
 
@@ -409,6 +411,7 @@ class AccessLogController
 
         $createdByUserId = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
         $statusValidated = trim((string) ($data['status_validated'] ?? 'PERMITIDO'));
+        $entrySource = strtolower(trim((string) ($data['entry_source'] ?? 'manual'))) === 'qr' ? 'qr' : 'manual';
         $now = date('Y-m-d H:i:s');
         $assignmentValidUntil = (string) ($assignment['valid_until'] ?? '');
         $authorizedMinutes = assignment_authorized_duration_minutes($assignment);
@@ -418,8 +421,8 @@ class AccessLogController
             $stmt = $this->pdo->prepare(
                 "INSERT INTO temporary_access_logs
                  (temp_visit_id, assignment_id, assignment_valid_until, authorized_duration_minutes, stay_deadline,
-                  temp_entry_time, access_point_id, status_validated, house_id, created_by_user_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                  temp_entry_time, access_point_id, status_validated, entry_source, house_id, created_by_user_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $stmt->execute([
                 $tempVisitId,
@@ -430,6 +433,7 @@ class AccessLogController
                 $now,
                 $accessPointId,
                 $statusValidated !== '' ? $statusValidated : 'PERMITIDO',
+                $entrySource,
                 $houseId,
                 $createdByUserId,
             ]);
@@ -737,6 +741,8 @@ class AccessLogController
                 al.vehicle_id,
                 {$s('al.type')} AS movement_type,
                 {$s('al.observation')} AS observation_raw,
+                {$s('al.entry_source')} AS entry_source,
+                {$s('al.photo_url')} AS access_photo_url,
                 al.created_by_user_id,
                 al.created_at,
                 al.updated_at,
@@ -807,6 +813,8 @@ class AccessLogController
                 NULL AS vehicle_id,
                 {$s("'INGRESO'")} AS movement_type,
                 {$s('CAST(NULL AS CHAR(1))')} AS observation_raw,
+                {$s('tal.entry_source')} AS entry_source,
+                {$s('tal.photo_url')} AS access_photo_url,
                 tal.created_by_user_id,
                 tal.temp_entry_time AS created_at,
                 COALESCE(tal.temp_exit_time, tal.temp_entry_time) AS updated_at,

@@ -1110,6 +1110,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
         house_id: houseId,
         assignment_id: data.assignment_id ?? null,
         status_validated: data.status_validated,
+        entry_source: 'qr',
       };
       this.api.post('api/v1/access-logs/temporary', body).subscribe({
         next: (res) => {
@@ -1134,6 +1135,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       access_point_id: apId,
       type: this.movementMode,
       observation: this.buildObservation(data),
+      entry_source: 'qr',
     };
 
     if (data.kind === 'person') {

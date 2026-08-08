@@ -1,0 +1,189 @@
+<div class="vc-page">
+  <div class="vc-page-inner vc-card bg-white p-4 dark:bg-gray-800/90 sm:p-6">
+    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h2 class="mb-1 text-xl font-semibold text-gray-900 dark:text-white">Cámaras LPR</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Configura los dispositivos y revisa sus lecturas OCR sin mezclarlas con incidencias.
+        </p>
+      </div>
+      <button *ngIf="canManage && activeTab === 'cameras'" type="button" class="vc-btn-primary" (click)="openCreate()">
+        Nueva cámara
+      </button>
+    </div>
+
+    <div class="mb-5 flex border-b border-gray-200 dark:border-gray-700">
+      <button type="button" class="camera-tab" [class.camera-tab--active]="activeTab === 'cameras'" (click)="changeTab('cameras')">
+        Configuración
+      </button>
+      <button type="button" class="camera-tab" [class.camera-tab--active]="activeTab === 'events'" (click)="changeTab('events')">
+        Lecturas
+      </button>
+    </div>
+
+    <ng-container *ngIf="activeTab === 'cameras'">
+      <div class="vc-table-wrap">
+        <table class="vc-table text-gray-600 dark:text-gray-300">
+          <thead>
+            <tr class="vc-thead-row">
+              <th class="vc-th">Cámara</th>
+              <th class="vc-th">Punto de acceso</th>
+              <th class="vc-th">Clave</th>
+              <th class="vc-th">Antirepetición</th>
+              <th class="vc-th">Última conexión</th>
+              <th class="vc-th">Estado</th>
+              <th *ngIf="canManage" class="vc-th text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let camera of cameras" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+              <td class="vc-td font-medium">{{ camera.name }}</td>
+              <td class="vc-td">{{ camera.access_point_name }}</td>
+              <td class="vc-td font-mono text-xs">{{ camera.api_key_prefix }}…</td>
+              <td class="vc-td">{{ camera.debounce_seconds }} s</td>
+              <td class="vc-td">{{ camera.last_seen_at ? (camera.last_seen_at | date:'dd/MM/yyyy HH:mm') : 'Nunca' }}</td>
+              <td class="vc-td">
+                <span class="camera-status" [class.camera-status--inactive]="camera.is_active !== 1 && camera.is_active !== true">
+                  {{ camera.is_active === 1 || camera.is_active === true ? 'Activa' : 'Inactiva' }}
+                </span>
+              </td>
+              <td *ngIf="canManage" class="vc-td text-right">
+                <button type="button" class="vc-btn-outline mr-2" (click)="rotateKey(camera)">Rotar clave</button>
+                <button type="button" class="vc-btn-outline" (click)="openEdit(camera)">Editar</button>
+              </td>
+            </tr>
+            <tr *ngIf="!cameras.length">
+              <td [attr.colspan]="canManage ? 7 : 6" class="px-6 py-10 text-center text-gray-500">No hay cámaras configuradas.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="activeTab === 'events'">
+      <div class="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+        <div>
+          <label class="camera-label">Desde</label>
+          <input type="date" class="vc-field w-full" [(ngModel)]="fechaInicial" />
+        </div>
+        <div>
+          <label class="camera-label">Hasta</label>
+          <input type="date" class="vc-field w-full" [(ngModel)]="fechaFinal" />
+        </div>
+        <div>
+          <label class="camera-label">Cámara</label>
+          <select class="vc-field w-full" [(ngModel)]="cameraFilter">
+            <option [ngValue]="0">Todas</option>
+            <option *ngFor="let camera of cameras" [ngValue]="camera.camera_id">{{ camera.name }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="camera-label">Resultado</label>
+          <select class="vc-field w-full" [(ngModel)]="resultFilter">
+            <option value="">Todos</option>
+            <option value="ALLOWED">Permitido</option>
+            <option value="DENIED">Denegado</option>
+            <option value="IGNORED_DUPLICATE">Duplicado</option>
+          </select>
+        </div>
+        <div>
+          <label class="camera-label">Placa</label>
+          <input type="search" class="vc-field w-full uppercase" [(ngModel)]="plateFilter" placeholder="ABC123" />
+        </div>
+        <div class="flex items-end">
+          <button type="button" class="vc-btn-primary w-full" [disabled]="loading" (click)="loadEvents()">Buscar</button>
+        </div>
+      </div>
+
+      <div class="vc-table-wrap">
+        <table class="vc-table text-gray-600 dark:text-gray-300">
+          <thead>
+            <tr class="vc-thead-row">
+              <th class="vc-th">Captura</th>
+              <th class="vc-th">Placa</th>
+              <th class="vc-th">Confianza</th>
+              <th class="vc-th">Cámara / punto</th>
+              <th class="vc-th">Coincidencia</th>
+              <th class="vc-th">Resultado</th>
+              <th class="vc-th">Foto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let event of events" class="vc-tbody-row bg-white dark:bg-gray-900/40">
+              <td class="vc-td whitespace-nowrap">{{ event.captured_at | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+              <td class="vc-td font-mono text-base font-semibold">{{ event.license_plate_norm }}</td>
+              <td class="vc-td">{{ event.confidence != null ? ((event.confidence * 100) | number:'1.0-1') + '%' : '—' }}</td>
+              <td class="vc-td">
+                <span class="block font-medium">{{ event.camera_name }}</span>
+                <span class="text-xs text-gray-500">{{ event.access_point_name }}</span>
+              </td>
+              <td class="vc-td">{{ matchLabel(event.match_type) }}</td>
+              <td class="vc-td">
+                <span class="camera-result" [attr.data-result]="event.result">{{ resultLabel(event.result) }}</span>
+              </td>
+              <td class="vc-td">
+                <button *ngIf="event.photo_url" type="button" class="vc-btn-outline" (click)="showPhoto(event)">Ver</button>
+                <span *ngIf="!event.photo_url">—</span>
+              </td>
+            </tr>
+            <tr *ngIf="!events.length">
+              <td colspan="7" class="px-6 py-10 text-center text-gray-500">
+                {{ loading ? 'Cargando lecturas…' : 'No hay lecturas para los filtros seleccionados.' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="vc-pagination">
+        <span class="vc-pagination-meta">{{ eventTotal }} lecturas</span>
+        <div class="vc-pagination-nav">
+          <button type="button" class="vc-btn-outline" [disabled]="eventPage <= 1" (click)="loadEvents(eventPage - 1)">Anterior</button>
+          <span>Página {{ eventPage }} de {{ eventTotalPages || 1 }}</span>
+          <button type="button" class="vc-btn-outline" [disabled]="eventPage >= eventTotalPages" (click)="loadEvents(eventPage + 1)">Siguiente</button>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+</div>
+
+<div *ngIf="formOpen" class="camera-overlay" (click)="formOpen = false">
+  <section class="camera-modal" (click)="$event.stopPropagation()">
+    <h3>{{ editing ? 'Editar cámara' : 'Nueva cámara' }}</h3>
+    <label class="camera-label mt-4">Nombre *</label>
+    <input class="vc-field w-full" [(ngModel)]="form.name" placeholder="Ej. Cámara ingreso principal" />
+    <label class="camera-label mt-4">Punto de acceso *</label>
+    <select class="vc-field w-full" [(ngModel)]="form.access_point_id">
+      <option [ngValue]="null">Seleccione</option>
+      <option *ngFor="let point of accessPoints" [ngValue]="point.id">{{ point.name }}</option>
+    </select>
+    <label class="camera-label mt-4">Antirepetición (segundos)</label>
+    <input type="number" min="5" max="600" class="vc-field w-full" [(ngModel)]="form.debounce_seconds" />
+    <label class="mt-4 flex items-center gap-2 text-sm dark:text-white">
+      <input type="checkbox" [(ngModel)]="form.is_active" /> Cámara activa
+    </label>
+    <div class="mt-6 flex justify-end gap-2">
+      <button type="button" class="vc-btn-cancel" (click)="formOpen = false">Cancelar</button>
+      <button type="button" class="vc-btn-primary" (click)="saveCamera()">Guardar</button>
+    </div>
+  </section>
+</div>
+
+<div *ngIf="secretOpen" class="camera-overlay" (click)="secretOpen = false">
+  <section class="camera-modal" (click)="$event.stopPropagation()">
+    <h3>{{ issuedKeyTitle }}</h3>
+    <p class="my-3 text-sm text-amber-700 dark:text-amber-300">Guarde esta clave ahora. Por seguridad no volverá a mostrarse.</p>
+    <textarea class="vc-field h-24 w-full font-mono text-xs" readonly [value]="issuedKey"></textarea>
+    <div class="mt-4 flex justify-end gap-2">
+      <button type="button" class="vc-btn-outline" (click)="copyKey()">Copiar</button>
+      <button type="button" class="vc-btn-primary" (click)="secretOpen = false">Entendido</button>
+    </div>
+  </section>
+</div>
+
+<div *ngIf="photoOpen" class="camera-overlay" (click)="photoOpen = false">
+  <section class="camera-photo" (click)="$event.stopPropagation()">
+    <img *ngIf="selectedPhotoUrl" [src]="selectedPhotoUrl" alt="Captura de lectura LPR" />
+    <button type="button" class="vc-btn-primary mt-3" (click)="photoOpen = false">Cerrar</button>
+  </section>
+</div>

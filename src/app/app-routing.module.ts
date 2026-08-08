@@ -27,6 +27,7 @@ import { EmergencyContactsComponent } from './readonly/emergency-contacts.compon
 import { AnnouncementsComponent } from './announcements/announcements.component';
 import { SurveysComponent } from './surveys/surveys.component';
 import { IncidentsComponent } from './incidents/incidents.component';
+import { CamerasComponent } from './cameras/cameras.component';
 
 const routes: Routes = [
   { path: "login", component: LoginComponent },
@@ -52,6 +53,7 @@ const routes: Routes = [
   { path: "announcements", component: AnnouncementsComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'announcements' } },
   { path: "surveys", component: SurveysComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'surveys' } },
   { path: "incidents", component: IncidentsComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'incidents' } },
+  { path: "cameras", component: CamerasComponent, canActivate: [AuthGuard, ModuleGuard], data: { module: 'cameras' } },
   //{ path: "", redirectTo: "/clientes", pathMatch: "full" },// Cuando es la raíz
   //{ path: "**", redirectTo: "/clientes" }
 ];

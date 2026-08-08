@@ -29,7 +29,7 @@ date_default_timezone_set(getenv('APP_TIMEZONE') ?: 'America/Lima');
 // CORS: enviar siempre desde PHP (funciona con servidor integrado PHP o Apache)
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Camera-Key, X-Requested-With, Accept');
 header('Access-Control-Max-Age: 86400');
 header('Content-Type: application/json');
 
@@ -674,6 +674,40 @@ if (str_starts_with($uri, '/api/v1/')) {
         }
     }
 
+    // ==================== CÁMARAS LPR ====================
+    if (str_starts_with($path, 'access-cameras') || str_starts_with($path, 'camera-access')) {
+        require_once __DIR__ . '/db_connection.php';
+        require_once __DIR__ . '/controllers/CameraAccessController.php';
+        $pdo = getDbConnection();
+        $cameraController = new \Controllers\CameraAccessController($pdo);
+
+        // Autenticación propia por API key de cámara, sin JWT/CSRF de usuario.
+        if ($path === 'camera-access/ingest' && $method === 'POST') {
+            $cameraController->ingest();
+            exit;
+        }
+        if ($path === 'camera-access/events' && $method === 'GET') {
+            $cameraController->eventsIndex();
+            exit;
+        }
+        if ($path === 'access-cameras' && $method === 'GET') {
+            $cameraController->camerasIndex();
+            exit;
+        }
+        if ($path === 'access-cameras' && $method === 'POST') {
+            $cameraController->camerasStore();
+            exit;
+        }
+        if (preg_match('#^access-cameras/(\d+)/rotate-key$#', $path, $m) && $method === 'POST') {
+            $cameraController->camerasRotateKey((int) $m[1]);
+            exit;
+        }
+        if (preg_match('#^access-cameras/(\d+)$#', $path, $m) && $method === 'PUT') {
+            $cameraController->camerasUpdate((int) $m[1]);
+            exit;
+        }
+    }
+
     // ==================== ACCESS LOGS ====================
     if (str_starts_with($path, 'access-logs')) {
         require_once __DIR__ . '/db_connection.php';
@@ -902,6 +936,14 @@ echo json_encode([
             'GET /api/v1/access-logs/:id' => 'Obtener log por ID',
             'POST /api/v1/access-logs' => 'Crear registro de acceso',
             'GET /api/v1/access-logs/access-points' => 'Listar puntos de acceso',
+
+            // Cámaras LPR
+            'GET /api/v1/access-cameras' => 'Listar cámaras LPR',
+            'POST /api/v1/access-cameras' => 'Crear cámara y emitir API key',
+            'PUT /api/v1/access-cameras/:id' => 'Actualizar cámara LPR',
+            'POST /api/v1/access-cameras/:id/rotate-key' => 'Rotar API key de cámara',
+            'GET /api/v1/camera-access/events' => 'Listar lecturas LPR',
+            'POST /api/v1/camera-access/ingest' => 'Recibir lectura OCR por API key',
 
             // Access QR (JWT ingreso; vecinos generan, staff valida/escanea)
             'POST /api/v1/access-qr/generate' => 'Generar token QR (person|vehicle)',

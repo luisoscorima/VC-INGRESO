@@ -8,6 +8,8 @@ dist/
 vendor/
 .env
 .env.local
+__pycache__/
+*.py[cod]
 
 # Archivos subidos (fotos vehículos/mascotas)
 uploads/

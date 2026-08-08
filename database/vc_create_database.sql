@@ -27,6 +27,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- -----------------------------------------------------------------------------
 DROP TABLE IF EXISTS `house_members`;
 DROP TABLE IF EXISTS `survey_responses`;
+DROP TABLE IF EXISTS `camera_access_events`;
 DROP TABLE IF EXISTS `access_incidents`;
 DROP TABLE IF EXISTS `surveys`;
 DROP TABLE IF EXISTS `announcements`;
@@ -44,6 +45,7 @@ DROP TABLE IF EXISTS `temporary_visits`;
 DROP TABLE IF EXISTS `vehicles`;
 DROP TABLE IF EXISTS `persons`;
 DROP TABLE IF EXISTS `users`;
+DROP TABLE IF EXISTS `access_cameras`;
 DROP TABLE IF EXISTS `access_points`;
 DROP TABLE IF EXISTS `houses`;
 
@@ -105,6 +107,22 @@ CREATE TABLE `access_points` (
     KEY `idx_is_active` (`is_active`),
     KEY `idx_permite_reserva` (`permite_reserva`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Puntos de acceso y áreas reservables';
+
+CREATE TABLE `access_cameras` (
+    `camera_id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(120) NOT NULL,
+    `access_point_id` INT UNSIGNED NOT NULL,
+    `api_key_hash` CHAR(64) NOT NULL,
+    `api_key_prefix` VARCHAR(16) NOT NULL,
+    `debounce_seconds` SMALLINT UNSIGNED NOT NULL DEFAULT 45,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `last_seen_at` DATETIME DEFAULT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`camera_id`),
+    UNIQUE KEY `uq_access_cameras_api_key_hash` (`api_key_hash`),
+    KEY `idx_access_cameras_point_active` (`access_point_id`, `is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Cámaras autorizadas para registrar lecturas LPR';
 
 -- -----------------------------------------------------------------------------
 -- 4. PERSONAS (persons) - Residentes, propietarios, visitas (API persons + pets.owner)
@@ -252,6 +270,8 @@ CREATE TABLE `access_logs` (
     `vehicle_id` INT UNSIGNED DEFAULT NULL,
     `type` ENUM('INGRESO', 'EGRESO') NOT NULL DEFAULT 'INGRESO',
     `observation` TEXT DEFAULT NULL,
+    `entry_source` ENUM('manual', 'qr', 'camera') NOT NULL DEFAULT 'manual',
+    `photo_url` VARCHAR(255) DEFAULT NULL,
     `created_by_user_id` INT UNSIGNED DEFAULT NULL COMMENT 'user_id del guardia/operario que registró',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -261,6 +281,7 @@ CREATE TABLE `access_logs` (
     KEY `idx_doc_number` (`doc_number`),
     KEY `idx_vehicle` (`vehicle_id`),
     KEY `idx_type` (`type`),
+    KEY `idx_access_logs_entry_source` (`entry_source`),
     KEY `idx_created_at` (`created_at`),
     KEY `idx_created_by_user` (`created_by_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Registro de ingresos/egresos';
@@ -279,6 +300,8 @@ CREATE TABLE `temporary_access_logs` (
     `temp_exit_time` DATETIME DEFAULT NULL,
     `access_point_id` INT UNSIGNED NOT NULL,
     `status_validated` VARCHAR(50) DEFAULT NULL,
+    `entry_source` ENUM('manual', 'qr', 'camera') NOT NULL DEFAULT 'manual',
+    `photo_url` VARCHAR(255) DEFAULT NULL,
     `house_id` INT UNSIGNED DEFAULT NULL,
     `operario_id` INT UNSIGNED DEFAULT NULL,
     `created_by_user_id` INT UNSIGNED DEFAULT NULL COMMENT 'user_id quien registró (reemplazo conceptual de operario_id)',
@@ -288,6 +311,7 @@ CREATE TABLE `temporary_access_logs` (
     KEY `idx_tal_entry_time` (`temp_entry_time`),
     KEY `idx_tal_open_session` (`temp_visit_id`, `house_id`, `temp_exit_time`),
     KEY `idx_tal_stay_deadline` (`stay_deadline`),
+    KEY `idx_temp_access_logs_entry_source` (`entry_source`),
     KEY `idx_access_point` (`access_point_id`),
     KEY `idx_house` (`house_id`),
     KEY `idx_operario` (`operario_id`),
@@ -322,6 +346,36 @@ CREATE TABLE `access_incidents` (
     KEY `idx_ai_temp_access_log` (`temp_access_log_id`),
     KEY `idx_ai_created_by` (`created_by_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Incidencias reportadas en garita';
+
+-- -----------------------------------------------------------------------------
+-- 8c. EVENTOS DE CÁMARA LPR (separados de incidencias)
+-- -----------------------------------------------------------------------------
+CREATE TABLE `camera_access_events` (
+    `event_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `camera_id` INT UNSIGNED NOT NULL,
+    `access_point_id` INT UNSIGNED NOT NULL,
+    `license_plate_raw` VARCHAR(40) NOT NULL,
+    `license_plate_norm` VARCHAR(20) NOT NULL,
+    `confidence` DECIMAL(5,4) DEFAULT NULL,
+    `match_type` ENUM('REGISTRY', 'EXTERNAL', 'NONE', 'DENIED') NOT NULL,
+    `result` ENUM('ALLOWED', 'DENIED', 'IGNORED_DUPLICATE') NOT NULL,
+    `access_log_id` BIGINT UNSIGNED DEFAULT NULL,
+    `temp_access_log_id` INT UNSIGNED DEFAULT NULL,
+    `vehicle_id` INT UNSIGNED DEFAULT NULL,
+    `temp_visit_id` INT UNSIGNED DEFAULT NULL,
+    `house_id` INT UNSIGNED DEFAULT NULL,
+    `photo_url` VARCHAR(255) DEFAULT NULL,
+    `captured_at` DATETIME NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`event_id`),
+    KEY `idx_camera_events_created` (`created_at`),
+    KEY `idx_camera_events_camera_created` (`camera_id`, `created_at`),
+    KEY `idx_camera_events_point_created` (`access_point_id`, `created_at`),
+    KEY `idx_camera_events_plate_created` (`license_plate_norm`, `created_at`),
+    KEY `idx_camera_events_result_created` (`result`, `created_at`),
+    KEY `idx_camera_events_access_log` (`access_log_id`),
+    KEY `idx_camera_events_temp_log` (`temp_access_log_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Auditoría de lecturas OCR emitidas por cámaras LPR';
 
 -- -----------------------------------------------------------------------------
 -- 9. MASCOTAS (pets)
@@ -570,6 +624,18 @@ ALTER TABLE `temporary_access_logs`
     ADD CONSTRAINT `fk_temp_access_logs_operario` FOREIGN KEY (`operario_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,
     ADD CONSTRAINT `fk_temp_access_logs_created_by` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
+ALTER TABLE `access_cameras`
+    ADD CONSTRAINT `fk_access_cameras_point` FOREIGN KEY (`access_point_id`) REFERENCES `access_points` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE `camera_access_events`
+    ADD CONSTRAINT `fk_camera_events_camera` FOREIGN KEY (`camera_id`) REFERENCES `access_cameras` (`camera_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_camera_events_point` FOREIGN KEY (`access_point_id`) REFERENCES `access_points` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_camera_events_access_log` FOREIGN KEY (`access_log_id`) REFERENCES `access_logs` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_camera_events_temp_log` FOREIGN KEY (`temp_access_log_id`) REFERENCES `temporary_access_logs` (`temp_access_log_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_camera_events_vehicle` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles` (`vehicle_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_camera_events_temp_visit` FOREIGN KEY (`temp_visit_id`) REFERENCES `temporary_visits` (`temp_visit_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_camera_events_house` FOREIGN KEY (`house_id`) REFERENCES `houses` (`house_id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
 -- access_incidents -> logs, access_points, persons, vehicles, houses, users
 ALTER TABLE `access_incidents`
     ADD CONSTRAINT `fk_ai_access_log` FOREIGN KEY (`access_log_id`) REFERENCES `access_logs` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -643,7 +709,9 @@ INSERT INTO `nav_modules` (`module_key`, `label`, `route`, `section`, `sort_orde
 ('pets', 'Mascotas', '/pets', 'gestion', 40, 1),
 ('announcements', 'Comunicados', '/announcements', 'gestion', 50, 1),
 ('surveys', 'Encuestas', '/surveys', 'gestion', 60, 1),
-('access_points', 'Puntos de acceso', '/access-points', 'admin', 70, 1)
+('incidents', 'Incidencias', '/incidents', 'gestion', 65, 1),
+('access_points', 'Puntos de acceso', '/access-points', 'admin', 70, 1),
+('cameras', 'Cámaras', '/cameras', 'admin', 75, 1)
 ON DUPLICATE KEY UPDATE `label` = VALUES(`label`);
 
 INSERT INTO `role_nav_permissions` (`role_system`, `module_key`, `can_view`, `can_manage`) VALUES
@@ -653,11 +721,15 @@ INSERT INTO `role_nav_permissions` (`role_system`, `module_key`, `can_view`, `ca
 ('ADMINISTRADOR', 'pets', 1, 1),
 ('ADMINISTRADOR', 'announcements', 1, 1),
 ('ADMINISTRADOR', 'surveys', 1, 1),
+('ADMINISTRADOR', 'incidents', 1, 1),
 ('ADMINISTRADOR', 'access_points', 1, 1),
+('ADMINISTRADOR', 'cameras', 1, 1),
 ('OPERARIO', 'users', 1, 0),
 ('OPERARIO', 'houses', 1, 0),
 ('OPERARIO', 'vehicles', 1, 0),
-('OPERARIO', 'pets', 1, 0)
+('OPERARIO', 'pets', 1, 0),
+('OPERARIO', 'incidents', 1, 0),
+('OPERARIO', 'cameras', 1, 0)
 ON DUPLICATE KEY UPDATE `can_view` = VALUES(`can_view`), `can_manage` = VALUES(`can_manage`);
 
 -- =============================================================================
