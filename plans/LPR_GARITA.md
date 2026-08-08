@@ -110,3 +110,39 @@ flowchart LR
    `docker exec -i vc-ingreso-mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" vc_db' < database/migrations/009_lpr_cameras.sql`
 3. `docker compose -f docker-compose.dev.yml up -d --build lpr-worker`
 4. En la UI (Admin → Cámaras LPR), crear cámara con `snapshot_url` y/o `stream_url` ligada a Garita Principal.
+
+## Recomendaciones de cámara a adquirir (garita fija)
+
+El software ya acepta **snapshot HTTP** (preferido) y/o **RTSP**. No hace falta cámara “con LPR embebido”, pero sí buena óptica y red local estable.
+
+### Requisitos mínimos (checklist de compra)
+
+- IP PoE (o 12 V + Ethernet); **evitar solo Wi‑Fi** en garita
+- **RTSP** documentado (ONVIF Profile S ayuda)
+- Resolución **1080p** mínimo; ideal **2–4 MP**
+- Exterior IP66 + IR / buen nocturno (placas reflectivas)
+- Varifocal o lente adecuada a la distancia real de lectura (típicamente **3–8 m** al frente del vehículo)
+- Acceso a **snapshot JPEG por HTTP** (muchas Hikvision/Dahua lo traen) — el worker lo prioriza sobre RTSP
+
+### Rangos sugeridos
+
+| Uso | Tipo | Ejemplos orientativos (verificar stock local PE) |
+|-----|------|---------------------------------------------------|
+| Buena relación costo/beneficio | Bullet/dome IP 2–4 MP PoE, IR, varifocal | Hikvision / Dahua / Uniview serie “Pro” o “Easy” 2–4 MP con RTSP |
+| Mejor lectura de placa | Cámara **LPR / ANPR** o “capture” con obturador global / WDR fuerte | Hikvision LPR / Dahua ANPR / equivalentes de captura de acceso |
+| Presupuesto ajustado | 1080p PoE fija con buen IR y RTSP | Marca conocida con firmware estable; probar snapshot HTTP |
+
+### Qué evitar
+
+- Cámaras de consumo sin RTSP (solo app cloud)
+- Solo Wi‑Fi en poste de garita (cortes y latencia)
+- Lente muy angular a distancia corta (placa sale chica o distorsionada)
+- Confiar solo en “IA en la cámara” si no se puede integrar por RTSP/HTTP con nuestro worker
+
+### Instalación recomendada (cuando llegue)
+
+1. Fija, mirando la zona donde el auto **se detiene** (no en movimiento a 40 km/h).
+2. Altura ~1.2–2.0 m, ángulo casi frontal a la placa.
+3. Cable Ethernet PoE al switch del cuarto técnico / NVR.
+4. Anotar: IP estática, usuario/clave, URL snapshot y RTSP.
+5. Cargar esas URLs en **Admin → Cámaras LPR** (punto de acceso Garita, dirección INGRESO).
