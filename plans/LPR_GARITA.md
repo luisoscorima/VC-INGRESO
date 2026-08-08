@@ -44,11 +44,50 @@
 
 ### Infra
 
-- Docker Compose: servicio `lpr-worker` → API interna
-- Variables en `.env`: `LPR_SERVICE_TOKEN`, `LPR_API_BASE_URL`, opcionales de intervalo/confianza
-- Snapshots guardados bajo `server/uploads/lpr/` (servidos como `/uploads/...`)
+- Docker Compose incluye `lpr-worker` para **dev / mismo host** (pruebas).
+- **Producción recomendada: enfoque híbrido (edge)** — ver sección siguiente.
+- Variables: `LPR_SERVICE_TOKEN`, `LPR_API_BASE_URL`, opcionales de intervalo/confianza
+- Snapshots (JPEG opcional) bajo `server/uploads/public/lpr/` en el servidor API
 
-## Flujo
+## Despliegue híbrido (recomendado en garita real)
+
+Sí: es el modelo profesional previsto. El código ya lo permite porque el worker es un contenedor independiente.
+
+```mermaid
+flowchart LR
+  subgraph localLan [Red_local_estacionamiento]
+    cam[Camara_o_DVR_RTSP]
+    worker[lpr-worker_edge]
+    cam -->|RTSP_o_snapshot_LAN| worker
+  end
+  subgraph aws [EC2_nube]
+    api[API_PHP_HTTPS]
+    db[(MySQL)]
+    ui[Angular]
+    api --> db
+    ui --> api
+  end
+  worker -->|"POST JSON + token HTTPS"| api
+```
+
+**Cómo funciona**
+
+1. `lpr-worker` corre en un mini-PC / PC de garita / host local en la **misma LAN** que cámara o DVR.
+2. Consume RTSP/snapshot **solo en red local** (sin publicar el DVR a internet).
+3. Envía a la nube únicamente `POST https://tu-sistema.com/api/v1/lpr/events` (placa, confianza, JPEG opcional) con `LPR_SERVICE_TOKEN`.
+4. En el edge: `LPR_API_BASE_URL=https://tu-sistema.com/api/v1` (mismo token que en el `.env` de la API EC2).
+5. En Compose de EC2 **no es obligatorio** levantar `lpr-worker` si ya corre en la garita.
+
+**Ventajas (las que mencionan):** cero port-forward del DVR, poco ancho de banda, video no sale a internet.
+
+**Matices a tener en cuenta**
+
+- Las URLs de cámara en Admin LPR deben ser **IPs/hostnames LAN** visibles para el worker edge (p. ej. `rtsp://192.168.1.10/...`), no para EC2.
+- El snapshot JPEG opcional **sí sale** a la API (pocos KB–cientos de KB); el video continuo no. Si se quiere máxima privacidad, se puede desactivar el envío de imagen más adelante.
+- Hardware edge: preferible **mini-PC x86** con 8 GB RAM. Raspberry Pi 5 puede ir justa con RapidOCR; hay que probar FPS reales.
+- El token LPR debe ser secreto fuerte y solo en edge + API (rotar si se filtra).
+
+## Flujo lógico (negocio)
 
 ```mermaid
 flowchart LR
