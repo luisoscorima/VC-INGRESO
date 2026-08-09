@@ -24,6 +24,73 @@ export interface HistoryAccessPointOption {
 }
 
 type HistoryRow = Record<string, unknown>;
+type HistoryResultStatus = 'PERMITIDO' | 'DENEGADO' | 'RESTRINGIDO' | 'OBSERVADO' | '—';
+
+const HISTORY_RESULT_STATUSES: HistoryResultStatus[] = [
+  'PERMITIDO',
+  'DENEGADO',
+  'RESTRINGIDO',
+  'OBSERVADO',
+];
+
+function parseResultStatus(row: HistoryRow): HistoryResultStatus {
+  const observation = String(row['observation_raw'] ?? row['obs'] ?? '').toUpperCase();
+  const status = HISTORY_RESULT_STATUSES.find((candidate) =>
+    new RegExp(`(^|\\|)\\s*${candidate}\\b`).test(observation)
+  );
+  if (status) {
+    return status;
+  }
+  return String(row['entry_source'] ?? '').toLowerCase() === 'camera' &&
+    /INGRESO\s+AUTOM[AÁ]TICO\s+LPR/i.test(observation)
+    ? 'PERMITIDO'
+    : '—';
+}
+
+function parseDisplayPlate(row: HistoryRow): string {
+  const plate = String(row['vehicle_plate'] ?? '').trim();
+  if (plate && plate !== '—') {
+    return plate.toUpperCase();
+  }
+  const observation = String(row['observation_raw'] ?? row['obs'] ?? '');
+  return observation.match(/\bplaca\s+([a-z0-9-]+)/i)?.[1]?.toUpperCase() ?? '—';
+}
+
+function parseResultNotes(row: HistoryRow): string[] {
+  const observation = String(row['observation_raw'] ?? row['obs'] ?? '').trim();
+  if (!observation) {
+    return [];
+  }
+
+  return observation
+    .split('|')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const normalized = part.toUpperCase();
+      if (
+        HISTORY_RESULT_STATUSES.includes(normalized as HistoryResultStatus) ||
+        normalized === 'QR' ||
+        normalized === 'MANUAL' ||
+        normalized === 'SALIDA' ||
+        /^PLACA\s+/i.test(part) ||
+        /^INGRESO\s+AUTOM[AÁ]TICO\s+LPR/i.test(part)
+      ) {
+        return '';
+      }
+      if (/^CUMPLEA[NÑ]OS$/i.test(part)) {
+        return 'Cumpleaños';
+      }
+      if (/^VEH\.?\s*EXT\.?\s*#/i.test(part)) {
+        return `Veh. externo ${part.replace(/^VEH\.?\s*EXT\.?\s*/i, '')}`;
+      }
+      if (/^SALIDA\s*:/i.test(part)) {
+        return part.replace(/^SALIDA\s*:/i, '').trim();
+      }
+      return part;
+    })
+    .filter((note): note is string => Boolean(note));
+}
 
 @Component({
   selector: 'app-history',
@@ -72,7 +139,8 @@ export class HistoryComponent implements OnInit {
   selectedHistoryPhotoUrl: string | null = null;
 
   get historyTableColspan(): number {
-    let cols = this.showDocColumn ? 15 : 14;
+    let cols = this.showDocColumn ? 13 : 12;
+    if (this.hasExternalRows) cols += 1;
     if (this.showIncidentsColumn) cols += 1;
     return cols;
   }
@@ -104,8 +172,18 @@ export class HistoryComponent implements OnInit {
     const key = this.sortKey;
     const dir = this.sortAsc ? 1 : -1;
     rows.sort((a, b) => {
-      const va = a[key as string];
-      const vb = b[key as string];
+      const va =
+        key === 'result_status'
+          ? this.resultStatus(a)
+          : key === 'display_plate'
+            ? this.displayPlate(a)
+            : a[key as string];
+      const vb =
+        key === 'result_status'
+          ? this.resultStatus(b)
+          : key === 'display_plate'
+            ? this.displayPlate(b)
+            : b[key as string];
       const sa = va == null ? '' : String(va);
       const sb = vb == null ? '' : String(vb);
       if (sa < sb) {
@@ -254,13 +332,15 @@ export class HistoryComponent implements OnInit {
       TIPO: r['type'],
       ...(this.showDocColumn ? { DOCUMENTO: r['doc_number'] } : {}),
       DATOS: r['name'],
+      PLACA: this.displayPlate(r),
       DOMICILIO: r['house_address'],
       PUNTO_ACCESO: r['access_point_name'],
       ORIGEN: this.entrySourceLabel(r),
       INGRESO: r['date_entry'],
       SALIDA: r['date_exit'],
       ...(this.hasExternalRows ? { PERMANENCIA_MIN: this.formatPermanence(r) } : {}),
-      RESULTADO: r['obs'],
+      RESULTADO: this.resultStatus(r),
+      NOTAS: this.resultNotes(r).join(' · '),
       OPERARIO: r['operator'],
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -287,6 +367,29 @@ export class HistoryComponent implements OnInit {
 
   isCameraRow(row: HistoryRow): boolean {
     return String(row['entry_source'] ?? '').toLowerCase() === 'camera';
+  }
+
+  resultStatus(row: HistoryRow): HistoryResultStatus {
+    return parseResultStatus(row);
+  }
+
+  resultNotes(row: HistoryRow): string[] {
+    return parseResultNotes(row);
+  }
+
+  displayPlate(row: HistoryRow): string {
+    return parseDisplayPlate(row);
+  }
+
+  statusBadgeClass(status: HistoryResultStatus): string {
+    return `history-status-badge--${status === '—' ? 'unknown' : status.toLowerCase()}`;
+  }
+
+  statusIcon(status: HistoryResultStatus): string {
+    if (status === 'PERMITIDO') return 'check_circle';
+    if (status === 'DENEGADO') return 'block';
+    if (status === 'RESTRINGIDO' || status === 'OBSERVADO') return 'warning';
+    return 'help_outline';
   }
 
   showHistoryPhoto(row: HistoryRow): void {
@@ -534,5 +637,24 @@ export class DialogHistoryDetail implements OnInit {
 
   onNoClick(): void {
     this.dialogRef.close();
+  }
+
+  resultStatus(row: HistoryRow): HistoryResultStatus {
+    return parseResultStatus(row);
+  }
+
+  resultNotes(row: HistoryRow): string[] {
+    return parseResultNotes(row);
+  }
+
+  statusBadgeClass(status: HistoryResultStatus): string {
+    return `history-status-badge--${status === '—' ? 'unknown' : status.toLowerCase()}`;
+  }
+
+  statusIcon(status: HistoryResultStatus): string {
+    if (status === 'PERMITIDO') return 'check_circle';
+    if (status === 'DENEGADO') return 'block';
+    if (status === 'RESTRINGIDO' || status === 'OBSERVADO') return 'warning';
+    return 'help_outline';
   }
 }

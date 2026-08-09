@@ -25,7 +25,6 @@
           <th scope="col" class="px-4 py-3">Nombre</th>
           <th scope="col" class="px-4 py-3">Hora</th>
           <th scope="col" class="px-4 py-3">Estado</th>
-          <th scope="col" class="px-4 py-3"></th>
         </tr>
       </thead>
       <tbody>
@@ -35,17 +34,16 @@
           <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ a.doc_number }}</td>
           <td class="px-4 py-3">{{ a.name }}</td>
           <td class="px-4 py-3 whitespace-nowrap">{{ a.hour_entrance }}</td>
-          <td class="px-4 py-3">{{ a.obs }}</td>
           <td class="px-4 py-3">
-            <mat-icon *ngIf="a.obs == 'PERMITIDO' || a.obs == 'permitido'" class="text-green-700 dark:text-green-400">
-              check
-            </mat-icon>
-            <mat-icon *ngIf="a.obs == 'DENEGADO' || a.obs == 'denegado'" class="text-red-700 dark:text-red-400">
-              block
-            </mat-icon>
-            <mat-icon *ngIf="a.obs == 'RESTRINGIDO' || a.obs == 'OBSERVADO'" class="text-amber-600 dark:text-amber-400">
-              warning
-            </mat-icon>
+            <ng-container *ngIf="resultStatus(a) as status">
+              <span class="history-status-badge" [ngClass]="statusBadgeClass(status)">
+                <mat-icon>{{ statusIcon(status) }}</mat-icon>
+                {{ status }}
+              </span>
+            </ng-container>
+            <div *ngIf="resultNotes(a) as notes" class="history-result-notes">
+              <span *ngFor="let note of notes" class="history-note-chip">{{ note }}</span>
+            </div>
           </td>
         </tr>
       </tbody>

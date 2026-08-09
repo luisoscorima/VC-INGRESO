@@ -95,6 +95,9 @@
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('name')">
               Datos {{ sortIndicator('name') }}
             </th>
+            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('display_plate')">
+              Placa {{ sortIndicator('display_plate') }}
+            </th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('house_address')">
               Domicilio {{ sortIndicator('house_address') }}
             </th>
@@ -117,13 +120,12 @@
               (click)="toggleSort('permanence_minutes')">
               Permanencia {{ sortIndicator('permanence_minutes') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('obs')">
-              Resultado {{ sortIndicator('obs') }}
+            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('result_status')">
+              Resultado {{ sortIndicator('result_status') }}
             </th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('operator')">
               Operario {{ sortIndicator('operator') }}
             </th>
-            <th scope="col" class="vc-th"></th>
             <th scope="col" class="vc-th">Foto</th>
             <th scope="col" class="vc-th" *ngIf="showIncidentsColumn">Incid.</th>
             <th scope="col" class="vc-th">Detalle</th>
@@ -137,6 +139,7 @@
             </td>
             <th *ngIf="showDocColumn" scope="row" class="vc-td whitespace-nowrap font-medium">{{ a.doc_number }}</th>
             <td class="vc-td">{{ a.name }}</td>
+            <td class="vc-td whitespace-nowrap font-semibold tracking-wide">{{ displayPlate(a) }}</td>
             <td class="vc-td">{{ a.house_address }}</td>
             <td class="vc-td max-w-[200px] truncate" [title]="a.access_point_name || ''">{{ a.access_point_name || '—' }}</td>
             <td class="vc-td">
@@ -155,21 +158,18 @@
               </span>
               <span *ngIf="!isExternalRow(a)">—</span>
             </td>
-            <td class="vc-td">{{ a.obs | uppercase }}</td>
-            <td class="vc-td">{{ a.operator }}</td>
             <td class="vc-td">
-              <mat-icon
-                *ngIf="a.obs == 'PERMITIDO' || a.obs == 'permitido'"
-                class="text-green-700 dark:text-green-400">
-                check_circle
-              </mat-icon>
-              <mat-icon *ngIf="a.obs == 'DENEGADO' || a.obs == 'denegado'" class="text-red-700 dark:text-red-400">block</mat-icon>
-              <mat-icon
-                *ngIf="a.obs == 'RESTRINGIDO' || a.obs == 'restringido' || a.obs == 'OBSERVADO' || a.obs == 'observado'"
-                class="text-amber-600 dark:text-amber-400">
-                warning
-              </mat-icon>
+              <ng-container *ngIf="resultStatus(a) as status">
+                <span class="history-status-badge" [ngClass]="statusBadgeClass(status)">
+                  <mat-icon>{{ statusIcon(status) }}</mat-icon>
+                  {{ status }}
+                </span>
+              </ng-container>
+              <div *ngIf="resultNotes(a) as notes" class="history-result-notes">
+                <span *ngFor="let note of notes" class="history-note-chip">{{ note }}</span>
+              </div>
             </td>
+            <td class="vc-td">{{ a.operator }}</td>
             <td class="vc-td">
               <button
                 *ngIf="a.access_photo_url"

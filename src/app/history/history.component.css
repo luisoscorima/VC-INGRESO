@@ -45,6 +45,98 @@
   color: #115e59;
 }
 
+.history-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.history-status-badge mat-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  font-size: 0.95rem;
+}
+
+.history-status-badge--permitido {
+  border-color: #a7f3d0;
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.history-status-badge--denegado {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.history-status-badge--restringido,
+.history-status-badge--observado {
+  border-color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.history-status-badge--unknown {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.history-result-notes {
+  display: flex;
+  max-width: 18rem;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.history-result-notes:empty {
+  display: none;
+}
+
+.history-note-chip {
+  border-radius: 0.25rem;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.dark .history-status-badge--permitido {
+  border-color: #065f46;
+  background: rgb(6 78 59 / 45%);
+  color: #6ee7b7;
+}
+
+.dark .history-status-badge--denegado {
+  border-color: #991b1b;
+  background: rgb(127 29 29 / 45%);
+  color: #fca5a5;
+}
+
+.dark .history-status-badge--restringido,
+.dark .history-status-badge--observado {
+  border-color: #92400e;
+  background: rgb(120 53 15 / 45%);
+  color: #fcd34d;
+}
+
+.dark .history-status-badge--unknown,
+.dark .history-note-chip {
+  border-color: #475569;
+  background: #1e293b;
+  color: #cbd5e1;
+}
+
 .history-photo-overlay {
   position: fixed;
   inset: 0;
