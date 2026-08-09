@@ -912,7 +912,7 @@ class AccessLogController
                     END,
                     CASE
                         WHEN COALESCE(al.entity_kind, CASE WHEN al.vehicle_id IS NOT NULL OR NULLIF(TRIM(al.license_plate_snapshot), '') IS NOT NULL OR al.observation REGEXP 'placa[[:space:]]+[[:alnum:]-]+' THEN 'VEHICLE' ELSE 'PERSON' END) = 'VEHICLE'
-                            THEN 'Responsable no identificado'
+                            THEN '—'
                         ELSE 'Persona no identificada'
                     END
                 )")} AS name,
@@ -994,7 +994,7 @@ class AccessLogController
                     NULLIF(TRIM(tv.temp_visit_name), ''),
                     CASE
                         WHEN COALESCE(tal.entity_kind, CASE WHEN NULLIF(TRIM(COALESCE(tal.license_plate_snapshot, tv.temp_visit_plate)), '') IS NOT NULL THEN 'VEHICLE' ELSE 'PERSON' END) = 'VEHICLE'
-                            THEN 'Responsable no identificado'
+                            THEN '—'
                         ELSE 'Persona no identificada'
                     END
                 )")} AS name,
