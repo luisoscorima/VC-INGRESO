@@ -134,6 +134,11 @@ if (str_starts_with($uri, '/api/v1/')) {
 
     // ==================== REGISTRO PÚBLICO (sin login) ====================
     if (str_starts_with($path, 'public/')) {
+        if (preg_match('#^public/reniec/dni/([0-9]{8})$#', $path, $matches) && $method === 'GET') {
+            require_once __DIR__ . '/controllers/ReniecController.php';
+            (new \Controllers\ReniecController())->publicLookup($matches[1]);
+            exit;
+        }
         require_once __DIR__ . '/controllers/PublicRegistrationController.php';
         $controller = new \Controllers\PublicRegistrationController();
         if ($path === 'public/register' && $method === 'POST') {
@@ -156,6 +161,13 @@ if (str_starts_with($uri, '/api/v1/')) {
             $controller->uploadPetPhoto();
             exit;
         }
+    }
+
+    // ==================== RENIEC (credencial solo en backend) ====================
+    if (preg_match('#^reniec/dni/([0-9]{8})$#', $path, $matches) && $method === 'GET') {
+        require_once __DIR__ . '/controllers/ReniecController.php';
+        (new \Controllers\ReniecController())->lookup($matches[1]);
+        exit;
     }
 
     // ==================== NAV PERMISSIONS ====================

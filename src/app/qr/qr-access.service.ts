@@ -28,6 +28,10 @@ export interface AccessQrScanResult {
   birth_date?: string | null;
   message?: string;
   operator_notes?: string | null;
+  /** Nombre identificado para un DNI no registrado; no implica autorización. */
+  identity_display_name?: string | null;
+  /** Constancia backend de corta duración para guardar el snapshot sin confiar en el navegador. */
+  identity_claim?: string | null;
 }
 
 export interface AccessQrPersonPublic {

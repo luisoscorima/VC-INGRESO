@@ -14,6 +14,7 @@ require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/event_log.php';
 require_once __DIR__ . '/../helpers/temporary_visit.php';
+require_once __DIR__ . '/../helpers/access_identity.php';
 
 use Utils\Response;
 use Utils\Router;
@@ -169,7 +170,8 @@ class AccessLogController
         }
 
         $createdByUserId = isset($auth['user_id']) ? (int)$auth['user_id'] : null;
-        $entrySource = strtolower(trim((string) ($data['entry_source'] ?? 'manual'))) === 'qr' ? 'qr' : 'manual';
+        $entrySourceRaw = strtolower(trim((string) ($data['entry_source'] ?? 'manual')));
+        $entrySource = in_array($entrySourceRaw, ['manual', 'qr', 'camera'], true) ? $entrySourceRaw : 'manual';
 
         try {
             if ($data['type'] === 'EGRESO') {
@@ -177,10 +179,14 @@ class AccessLogController
                 return;
             }
 
+            $identity = $this->resolveIdentitySnapshot($data);
             $stmt = $this->pdo->prepare("
                 INSERT INTO {$this->table} 
-                (access_point_id, person_id, doc_number, vehicle_id, type, observation, entry_source, created_by_user_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                (access_point_id, person_id, doc_number, vehicle_id, entity_kind,
+                 display_name_snapshot, document_snapshot, license_plate_snapshot,
+                 identity_source, identity_resolved_at, type, observation, entry_source,
+                 created_by_user_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
 
             $stmt->execute([
@@ -188,6 +194,12 @@ class AccessLogController
                 $data['person_id'] ?? null,
                 $data['doc_number'] ?? null,
                 $data['vehicle_id'] ?? null,
+                $identity['entity_kind'],
+                $identity['display_name_snapshot'],
+                $identity['document_snapshot'],
+                $identity['license_plate_snapshot'],
+                $identity['identity_source'],
+                $identity['identity_resolved_at'],
                 $data['type'],
                 $data['observation'] ?? null,
                 $entrySource,
@@ -210,6 +222,8 @@ class AccessLogController
                 'success' => true,
                 'data' => ['id' => $id, 'message' => 'Log registrado correctamente']
             ], 201);
+        } catch (\InvalidArgumentException $e) {
+            Response::json(['success' => false, 'error' => $e->getMessage()], 422);
         } catch (\PDOException $e) {
             Response::json(['success' => false, 'error' => 'Error al registrar: ' . $e->getMessage()], 500);
         }
@@ -306,10 +320,12 @@ class AccessLogController
             $identitySql = 'vehicle_id = ?';
             $identityParams[] = $vehicleId;
         } elseif ($docNumber !== '') {
-            $identitySql = 'doc_number = ?';
+            $identitySql = '(document_snapshot = ? OR doc_number = ?)';
+            $identityParams[] = $docNumber;
             $identityParams[] = $docNumber;
         } elseif ($licensePlate !== null && $licensePlate !== '') {
-            $identitySql = '(doc_number = ? OR observation LIKE ?)';
+            $identitySql = '(license_plate_snapshot = ? OR doc_number = ? OR observation LIKE ?)';
+            $identityParams[] = $licensePlate;
             $identityParams[] = $licensePlate;
             $identityParams[] = '%placa ' . $licensePlate . '%';
         } else {
@@ -354,6 +370,88 @@ class AccessLogController
         $n = (int) $value;
 
         return $n > 0 ? $n : null;
+    }
+
+    /**
+     * @return array{entity_kind:string,display_name_snapshot:?string,document_snapshot:?string,license_plate_snapshot:?string,identity_source:?string,identity_resolved_at:?string}
+     */
+    private function resolveIdentitySnapshot(array $data): array
+    {
+        $personId = $this->nullablePositiveInt($data['person_id'] ?? null);
+        $vehicleId = $this->nullablePositiveInt($data['vehicle_id'] ?? null);
+        if ($personId !== null && $vehicleId !== null) {
+            throw new \InvalidArgumentException('El registro no puede ser persona y vehículo a la vez');
+        }
+
+        $kind = strtoupper(trim((string) ($data['entity_kind'] ?? $data['kind'] ?? '')));
+        if ($kind === 'PERSONA') $kind = 'PERSON';
+        if ($kind === 'VEHÍCULO' || $kind === 'VEHICULO') $kind = 'VEHICLE';
+        $plate = $this->extractLicensePlateFromPayload($data);
+        if ($kind === '') {
+            $kind = ($vehicleId !== null || $plate !== null) ? 'VEHICLE' : 'PERSON';
+        }
+        if (!in_array($kind, ['PERSON', 'VEHICLE'], true)) {
+            throw new \InvalidArgumentException('entity_kind inválido');
+        }
+        if (($kind === 'PERSON' && $vehicleId !== null) || ($kind === 'VEHICLE' && $personId !== null)) {
+            throw new \InvalidArgumentException('entity_kind no coincide con la identidad enviada');
+        }
+
+        $snapshot = [
+            'entity_kind' => $kind,
+            'display_name_snapshot' => null,
+            'document_snapshot' => null,
+            'license_plate_snapshot' => null,
+            'identity_source' => null,
+            'identity_resolved_at' => null,
+        ];
+
+        if ($kind === 'PERSON') {
+            $document = trim((string) ($data['doc_number'] ?? ''));
+            if ($personId !== null) {
+                $stmt = $this->pdo->prepare(
+                    "SELECT doc_number, first_name, paternal_surname, maternal_surname
+                     FROM persons WHERE id = ? LIMIT 1"
+                );
+                $stmt->execute([$personId]);
+                $person = $stmt->fetch(\PDO::FETCH_ASSOC);
+                if (!$person) throw new \InvalidArgumentException('Persona no encontrada');
+                $snapshot['display_name_snapshot'] = access_identity_full_name($person);
+                $localDocument = trim((string) ($person['doc_number'] ?? ''));
+                $snapshot['document_snapshot'] = $localDocument !== ''
+                    ? $localDocument
+                    : ($document !== '' ? $document : null);
+                $snapshot['identity_source'] = 'LOCAL';
+                $snapshot['identity_resolved_at'] = date('Y-m-d H:i:s');
+            } else {
+                $snapshot['document_snapshot'] = $document !== '' ? $document : null;
+                $claim = access_identity_verify_claim($data['identity_claim'] ?? null, $document);
+                if ($claim) {
+                    $snapshot = array_merge($snapshot, $claim);
+                }
+            }
+            return $snapshot;
+        }
+
+        if ($vehicleId !== null) {
+            $stmt = $this->pdo->prepare(
+                "SELECT v.license_plate, owner.first_name, owner.paternal_surname, owner.maternal_surname
+                 FROM vehicles v
+                 LEFT JOIN persons owner ON owner.id = v.owner_id
+                 WHERE v.vehicle_id = ? LIMIT 1"
+            );
+            $stmt->execute([$vehicleId]);
+            $vehicle = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if (!$vehicle) throw new \InvalidArgumentException('Vehículo no encontrado');
+            $snapshot['display_name_snapshot'] = access_identity_full_name($vehicle);
+            $snapshot['license_plate_snapshot'] =
+                strtoupper(trim((string) ($vehicle['license_plate'] ?? ''))) ?: $plate;
+            $snapshot['identity_source'] = 'LOCAL';
+            $snapshot['identity_resolved_at'] = date('Y-m-d H:i:s');
+        } else {
+            $snapshot['license_plate_snapshot'] = $plate;
+        }
+        return $snapshot;
     }
 
     /**
@@ -411,21 +509,43 @@ class AccessLogController
 
         $createdByUserId = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
         $statusValidated = trim((string) ($data['status_validated'] ?? 'PERMITIDO'));
-        $entrySource = strtolower(trim((string) ($data['entry_source'] ?? 'manual'))) === 'qr' ? 'qr' : 'manual';
+        $entrySourceRaw = strtolower(trim((string) ($data['entry_source'] ?? 'manual')));
+        $entrySource = in_array($entrySourceRaw, ['manual', 'qr', 'camera'], true) ? $entrySourceRaw : 'manual';
         $now = date('Y-m-d H:i:s');
         $assignmentValidUntil = (string) ($assignment['valid_until'] ?? '');
         $authorizedMinutes = assignment_authorized_duration_minutes($assignment);
         $stayDeadline = date('Y-m-d H:i:s', strtotime($now) + ($authorizedMinutes * 60));
 
         try {
+            $profileStmt = $this->pdo->prepare(
+                'SELECT temp_visit_name, temp_visit_doc, temp_visit_plate
+                 FROM temporary_visits WHERE temp_visit_id = ? LIMIT 1'
+            );
+            $profileStmt->execute([$tempVisitId]);
+            $profile = $profileStmt->fetch(\PDO::FETCH_ASSOC);
+            if (!$profile) {
+                Response::json(['success' => false, 'error' => 'Visita temporal no encontrada'], 404);
+                return;
+            }
+            $snapshotPlate = strtoupper(trim((string) ($profile['temp_visit_plate'] ?? '')));
+            $snapshotDoc = trim((string) ($profile['temp_visit_doc'] ?? ''));
+            $snapshotName = trim((string) ($profile['temp_visit_name'] ?? ''));
+            $entityKind = $snapshotPlate !== '' ? 'VEHICLE' : 'PERSON';
             $stmt = $this->pdo->prepare(
                 "INSERT INTO temporary_access_logs
-                 (temp_visit_id, assignment_id, assignment_valid_until, authorized_duration_minutes, stay_deadline,
+                 (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot,
+                  license_plate_snapshot, identity_source, identity_resolved_at,
+                  assignment_id, assignment_valid_until, authorized_duration_minutes, stay_deadline,
                   temp_entry_time, access_point_id, status_validated, entry_source, house_id, created_by_user_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                 VALUES (?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $stmt->execute([
                 $tempVisitId,
+                $entityKind,
+                $snapshotName !== '' ? $snapshotName : null,
+                $snapshotDoc !== '' ? $snapshotDoc : null,
+                $snapshotPlate !== '' ? $snapshotPlate : null,
+                $now,
                 $assignmentId,
                 $assignmentValidUntil !== '' ? $assignmentValidUntil : null,
                 $authorizedMinutes,
@@ -737,8 +857,14 @@ class AccessLogController
                 al.id,
                 al.access_point_id,
                 al.person_id,
-                {$s('al.doc_number')} AS doc_number,
+                {$s("COALESCE(NULLIF(TRIM(al.document_snapshot), ''), NULLIF(TRIM(al.doc_number), ''), NULLIF(TRIM(p.doc_number), ''), '')")} AS doc_number,
                 al.vehicle_id,
+                {$s("COALESCE(al.entity_kind, CASE WHEN al.vehicle_id IS NOT NULL OR NULLIF(TRIM(al.license_plate_snapshot), '') IS NOT NULL OR al.observation REGEXP 'placa[[:space:]]+[[:alnum:]-]+' THEN 'VEHICLE' ELSE 'PERSON' END)")} AS entity_kind,
+                {$s('al.display_name_snapshot')} AS display_name_snapshot,
+                {$s('al.document_snapshot')} AS document_snapshot,
+                {$s('al.license_plate_snapshot')} AS license_plate_snapshot,
+                {$s('al.identity_source')} AS identity_source,
+                al.identity_resolved_at,
                 {$s('al.type')} AS movement_type,
                 {$s('al.observation')} AS observation_raw,
                 {$s('al.entry_source')} AS entry_source,
@@ -747,8 +873,8 @@ class AccessLogController
                 al.created_at,
                 al.updated_at,
                 {$s('ap.name')} AS access_point_name,
-                {$s("CASE WHEN al.vehicle_id IS NOT NULL THEN 'VEHÍCULO' ELSE 'PERSONA' END")} AS type,
-                {$s('v.license_plate')} AS vehicle_plate,
+                {$s("CASE WHEN COALESCE(al.entity_kind, CASE WHEN al.vehicle_id IS NOT NULL OR NULLIF(TRIM(al.license_plate_snapshot), '') IS NOT NULL OR al.observation REGEXP 'placa[[:space:]]+[[:alnum:]-]+' THEN 'VEHICLE' ELSE 'PERSON' END) = 'VEHICLE' THEN 'VEHÍCULO' ELSE 'PERSONA' END")} AS type,
+                {$s("COALESCE(NULLIF(TRIM(al.license_plate_snapshot), ''), NULLIF(TRIM(v.license_plate), ''))")} AS vehicle_plate,
                 {$s("CONCAT_WS(' ', NULLIF(h.block_house,''), NULLIF(CAST(h.lot AS CHAR),''), NULLIF(h.apartment,''))")} AS house_address,
                 al.created_at AS date_entry,
                 CASE
@@ -761,10 +887,17 @@ class AccessLogController
                 {$s("DATE_FORMAT(al.created_at, '%H:%i:%s')")} AS hour_entrance,
                 1 AS visits,
                 {$s("COALESCE(
-                    NULLIF(TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.paternal_surname,''),' ',COALESCE(p.maternal_surname,''))), ''),
-                    NULLIF(TRIM(v.license_plate), ''),
-                    NULLIF(TRIM(al.doc_number), ''),
-                    '—'
+                    NULLIF(TRIM(al.display_name_snapshot), ''),
+                    CASE
+                        WHEN COALESCE(al.entity_kind, CASE WHEN al.vehicle_id IS NOT NULL OR NULLIF(TRIM(al.license_plate_snapshot), '') IS NOT NULL OR al.observation REGEXP 'placa[[:space:]]+[[:alnum:]-]+' THEN 'VEHICLE' ELSE 'PERSON' END) = 'VEHICLE'
+                            THEN NULLIF(TRIM(CONCAT(COALESCE(vo.first_name,''),' ',COALESCE(vo.paternal_surname,''),' ',COALESCE(vo.maternal_surname,''))), '')
+                        ELSE NULLIF(TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.paternal_surname,''),' ',COALESCE(p.maternal_surname,''))), '')
+                    END,
+                    CASE
+                        WHEN COALESCE(al.entity_kind, CASE WHEN al.vehicle_id IS NOT NULL OR NULLIF(TRIM(al.license_plate_snapshot), '') IS NOT NULL OR al.observation REGEXP 'placa[[:space:]]+[[:alnum:]-]+' THEN 'VEHICLE' ELSE 'PERSON' END) = 'VEHICLE'
+                            THEN 'Responsable no identificado'
+                        ELSE 'Persona no identificada'
+                    END
                 )")} AS name,
                 {$s("COALESCE(NULLIF(UPPER(TRIM(p.person_type)), ''), '')")} AS person_category,
                 {$s("'REGISTRY'")} AS log_source,
@@ -779,6 +912,7 @@ class AccessLogController
             LEFT JOIN access_points ap ON ap.id = al.access_point_id
             LEFT JOIN persons p ON p.id = al.person_id
             LEFT JOIN vehicles v ON v.vehicle_id = al.vehicle_id
+            LEFT JOIN persons vo ON vo.id = v.owner_id
             LEFT JOIN houses h ON h.house_id = COALESCE(p.house_id, v.house_id)
             LEFT JOIN users u ON u.user_id = al.created_by_user_id
             {$incidentJoin}
@@ -809,8 +943,14 @@ class AccessLogController
                 -(tal.temp_access_log_id) AS id,
                 tal.access_point_id,
                 NULL AS person_id,
-                {$s("COALESCE(NULLIF(TRIM(tv.temp_visit_doc), ''), '')")} AS doc_number,
+                {$s("COALESCE(NULLIF(TRIM(tal.document_snapshot), ''), NULLIF(TRIM(tv.temp_visit_doc), ''), '')")} AS doc_number,
                 NULL AS vehicle_id,
+                {$s("COALESCE(tal.entity_kind, CASE WHEN NULLIF(TRIM(COALESCE(tal.license_plate_snapshot, tv.temp_visit_plate)), '') IS NOT NULL THEN 'VEHICLE' ELSE 'PERSON' END)")} AS entity_kind,
+                {$s('tal.display_name_snapshot')} AS display_name_snapshot,
+                {$s('tal.document_snapshot')} AS document_snapshot,
+                {$s('tal.license_plate_snapshot')} AS license_plate_snapshot,
+                {$s('tal.identity_source')} AS identity_source,
+                tal.identity_resolved_at,
                 {$s("'INGRESO'")} AS movement_type,
                 {$s('CAST(NULL AS CHAR(1))')} AS observation_raw,
                 {$s('tal.entry_source')} AS entry_source,
@@ -819,8 +959,8 @@ class AccessLogController
                 tal.temp_entry_time AS created_at,
                 COALESCE(tal.temp_exit_time, tal.temp_entry_time) AS updated_at,
                 {$s('ap.name')} AS access_point_name,
-                {$s("CASE WHEN tv.temp_visit_plate IS NOT NULL AND TRIM(tv.temp_visit_plate) <> '' THEN 'VEHÍCULO' ELSE 'PERSONA' END")} AS type,
-                {$s('tv.temp_visit_plate')} AS vehicle_plate,
+                {$s("CASE WHEN COALESCE(tal.entity_kind, CASE WHEN NULLIF(TRIM(COALESCE(tal.license_plate_snapshot, tv.temp_visit_plate)), '') IS NOT NULL THEN 'VEHICLE' ELSE 'PERSON' END) = 'VEHICLE' THEN 'VEHÍCULO' ELSE 'PERSONA' END")} AS type,
+                {$s("COALESCE(NULLIF(TRIM(tal.license_plate_snapshot), ''), NULLIF(TRIM(tv.temp_visit_plate), ''))")} AS vehicle_plate,
                 {$s("CONCAT_WS(' ', NULLIF(h.block_house,''), NULLIF(CAST(h.lot AS CHAR),''), NULLIF(h.apartment,''))")} AS house_address,
                 tal.temp_entry_time AS date_entry,
                 tal.temp_exit_time AS date_exit,
@@ -833,10 +973,13 @@ class AccessLogController
                 {$s("DATE_FORMAT(tal.temp_entry_time, '%H:%i:%s')")} AS hour_entrance,
                 1 AS visits,
                 {$s("COALESCE(
+                    NULLIF(TRIM(tal.display_name_snapshot), ''),
                     NULLIF(TRIM(tv.temp_visit_name), ''),
-                    NULLIF(TRIM(tv.temp_visit_plate), ''),
-                    NULLIF(TRIM(tv.temp_visit_doc), ''),
-                    '—'
+                    CASE
+                        WHEN COALESCE(tal.entity_kind, CASE WHEN NULLIF(TRIM(COALESCE(tal.license_plate_snapshot, tv.temp_visit_plate)), '') IS NOT NULL THEN 'VEHICLE' ELSE 'PERSON' END) = 'VEHICLE'
+                            THEN 'Responsable no identificado'
+                        ELSE 'Persona no identificada'
+                    END
                 )")} AS name,
                 {$s("'VISITA_EXTERNA'")} AS person_category,
                 {$s("'EXTERNAL'")} AS log_source,

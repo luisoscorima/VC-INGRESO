@@ -294,12 +294,22 @@ class CameraAccessController
                 if ($allowed) {
                     $stmt = $this->pdo->prepare(
                         "INSERT INTO access_logs
-                         (access_point_id, vehicle_id, type, observation, entry_source, photo_url, created_at)
-                         VALUES (?, ?, 'INGRESO', ?, 'camera', ?, ?)"
+                         (access_point_id, vehicle_id, entity_kind, display_name_snapshot,
+                          license_plate_snapshot, identity_source, identity_resolved_at,
+                          type, observation, entry_source, photo_url, created_at)
+                         VALUES (?, ?, 'VEHICLE', ?, ?, 'LOCAL', ?, 'INGRESO', ?, 'camera', ?, ?)"
                     );
+                    $ownerName = trim(implode(' ', array_filter([
+                        trim((string) ($registry['owner_first_name'] ?? '')),
+                        trim((string) ($registry['owner_paternal_surname'] ?? '')),
+                        trim((string) ($registry['owner_maternal_surname'] ?? '')),
+                    ])));
                     $stmt->execute([
                         $accessPointId,
                         (int) $registry['vehicle_id'],
+                        $ownerName !== '' ? $ownerName : null,
+                        $plate,
+                        $capturedAt,
                         'Ingreso automático LPR - placa ' . $plate,
                         $photoUrl,
                         $capturedAt,
@@ -393,13 +403,19 @@ class CameraAccessController
         $stayDeadline = date('Y-m-d H:i:s', strtotime($capturedAt) + ($minutes * 60));
         $stmt = $this->pdo->prepare(
             "INSERT INTO temporary_access_logs
-             (temp_visit_id, assignment_id, assignment_valid_until, authorized_duration_minutes,
+             (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot,
+              license_plate_snapshot, identity_source, identity_resolved_at,
+              assignment_id, assignment_valid_until, authorized_duration_minutes,
               stay_deadline, temp_entry_time, access_point_id, status_validated,
               entry_source, photo_url, house_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'PERMITIDO', 'camera', ?, ?)"
+             VALUES (?, 'VEHICLE', ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, 'PERMITIDO', 'camera', ?, ?)"
         );
         $stmt->execute([
             $tempVisitId,
+            trim((string) ($external['temp_visit_name'] ?? '')) ?: null,
+            trim((string) ($external['temp_visit_doc'] ?? '')) ?: null,
+            strtoupper(trim((string) ($external['temp_visit_plate'] ?? ''))) ?: null,
+            $capturedAt,
             (int) $assignment['assignment_id'],
             $assignment['valid_until'] ?? null,
             $minutes,
@@ -465,9 +481,14 @@ class CameraAccessController
     private function findRegistryVehicle(string $plate): ?array
     {
         $stmt = $this->pdo->prepare(
-            "SELECT * FROM vehicles
-             WHERE UPPER(REPLACE(REPLACE(TRIM(license_plate), '-', ''), ' ', '')) = ?
-             ORDER BY vehicle_id DESC LIMIT 1"
+            "SELECT v.*,
+                    owner.first_name AS owner_first_name,
+                    owner.paternal_surname AS owner_paternal_surname,
+                    owner.maternal_surname AS owner_maternal_surname
+             FROM vehicles v
+             LEFT JOIN persons owner ON owner.id = v.owner_id
+             WHERE UPPER(REPLACE(REPLACE(TRIM(v.license_plate), '-', ''), ' ', '')) = ?
+             ORDER BY v.vehicle_id DESC LIMIT 1"
         );
         $stmt->execute([$plate]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);

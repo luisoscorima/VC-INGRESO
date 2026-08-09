@@ -8,6 +8,8 @@ namespace Controllers;
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/license_plate.php';
 require_once __DIR__ . '/../helpers/temporary_visit.php';
+require_once __DIR__ . '/../helpers/access_identity.php';
+require_once __DIR__ . '/../helpers/reniec.php';
 require_once __DIR__ . '/../token.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../utils/Response.php';
@@ -216,6 +218,9 @@ class AccessQrController
                 return;
             }
 
+            $resolvedIdentity = strlen($normalized) === 8
+                ? $this->resolveUnknownDniIdentity($normalized)
+                : null;
             Response::success([
                 'source' => 'manual',
                 'kind' => 'person',
@@ -225,7 +230,11 @@ class AccessQrController
                 'status_validated' => 'DENEGADO',
                 'allow_entry' => false,
                 'is_birthday' => false,
-                'message' => 'Documento no registrado',
+                'message' => $resolvedIdentity
+                    ? 'Identidad verificada; documento no autorizado'
+                    : 'Documento no registrado',
+                'identity_display_name' => $resolvedIdentity['display_name'] ?? null,
+                'identity_claim' => $resolvedIdentity['claim'] ?? null,
             ], 'OK');
             return;
         }
@@ -326,6 +335,43 @@ class AccessQrController
         $parts = explode('.', $s);
 
         return count($parts) === 3 && strlen($parts[0]) > 0 && strlen($parts[1]) > 0;
+    }
+
+    /**
+     * Identifica un DNI no registrado usando el historial como caché antes de RENIEC.
+     *
+     * @return array{display_name:string,claim:string}|null
+     */
+    private function resolveUnknownDniIdentity(string $dni): ?array
+    {
+        $cached = access_identity_cached_reniec($this->pdo, $dni);
+        if ($cached) {
+            $name = trim((string) $cached['display_name_snapshot']);
+            $resolvedAt = trim((string) ($cached['identity_resolved_at'] ?? ''));
+            return [
+                'display_name' => $name,
+                'claim' => access_identity_claim($dni, $name, 'RENIEC', $resolvedAt),
+            ];
+        }
+
+        try {
+            $reniec = reniec_lookup_dni($dni);
+        } catch (\Throwable $e) {
+            error_log('RENIEC scan lookup failed: ' . $e->getMessage());
+            return null;
+        }
+        if (!$reniec) {
+            return null;
+        }
+        $name = access_identity_full_name($reniec);
+        if ($name === null) {
+            return null;
+        }
+        $resolvedAt = date('Y-m-d H:i:s');
+        return [
+            'display_name' => $name,
+            'claim' => access_identity_claim($dni, $name, 'RENIEC', $resolvedAt),
+        ];
     }
 
     /**
@@ -549,9 +595,16 @@ class AccessQrController
 
         return [
             'source' => $source,
-            'kind' => 'vehicle',
-            'person' => null,
-            'vehicle' => $vehiclePublic,
+            'kind' => $plate !== '' ? 'vehicle' : 'person',
+            'person' => $plate === '' ? [
+                'id' => 0,
+                'doc_number' => $doc,
+                'first_name' => $tv['temp_visit_name'] ?? null,
+                'paternal_surname' => null,
+                'maternal_surname' => null,
+                'house_id' => $houseId,
+            ] : null,
+            'vehicle' => $plate !== '' ? $vehiclePublic : null,
             'person_id' => null,
             'doc_number' => $doc !== '' ? $doc : null,
             'vehicle_id' => null,

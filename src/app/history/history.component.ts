@@ -23,7 +23,14 @@ export interface HistoryAccessPointOption {
   label: string;
 }
 
-type HistoryRow = Record<string, unknown>;
+interface HistoryRow extends Record<string, unknown> {
+  entity_kind?: 'PERSON' | 'VEHICLE' | null;
+  type?: 'PERSONA' | 'VEHÍCULO' | string | null;
+  display_name_snapshot?: string | null;
+  document_snapshot?: string | null;
+  license_plate_snapshot?: string | null;
+  identity_source?: 'LOCAL' | 'RENIEC' | 'LEGACY' | null;
+}
 type HistoryResultStatus = 'PERMITIDO' | 'DENEGADO' | 'RESTRINGIDO' | 'OBSERVADO' | '—';
 
 const HISTORY_RESULT_STATUSES: HistoryResultStatus[] = [
@@ -48,7 +55,7 @@ function parseResultStatus(row: HistoryRow): HistoryResultStatus {
 }
 
 function parseDisplayPlate(row: HistoryRow): string {
-  const plate = String(row['vehicle_plate'] ?? '').trim();
+  const plate = String(row.license_plate_snapshot ?? row['vehicle_plate'] ?? '').trim();
   if (plate && plate !== '—') {
     return plate.toUpperCase();
   }
@@ -105,10 +112,10 @@ function parseResultNotes(row: HistoryRow): string[] {
   ],
 })
 export class HistoryComponent implements OnInit {
-  expandedElement: Item;
+  expandedElement!: Item;
 
-  fecha_inicial: Date;
-  fecha_final: Date;
+  fecha_inicial!: Date;
+  fecha_final!: Date;
 
   access_point: number | null = null;
 
@@ -367,6 +374,13 @@ export class HistoryComponent implements OnInit {
 
   isCameraRow(row: HistoryRow): boolean {
     return String(row['entry_source'] ?? '').toLowerCase() === 'camera';
+  }
+
+  isVehicleRow(row: HistoryRow): boolean {
+    const kind = String(row.entity_kind ?? '').toUpperCase();
+    if (kind) return kind === 'VEHICLE';
+    const type = String(row.type ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    return type === 'VEHICULO';
   }
 
   resultStatus(row: HistoryRow): HistoryResultStatus {

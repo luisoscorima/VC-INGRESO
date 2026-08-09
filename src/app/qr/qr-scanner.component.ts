@@ -896,6 +896,9 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       const url = this.api.getPhotoUrl(v.photo_url ?? null);
       this.heroImageUrl = url || null;
     } else {
+      if (data.identity_display_name) {
+        lines.push(data.identity_display_name);
+      }
       lines.push(data.message || 'Sin coincidencia en el registro');
       if (data.doc_number) {
         lines.push(`Doc.: ${data.doc_number}`);
@@ -1110,7 +1113,8 @@ export class QrScannerComponent implements OnInit, OnDestroy {
         house_id: houseId,
         assignment_id: data.assignment_id ?? null,
         status_validated: data.status_validated,
-        entry_source: 'qr',
+        entry_source: data.source,
+        entity_kind: data.kind === 'vehicle' ? 'VEHICLE' : 'PERSON',
       };
       this.api.post('api/v1/access-logs/temporary', body).subscribe({
         next: (res) => {
@@ -1135,7 +1139,9 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       access_point_id: apId,
       type: this.movementMode,
       observation: this.buildObservation(data),
-      entry_source: 'qr',
+      entry_source: data.source,
+      entity_kind: data.kind === 'vehicle' ? 'VEHICLE' : 'PERSON',
+      identity_claim: data.identity_claim ?? null,
     };
 
     if (data.kind === 'person') {

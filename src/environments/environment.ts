@@ -10,8 +10,6 @@ export const environment = {
   baseUrl: "http://localhost:8080",
   /** Origen donde se sirve la SPA (assets estáticos); sin barra final. */
   publicAppUrl: "http://localhost:4200",
-  // API token para RENIEC (obtener de variable de entorno en producción)
-  reniecApiToken: "e9cc47e67d492cdee675bfb2b365cvcs93611b5141144aa0da34cab5429bb5e8",
 };
 
 /*

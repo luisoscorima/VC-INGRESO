@@ -11,7 +11,6 @@ import { ApiService } from './api.service';
 })
 export class UsersService {
   private baseUrl = environment.baseUrl;
-  private reniecApiUrl = 'https://my.apidev.pro/api/dni';
 
   // BehaviorSubject para centralizar el estado del usuario
   private userSubject = new BehaviorSubject<User | null>(null);
@@ -175,12 +174,8 @@ export class UsersService {
 
   // ==================== RENIEC ====================
 
-  /**
-   * Consultar datos de RENIEC usando token desde environment
-   */
+  /** Consultar RENIEC mediante el proxy autenticado del backend. */
   getUserFromReniec(doc_number: string): Observable<any> {
-    const reniecToken = environment.reniecApiToken || '';
-    const url = `${this.reniecApiUrl}/${doc_number}?api_token=${reniecToken}`;
-    return this.http.get(url);
+    return this.api.get(`api/v1/reniec/dni/${encodeURIComponent(doc_number.trim())}`);
   }
 }

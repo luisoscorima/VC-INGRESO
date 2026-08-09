@@ -104,9 +104,6 @@ export class PublicRegistrationService {
     return environment.baseUrl;
   }
 
-  /** API externa DNI (my.apidev.pro). Si requiere token, usar reniecApiToken. */
-  private readonly reniecDniUrl = 'https://my.apidev.pro/api/dni';
-
   constructor(
     private api: ApiService,
     private http: HttpClient
@@ -167,21 +164,13 @@ export class PublicRegistrationService {
     );
   }
 
-  /**
-   * Consulta datos por DNI en la API externa.
-   * Rellena first_name, paternal_surname, maternal_surname (y doc_number).
-   */
+  /** Consulta RENIEC mediante el proxy público limitado del backend. */
   getDniData(docNumber: string): Observable<ReniecDniData | null> {
     const num = (docNumber || '').trim();
-    if (!num || num.length < 8) {
+    if (!/^[0-9]{8}$/.test(num)) {
       return of(null);
     }
-    const url = `${this.reniecDniUrl}/${num}`;
-    const headers: Record<string, string> = {};
-    if (environment.reniecApiToken) {
-      headers['Authorization'] = `Bearer ${environment.reniecApiToken}`;
-    }
-    return this.http.get<{ success: boolean; data?: ReniecDniData }>(url, { headers }).pipe(
+    return this.api.getRaw(`api/v1/public/reniec/dni/${num}`).pipe(
       map(res => (res?.success && res?.data) ? res.data : null),
       catchError(() => of(null))
     );
