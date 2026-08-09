@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -50,15 +50,56 @@ interface AccessPointOption {
         <div>
           <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">Foto (opcional)</label>
           <input
+            #cameraInput
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+            capture="environment"
+            (change)="onPhotoSelected($event)"
+            class="hidden" />
+          <input
+            #galleryInput
             type="file"
             accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
             (change)="onPhotoSelected($event)"
-            class="block w-full text-sm text-gray-700" />
-          <img
-            *ngIf="photoPreview"
-            [src]="photoPreview"
-            alt="Vista previa"
-            class="mt-2 max-h-40 rounded-lg border border-gray-200 object-contain dark:border-gray-600" />
+            class="hidden" />
+
+          <div *ngIf="!photoPreview" class="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              class="vc-btn-primary inline-flex items-center gap-2 !px-4 !py-2.5"
+              (click)="openCamera()">
+              <mat-icon class="!h-5 !w-5 !text-xl">photo_camera</mat-icon>
+              Tomar foto
+            </button>
+            <button
+              type="button"
+              class="text-sm font-medium text-amber-700 hover:underline dark:text-amber-400"
+              (click)="openGallery()">
+              Elegir de galería
+            </button>
+          </div>
+
+          <div *ngIf="photoPreview" class="mt-2">
+            <img
+              [src]="photoPreview"
+              alt="Vista previa de la incidencia"
+              class="max-h-40 rounded-lg border border-gray-200 object-contain dark:border-gray-600" />
+            <div class="mt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                class="vc-btn-primary inline-flex items-center gap-2 !px-4 !py-2"
+                (click)="openCamera()">
+                <mat-icon class="!h-5 !w-5 !text-xl">photo_camera</mat-icon>
+                Volver a tomar
+              </button>
+              <button
+                type="button"
+                class="text-sm font-medium text-red-700 hover:underline dark:text-red-400"
+                (click)="removePhoto()">
+                Quitar foto
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </mat-dialog-content>
@@ -74,7 +115,10 @@ interface AccessPointOption {
     </mat-dialog-actions>
   `,
 })
-export class IncidentFormDialogComponent implements OnInit {
+export class IncidentFormDialogComponent implements OnInit, OnDestroy {
+  @ViewChild('cameraInput') private cameraInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('galleryInput') private galleryInput?: ElementRef<HTMLInputElement>;
+
   accessPoints: AccessPointOption[] = [];
   accessPointId: number | null = null;
   description = '';
@@ -94,6 +138,10 @@ export class IncidentFormDialogComponent implements OnInit {
   ngOnInit(): void {
     this.accessPointId = this.data.accessPointId ?? null;
     this.loadAccessPoints();
+  }
+
+  ngOnDestroy(): void {
+    this.clearPhotoPreview();
   }
 
   get canSubmit(): boolean {
@@ -126,10 +174,46 @@ export class IncidentFormDialogComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     this.photoFile = file;
+    this.clearPhotoPreview();
+    this.photoPreview = file ? URL.createObjectURL(file) : null;
+  }
+
+  openCamera(): void {
+    this.openFileInput(this.cameraInput);
+  }
+
+  openGallery(): void {
+    this.openFileInput(this.galleryInput);
+  }
+
+  removePhoto(): void {
+    this.photoFile = null;
+    this.clearPhotoPreview();
+    this.resetFileInputs();
+  }
+
+  private openFileInput(input?: ElementRef<HTMLInputElement>): void {
+    if (!input) {
+      return;
+    }
+    input.nativeElement.value = '';
+    input.nativeElement.click();
+  }
+
+  private resetFileInputs(): void {
+    if (this.cameraInput) {
+      this.cameraInput.nativeElement.value = '';
+    }
+    if (this.galleryInput) {
+      this.galleryInput.nativeElement.value = '';
+    }
+  }
+
+  private clearPhotoPreview(): void {
     if (this.photoPreview) {
       URL.revokeObjectURL(this.photoPreview);
+      this.photoPreview = null;
     }
-    this.photoPreview = file ? URL.createObjectURL(file) : null;
   }
 
   submit(): void {

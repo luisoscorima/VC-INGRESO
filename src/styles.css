@@ -328,22 +328,6 @@ a.vc-btn-primary {
   color: #d1d5db;
 }
 
-.dark .vc-incident-dialog input[type="file"] {
-  color: #e5e7eb;
-  font-size: 0.875rem;
-}
-
-.dark .vc-incident-dialog input[type="file"]::file-selector-button {
-  margin-right: 0.5rem;
-  border: 1px solid #4b5563;
-  border-radius: 0.375rem;
-  background-color: #374151;
-  color: #f3f4f6;
-  padding: 0.35rem 0.75rem;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
 .dark .vc-incident-dialog .mat-mdc-dialog-actions {
   border-top: 1px solid #374151;
 }
