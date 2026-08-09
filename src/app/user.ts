@@ -1,3 +1,5 @@
+import { IdentityDocumentType } from './shared/identity-document';
+
 /**
  * Modelo de vista (no es una sola tabla).
  *
@@ -11,7 +13,7 @@
  */
 export class User {
   constructor(
-    public type_doc: string,
+    public type_doc: IdentityDocumentType | string,
     public doc_number: string,
     public first_name: string,
     public paternal_surname: string,

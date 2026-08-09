@@ -1,7 +1,7 @@
 <?php
 /**
  * Normalización de placas (vehículos residentes y, opcionalmente, visitas externas).
- * Solo letras latinas A-Z y dígitos 0-9, en mayúsculas; sin espacios ni guiones.
+ * Placa peruana: seis alfanuméricos. Se toleran espacios/guion solo al capturar.
  */
 
 /**
@@ -11,6 +11,24 @@
 function normalize_license_plate(string $raw): string
 {
     $s = strtoupper(trim($raw));
+    if ($s === '' || preg_match('/^[A-Z0-9 -]+$/', $s) !== 1) {
+        return '';
+    }
+    return preg_replace('/[ -]+/', '', $s);
+}
 
-    return preg_replace('/[^A-Z0-9]/', '', $s);
+function validate_license_plate(string $plate): bool
+{
+    return preg_match('/^[A-Z0-9]{6}$/', $plate) === 1;
+}
+
+function require_valid_license_plate($raw): string
+{
+    $plate = normalize_license_plate((string) $raw);
+    if (!validate_license_plate($plate)) {
+        throw new \InvalidArgumentException(
+            'Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.'
+        );
+    }
+    return $plate;
 }

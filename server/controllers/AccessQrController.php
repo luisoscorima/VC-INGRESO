@@ -56,7 +56,7 @@ class AccessQrController
                 return;
             }
             $stmt = $this->pdo->prepare(
-                'SELECT id, doc_number, house_id FROM persons WHERE id = ? LIMIT 1'
+                'SELECT id, type_doc, doc_number, house_id FROM persons WHERE id = ? LIMIT 1'
             );
             $stmt->execute([$personId]);
             $row = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -81,8 +81,9 @@ class AccessQrController
             }
             $payload = [
                 'typ' => self::QR_TYP,
-                'v' => 1,
+                'v' => 2,
                 'k' => 'person',
+                'dt' => normalize_identity_document_type($row['type_doc'] ?? ''),
                 'doc' => (string) $row['doc_number'],
                 'hid' => $hid,
                 'pid' => (int) $row['id'],
@@ -95,6 +96,7 @@ class AccessQrController
                 'kind' => 'person',
                 'person_id' => (int) $row['id'],
                 'doc_number' => (string) $row['doc_number'],
+                'document_type' => normalize_identity_document_type($row['type_doc'] ?? ''),
                 'house_id' => $hid,
             ], 'Token generado');
             return;
@@ -119,6 +121,10 @@ class AccessQrController
             return;
         }
         $plate = normalize_license_plate((string) ($row['license_plate'] ?? ''));
+        if (!validate_license_plate($plate)) {
+            Response::error('El vehículo no tiene una placa peruana válida para generar QR.', 422);
+            return;
+        }
         $hid = (int) $row['house_id'];
         $payload = [
             'typ' => self::QR_TYP,
@@ -197,12 +203,33 @@ class AccessQrController
             return;
         }
 
-        $normalized = preg_replace('/\s+/', '', $input);
-        if (preg_match('/^[0-9]{8,15}$/', $normalized)) {
+        $inputKind = strtoupper(trim((string) ($body['input_kind'] ?? '')));
+        $documentType = normalize_identity_document_type($body['document_type'] ?? '');
+        $plateCandidate = normalize_license_plate($input);
+        if ($inputKind === '') {
+            if (validate_license_plate($plateCandidate)) {
+                $inputKind = 'PLATE';
+            } elseif (preg_match('/^[0-9]{8}$/', trim($input))) {
+                Response::error('Seleccione si los 8 dígitos corresponden a DNI o CE.', 422);
+                return;
+            } elseif (validate_identity_document('CE', normalize_identity_document('CE', $input))) {
+                $inputKind = 'DOCUMENT';
+                $documentType = 'CE';
+            }
+        }
+        if ($inputKind === 'DOCUMENT') {
+            try {
+                $identity = require_valid_identity_document($documentType, $input);
+                $documentType = $identity['type'];
+                $normalized = $identity['value'];
+            } catch (\InvalidArgumentException $e) {
+                Response::error($e->getMessage(), 422);
+                return;
+            }
             $stmt = $this->pdo->prepare(
-                'SELECT * FROM persons WHERE doc_number = ? LIMIT 1'
+                'SELECT * FROM persons WHERE type_doc = ? AND doc_number = ? LIMIT 1'
             );
-            $stmt->execute([$normalized]);
+            $stmt->execute([$documentType, $normalized]);
             $person = $stmt->fetch(\PDO::FETCH_ASSOC);
             if ($person) {
                 $data = $this->buildUnifiedFromPerson($person, 'manual');
@@ -211,14 +238,14 @@ class AccessQrController
             }
 
             // Doc. responsable de vehículo externo (temporary_visits)
-            $tempByDoc = find_temp_visit_profile($this->pdo, null, $normalized);
+            $tempByDoc = find_temp_visit_profile($this->pdo, null, $normalized, $documentType);
             if ($tempByDoc) {
                 $data = $this->buildUnifiedFromTemporaryVisit($tempByDoc, 'manual');
                 Response::success($data, 'OK');
                 return;
             }
 
-            $resolvedIdentity = strlen($normalized) === 8
+            $resolvedIdentity = $documentType === 'DNI'
                 ? $this->resolveUnknownDniIdentity($normalized)
                 : null;
             Response::success([
@@ -227,6 +254,7 @@ class AccessQrController
                 'person' => null,
                 'vehicle' => null,
                 'doc_number' => $normalized,
+                'document_type' => $documentType,
                 'status_validated' => 'DENEGADO',
                 'allow_entry' => false,
                 'is_birthday' => false,
@@ -239,21 +267,11 @@ class AccessQrController
             return;
         }
 
-        $plateNorm = normalize_license_plate($input);
-        if ($plateNorm === '') {
-            Response::success([
-                'source' => 'manual',
-                'kind' => 'vehicle',
-                'person' => null,
-                'vehicle' => null,
-                'license_plate' => null,
-                'status_validated' => 'DENEGADO',
-                'allow_entry' => false,
-                'is_birthday' => false,
-                'message' => 'Placa no registrada',
-            ], 'OK');
+        if ($inputKind !== 'PLATE' || !validate_license_plate($plateCandidate)) {
+            Response::error('Entrada inválida. Use placa peruana, DNI o CE.', 422);
             return;
         }
+        $plateNorm = $plateCandidate;
         $stmt = $this->pdo->prepare(
             'SELECT * FROM vehicles WHERE license_plate = ? LIMIT 1'
         );
@@ -387,7 +405,9 @@ class AccessQrController
         if ($k === 'person') {
             $pid = isset($payload['pid']) ? (int) $payload['pid'] : 0;
             $docTok = trim((string) ($payload['doc'] ?? ''));
-            if ($pid <= 0 || $docTok === '') {
+            $typeTok = normalize_identity_document_type($payload['dt'] ?? '');
+            $tokenVersion = (int) ($payload['v'] ?? 1);
+            if ($pid <= 0 || $docTok === '' || ($tokenVersion >= 2 && $typeTok === '')) {
                 return null;
             }
             $stmt = $this->pdo->prepare('SELECT * FROM persons WHERE id = ? LIMIT 1');
@@ -397,6 +417,9 @@ class AccessQrController
                 return null;
             }
             if (trim((string) $person['doc_number']) !== $docTok) {
+                return null;
+            }
+            if ($typeTok !== '' && normalize_identity_document_type($person['type_doc'] ?? '') !== $typeTok) {
                 return null;
             }
             $hidTok = isset($payload['hid']) ? (int) $payload['hid'] : 0;
@@ -413,7 +436,7 @@ class AccessQrController
         if ($k === 'vehicle') {
             $vid = isset($payload['vid']) ? (int) $payload['vid'] : 0;
             $plateTok = normalize_license_plate((string) ($payload['plate'] ?? ''));
-            if ($vid <= 0 || $plateTok === '') {
+            if ($vid <= 0 || !validate_license_plate($plateTok)) {
                 return null;
             }
             $stmt = $this->pdo->prepare('SELECT * FROM vehicles WHERE vehicle_id = ? LIMIT 1');
@@ -465,6 +488,7 @@ class AccessQrController
             'vehicle' => null,
             'person_id' => (int) $person['id'],
             'doc_number' => (string) $person['doc_number'],
+            'document_type' => normalize_identity_document_type($person['type_doc'] ?? ''),
             'vehicle_id' => null,
             'license_plate' => null,
             'house_id' => $houseId,

@@ -480,6 +480,11 @@ if (str_starts_with($uri, '/api/v1/')) {
     if (str_starts_with($path, 'persons')) {
         require_once __DIR__ . '/controllers/PersonController.php';
         $controller = new \Controllers\PersonController();
+
+        if ($path === 'persons/by-doc-number' && $method === 'GET') {
+            $controller->byDocNumber(['doc_number' => $_GET['doc_number'] ?? null]);
+            exit;
+        }
         
         if (preg_match('#^persons(?:/(\d+))?#', $path, $matches)) {
             $id = $matches[1] ?? null;
@@ -505,15 +510,6 @@ if (str_starts_with($uri, '/api/v1/')) {
                         $controller->destroy(['id' => $id]);
                     }
                     break;
-            }
-            exit;
-        }
-        
-        // by-doc-number
-        if (str_contains($path, 'by-doc-number')) {
-            if ($method === 'GET') {
-                $docNumber = $_GET['doc_number'] ?? null;
-                $controller->byDocNumber(['doc_number' => $docNumber]);
             }
             exit;
         }

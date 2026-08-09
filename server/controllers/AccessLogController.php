@@ -183,10 +183,10 @@ class AccessLogController
             $stmt = $this->pdo->prepare("
                 INSERT INTO {$this->table} 
                 (access_point_id, person_id, doc_number, vehicle_id, entity_kind,
-                 display_name_snapshot, document_snapshot, license_plate_snapshot,
+                 display_name_snapshot, document_snapshot, document_type_snapshot, license_plate_snapshot,
                  identity_source, identity_resolved_at, type, observation, entry_source,
                  created_by_user_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
 
             $stmt->execute([
@@ -197,6 +197,7 @@ class AccessLogController
                 $identity['entity_kind'],
                 $identity['display_name_snapshot'],
                 $identity['document_snapshot'],
+                $identity['document_type_snapshot'],
                 $identity['license_plate_snapshot'],
                 $identity['identity_source'],
                 $identity['identity_resolved_at'],
@@ -238,6 +239,13 @@ class AccessLogController
         $personId = $this->nullablePositiveInt($data['person_id'] ?? null);
         $vehicleId = $this->nullablePositiveInt($data['vehicle_id'] ?? null);
         $docNumber = trim((string) ($data['doc_number'] ?? ''));
+        if ($personId === null && $docNumber !== '') {
+            $identity = require_valid_identity_document(
+                $data['document_type'] ?? $data['type_doc'] ?? '',
+                $docNumber
+            );
+            $docNumber = $identity['value'];
+        }
         $licensePlate = $this->extractLicensePlateFromPayload($data);
 
         $open = $this->findOpenAccessLogIngress($accessPointId, $personId, $vehicleId, $docNumber, $licensePlate);
@@ -352,11 +360,11 @@ class AccessLogController
     {
         $plate = trim((string) ($data['license_plate'] ?? ''));
         if ($plate !== '') {
-            return strtoupper($plate);
+            return require_valid_license_plate($plate);
         }
         $obs = (string) ($data['observation'] ?? '');
         if (preg_match('/placa\s+([A-Za-z0-9-]+)/iu', $obs, $m)) {
-            return strtoupper(trim($m[1]));
+            return require_valid_license_plate($m[1]);
         }
 
         return null;
@@ -373,7 +381,7 @@ class AccessLogController
     }
 
     /**
-     * @return array{entity_kind:string,display_name_snapshot:?string,document_snapshot:?string,license_plate_snapshot:?string,identity_source:?string,identity_resolved_at:?string}
+     * @return array{entity_kind:string,display_name_snapshot:?string,document_snapshot:?string,document_type_snapshot:?string,license_plate_snapshot:?string,identity_source:?string,identity_resolved_at:?string}
      */
     private function resolveIdentitySnapshot(array $data): array
     {
@@ -401,6 +409,7 @@ class AccessLogController
             'entity_kind' => $kind,
             'display_name_snapshot' => null,
             'document_snapshot' => null,
+            'document_type_snapshot' => null,
             'license_plate_snapshot' => null,
             'identity_source' => null,
             'identity_resolved_at' => null,
@@ -410,7 +419,7 @@ class AccessLogController
             $document = trim((string) ($data['doc_number'] ?? ''));
             if ($personId !== null) {
                 $stmt = $this->pdo->prepare(
-                    "SELECT doc_number, first_name, paternal_surname, maternal_surname
+                    "SELECT type_doc, doc_number, first_name, paternal_surname, maternal_surname
                      FROM persons WHERE id = ? LIMIT 1"
                 );
                 $stmt->execute([$personId]);
@@ -421,10 +430,16 @@ class AccessLogController
                 $snapshot['document_snapshot'] = $localDocument !== ''
                     ? $localDocument
                     : ($document !== '' ? $document : null);
+                $snapshot['document_type_snapshot'] = normalize_identity_document_type($person['type_doc'] ?? '') ?: null;
                 $snapshot['identity_source'] = 'LOCAL';
                 $snapshot['identity_resolved_at'] = date('Y-m-d H:i:s');
             } else {
-                $snapshot['document_snapshot'] = $document !== '' ? $document : null;
+                if ($document !== '') {
+                    $identity = require_valid_identity_document($data['document_type'] ?? $data['type_doc'] ?? '', $document);
+                    $document = $identity['value'];
+                    $snapshot['document_snapshot'] = $document;
+                    $snapshot['document_type_snapshot'] = $identity['type'];
+                }
                 $claim = access_identity_verify_claim($data['identity_claim'] ?? null, $document);
                 if ($claim) {
                     $snapshot = array_merge($snapshot, $claim);
@@ -445,7 +460,7 @@ class AccessLogController
             if (!$vehicle) throw new \InvalidArgumentException('Vehículo no encontrado');
             $snapshot['display_name_snapshot'] = access_identity_full_name($vehicle);
             $snapshot['license_plate_snapshot'] =
-                strtoupper(trim((string) ($vehicle['license_plate'] ?? ''))) ?: $plate;
+                normalize_license_plate((string) ($vehicle['license_plate'] ?? '')) ?: $plate;
             $snapshot['identity_source'] = 'LOCAL';
             $snapshot['identity_resolved_at'] = date('Y-m-d H:i:s');
         } else {
@@ -518,7 +533,7 @@ class AccessLogController
 
         try {
             $profileStmt = $this->pdo->prepare(
-                'SELECT temp_visit_name, temp_visit_doc, temp_visit_plate
+                'SELECT temp_visit_name, temp_visit_doc, temp_visit_doc_type, temp_visit_plate
                  FROM temporary_visits WHERE temp_visit_id = ? LIMIT 1'
             );
             $profileStmt->execute([$tempVisitId]);
@@ -527,23 +542,25 @@ class AccessLogController
                 Response::json(['success' => false, 'error' => 'Visita temporal no encontrada'], 404);
                 return;
             }
-            $snapshotPlate = strtoupper(trim((string) ($profile['temp_visit_plate'] ?? '')));
+            $snapshotPlate = normalize_license_plate((string) ($profile['temp_visit_plate'] ?? ''));
             $snapshotDoc = trim((string) ($profile['temp_visit_doc'] ?? ''));
+            $snapshotDocType = normalize_identity_document_type($profile['temp_visit_doc_type'] ?? '') ?: null;
             $snapshotName = trim((string) ($profile['temp_visit_name'] ?? ''));
             $entityKind = $snapshotPlate !== '' ? 'VEHICLE' : 'PERSON';
             $stmt = $this->pdo->prepare(
                 "INSERT INTO temporary_access_logs
-                 (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot,
+                 (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot, document_type_snapshot,
                   license_plate_snapshot, identity_source, identity_resolved_at,
                   assignment_id, assignment_valid_until, authorized_duration_minutes, stay_deadline,
                   temp_entry_time, access_point_id, status_validated, entry_source, house_id, created_by_user_id)
-                 VALUES (?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                 VALUES (?, ?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $stmt->execute([
                 $tempVisitId,
                 $entityKind,
                 $snapshotName !== '' ? $snapshotName : null,
                 $snapshotDoc !== '' ? $snapshotDoc : null,
+                $snapshotDocType,
                 $snapshotPlate !== '' ? $snapshotPlate : null,
                 $now,
                 $assignmentId,

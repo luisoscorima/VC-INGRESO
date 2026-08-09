@@ -31,20 +31,28 @@ SET
     ),
     al.license_plate_snapshot = COALESCE(
         NULLIF(TRIM(al.license_plate_snapshot), ''),
-        NULLIF(UPPER(TRIM(v.license_plate)), ''),
-        NULLIF(
-            UPPER(
+        CASE
+            WHEN UPPER(TRIM(v.license_plate)) REGEXP '^[A-Z0-9 -]+$'
+             AND CHAR_LENGTH(REGEXP_REPLACE(UPPER(TRIM(v.license_plate)), '[ -]', '')) = 6
+                THEN REGEXP_REPLACE(UPPER(TRIM(v.license_plate)), '[ -]', '')
+            ELSE NULL
+        END,
+        CASE
+            WHEN REGEXP_REPLACE(
+                    REGEXP_SUBSTR(al.observation, 'placa[[:space:]]+[[:alnum:] -]+', 1, 1, 'i'),
+                    '^placa[[:space:]]+', '', 1, 0, 'i'
+                 ) REGEXP '^[A-Za-z0-9 -]+$'
+             AND CHAR_LENGTH(REGEXP_REPLACE(
                 REGEXP_REPLACE(
                     REGEXP_SUBSTR(al.observation, 'placa[[:space:]]+[[:alnum:]-]+', 1, 1, 'i'),
-                    '^placa[[:space:]]+',
-                    '',
-                    1,
-                    0,
-                    'i'
-                )
-            ),
-            ''
-        )
+                    '^placa[[:space:]]+', '', 1, 0, 'i'
+                ), '[ -]', '')) = 6
+                THEN REGEXP_REPLACE(UPPER(REGEXP_REPLACE(
+                        REGEXP_SUBSTR(al.observation, 'placa[[:space:]]+[[:alnum:]-]+', 1, 1, 'i'),
+                        '^placa[[:space:]]+', '', 1, 0, 'i'
+                    )), '[ -]', '')
+            ELSE NULL
+        END
     ),
     al.display_name_snapshot = COALESCE(
         NULLIF(TRIM(al.display_name_snapshot), ''),
@@ -96,7 +104,12 @@ SET
     ),
     tal.license_plate_snapshot = COALESCE(
         NULLIF(TRIM(tal.license_plate_snapshot), ''),
-        NULLIF(UPPER(TRIM(tv.temp_visit_plate)), '')
+        CASE
+            WHEN UPPER(TRIM(tv.temp_visit_plate)) REGEXP '^[A-Z0-9 -]+$'
+             AND CHAR_LENGTH(REGEXP_REPLACE(UPPER(TRIM(tv.temp_visit_plate)), '[ -]', '')) = 6
+                THEN REGEXP_REPLACE(UPPER(TRIM(tv.temp_visit_plate)), '[ -]', '')
+            ELSE NULL
+        END
     ),
     tal.identity_source = COALESCE(tal.identity_source, 'LEGACY'),
     tal.identity_resolved_at = COALESCE(tal.identity_resolved_at, tal.temp_entry_time)

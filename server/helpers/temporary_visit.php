@@ -4,17 +4,18 @@
  */
 
 require_once __DIR__ . '/license_plate.php';
+require_once __DIR__ . '/identity_document.php';
 
 /** Duraciones permitidas (minutos) elegibles por el vecino. */
 const TEMP_VISIT_ALLOWED_DURATIONS = [30, 60, 120, 240];
 
-function normalize_temp_visit_doc(?string $doc): string
+function normalize_temp_visit_doc(?string $doc, ?string $type = 'DNI'): string
 {
     if ($doc === null || $doc === '') {
         return '';
     }
-
-    return preg_replace('/\D/', '', trim($doc));
+    $normalizedType = normalize_identity_document_type($type);
+    return $normalizedType === '' ? '' : normalize_identity_document($normalizedType, $doc);
 }
 
 function validate_temp_visit_duration_minutes($minutes): int
@@ -32,10 +33,14 @@ function validate_temp_visit_duration_minutes($minutes): int
  *
  * @return array<string,mixed>|null
  */
-function find_temp_visit_profile(\PDO $pdo, ?string $plate, ?string $doc): ?array
+function find_temp_visit_profile(\PDO $pdo, ?string $plate, ?string $doc, ?string $docType = null): ?array
 {
     $plateNorm = $plate !== null && $plate !== '' ? normalize_license_plate($plate) : '';
-    $docNorm = normalize_temp_visit_doc($doc);
+    if ($plateNorm !== '' && !validate_license_plate($plateNorm)) {
+        $plateNorm = '';
+    }
+    $typeNorm = normalize_identity_document_type($docType);
+    $docNorm = $typeNorm !== '' ? normalize_temp_visit_doc($doc, $typeNorm) : normalize_untyped_identity_document($doc);
 
     if ($plateNorm === '' && $docNorm === '') {
         return null;
@@ -48,8 +53,10 @@ function find_temp_visit_profile(\PDO $pdo, ?string $plate, ?string $doc): ?arra
         $params[] = $plateNorm;
     }
     if ($docNorm !== '') {
-        $clauses[] = "(temp_visit_doc IS NOT NULL AND temp_visit_doc <> '' AND REPLACE(REPLACE(REPLACE(REPLACE(TRIM(temp_visit_doc), ' ', ''), '-', ''), '.', ''), '/', '') = ?)";
+        $clauses[] = "(temp_visit_doc IS NOT NULL AND temp_visit_doc <> '' AND UPPER(TRIM(temp_visit_doc)) = ?"
+            . ($typeNorm !== '' ? ' AND temp_visit_doc_type = ?)' : ')');
         $params[] = $docNorm;
+        if ($typeNorm !== '') $params[] = $typeNorm;
     }
 
     $sql = 'SELECT * FROM temporary_visits WHERE (' . implode(' OR ', $clauses) . ') ORDER BY temp_visit_id DESC LIMIT 1';
@@ -67,7 +74,7 @@ function find_temp_visit_profile(\PDO $pdo, ?string $plate, ?string $doc): ?arra
  */
 function merge_temp_visit_profile_fields(array $existing, array $incoming): array
 {
-    $mergeFields = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'photo_url'];
+    $mergeFields = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_doc_type', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'photo_url'];
     $out = [];
     foreach ($mergeFields as $field) {
         if (!array_key_exists($field, $incoming)) {
@@ -83,9 +90,13 @@ function merge_temp_visit_profile_fields(array $existing, array $incoming): arra
             continue;
         }
         if ($field === 'temp_visit_plate') {
-            $out[$field] = normalize_license_plate($newVal) ?: $oldVal;
+            $plate = normalize_license_plate($newVal);
+            if (validate_license_plate($plate)) {
+                $out[$field] = $plate;
+            }
         } elseif ($field === 'temp_visit_doc') {
-            if ($oldVal !== $newVal && normalize_temp_visit_doc($oldVal) !== normalize_temp_visit_doc($newVal)) {
+            $type = (string) ($incoming['temp_visit_doc_type'] ?? $existing['temp_visit_doc_type'] ?? 'DNI');
+            if ($oldVal !== $newVal && normalize_temp_visit_doc($oldVal, $type) !== normalize_temp_visit_doc($newVal, $type)) {
                 continue;
             }
         } else {

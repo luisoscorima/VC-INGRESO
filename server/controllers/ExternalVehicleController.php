@@ -116,13 +116,26 @@ class ExternalVehicleController extends Controller {
         requireAuth();
         $plate = trim((string) ($_GET['plate'] ?? $_GET['temp_visit_plate'] ?? ''));
         $doc = trim((string) ($_GET['doc'] ?? $_GET['temp_visit_doc'] ?? ''));
+        $docType = trim((string) ($_GET['document_type'] ?? $_GET['temp_visit_doc_type'] ?? ''));
 
         if ($plate === '' && $doc === '') {
             Response::error('Indique placa o documento', 400);
             return;
         }
+        if ($plate !== '' && !validate_license_plate(normalize_license_plate($plate))) {
+            Response::error('Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.', 422);
+            return;
+        }
+        if ($doc !== '') {
+            try {
+                require_valid_identity_document($docType, $doc);
+            } catch (\InvalidArgumentException $e) {
+                Response::error($e->getMessage(), 422);
+                return;
+            }
+        }
 
-        $profile = find_temp_visit_profile($this->db, $plate !== '' ? $plate : null, $doc !== '' ? $doc : null);
+        $profile = find_temp_visit_profile($this->db, $plate !== '' ? $plate : null, $doc !== '' ? $doc : null, $docType ?: null);
         if (!$profile) {
             Response::success(['found' => false, 'profile' => null], 'Sin coincidencia');
             return;
@@ -195,9 +208,24 @@ class ExternalVehicleController extends Controller {
         }
 
         $plateNorm = $plateRaw !== '' ? normalize_license_plate($plateRaw) : '';
-        $docNorm = normalize_temp_visit_doc($doc);
+        if (!validate_license_plate($plateNorm)) {
+            Response::error('Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.', 422);
+            return;
+        }
+        $docType = normalize_identity_document_type($data['temp_visit_doc_type'] ?? '');
+        $docNorm = '';
+        if ($doc !== '') {
+            try {
+                $identity = require_valid_identity_document($docType, $doc);
+                $docType = $identity['type'];
+                $docNorm = $identity['value'];
+            } catch (\InvalidArgumentException $e) {
+                Response::error($e->getMessage(), 422);
+                return;
+            }
+        }
 
-        $allowed = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
+        $allowed = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_doc_type', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
         $incoming = [];
         foreach ($allowed as $field) {
             if (isset($data[$field])) {
@@ -209,6 +237,7 @@ class ExternalVehicleController extends Controller {
         }
         if ($docNorm !== '') {
             $incoming['temp_visit_doc'] = $docNorm;
+            $incoming['temp_visit_doc_type'] = $docType;
         }
         if (empty($incoming['temp_visit_type'])) {
             $incoming['temp_visit_type'] = 'DELIVERY';
@@ -226,6 +255,7 @@ class ExternalVehicleController extends Controller {
                 $this->db,
                 $plateNorm !== '' ? $plateNorm : null,
                 $docNorm !== '' ? $docNorm : null
+                , $docType ?: null
             );
 
             if ($existing) {
@@ -302,7 +332,7 @@ class ExternalVehicleController extends Controller {
         }
 
         $data = $this->getInput();
-        $allowed = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
+        $allowed = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_doc_type', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
 
         if ($isStaff) {
             $allowed[] = 'operator_notes';
@@ -316,11 +346,30 @@ class ExternalVehicleController extends Controller {
         }
         if (array_key_exists('temp_visit_plate', $filtered)) {
             $pn = normalize_license_plate((string) $filtered['temp_visit_plate']);
-            $filtered['temp_visit_plate'] = $pn === '' ? null : $pn;
+            if (!validate_license_plate($pn)) {
+                Response::error('Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.', 422);
+                return;
+            }
+            $filtered['temp_visit_plate'] = $pn;
         }
         if (array_key_exists('temp_visit_doc', $filtered)) {
-            $dn = normalize_temp_visit_doc((string) $filtered['temp_visit_doc']);
-            $filtered['temp_visit_doc'] = $dn === '' ? null : $dn;
+            $rawDoc = trim((string) $filtered['temp_visit_doc']);
+            if ($rawDoc === '') {
+                $filtered['temp_visit_doc'] = null;
+                $filtered['temp_visit_doc_type'] = null;
+            } else {
+                try {
+                    $identity = require_valid_identity_document(
+                        $filtered['temp_visit_doc_type'] ?? $visit->temp_visit_doc_type ?? '',
+                        $rawDoc
+                    );
+                    $filtered['temp_visit_doc_type'] = $identity['type'];
+                    $filtered['temp_visit_doc'] = $identity['value'];
+                } catch (\InvalidArgumentException $e) {
+                    Response::error($e->getMessage(), 422);
+                    return;
+                }
+            }
         }
         if (isset($filtered['temp_visit_plate']) && $filtered['temp_visit_plate'] === null) {
             Response::error('Campo requerido faltante: temp_visit_plate', 400);

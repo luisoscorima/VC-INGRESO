@@ -15,6 +15,17 @@ import {
   vehicleTypeRequiresLicensePlate,
   vehicleTypeRequiresVehiclePhoto
 } from '../vehicle-types';
+import {
+  PERUVIAN_LICENSE_PLATE_ERROR,
+  isValidPeruvianLicensePlate,
+  normalizePeruvianLicensePlate,
+} from '../shared/license-plate';
+import {
+  IDENTITY_DOCUMENT_TYPES,
+  identityDocumentError,
+  isValidIdentityDocument,
+  normalizeIdentityDocument,
+} from '../shared/identity-document';
 
 @Component({
   selector: 'app-vehicles',
@@ -60,6 +71,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   externalVehicleToAdd: ExternalVehicle = new ExternalVehicle('','','','','','','','');
   externalVehicleToEdit: ExternalVehicle = new ExternalVehicle('','','','','','','','');
   temp_visit_type:string[]=['DELIVERY','COLECTIVO','TAXI'];
+  readonly externalDocumentTypes = IDENTITY_DOCUMENT_TYPES;
   readonly externalDurationOptions = EXTERNAL_VISIT_DURATION_OPTIONS;
   externalDurationMinutes = 120;
   externalStaffHouseId = 0;
@@ -449,9 +461,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     }
     const t = this.vehicleToEdit.type_vehicle;
     if (vehicleTypeRequiresLicensePlate(t)) {
-      if (!(this.vehicleToEdit.license_plate ?? '').toString().trim()) {
-        this.toastr.error('La placa es obligatoria para este tipo de vehículo.');
-        this.clean();
+      if (!isValidPeruvianLicensePlate(this.vehicleToEdit.license_plate)) {
+        this.toastr.error(PERUVIAN_LICENSE_PLATE_ERROR);
         return;
       }
     } else if (!(this.vehicleToEdit.photo_url ?? '').toString().trim()) {
@@ -459,7 +470,9 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
       return;
     }
     const payloadEdit = { ...this.vehicleToEdit } as Vehicle;
-    if (!vehicleTypeRequiresLicensePlate(t)) {
+    if (vehicleTypeRequiresLicensePlate(t)) {
+      payloadEdit.license_plate = normalizePeruvianLicensePlate(payloadEdit.license_plate);
+    } else {
       (payloadEdit as any).license_plate = null;
     }
     this.entranceService.updateVehicle(payloadEdit).subscribe({
@@ -488,9 +501,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     }
     const tv = this.vehicleToAdd.type_vehicle;
     if (vehicleTypeRequiresLicensePlate(tv)) {
-      if (!(this.vehicleToAdd.license_plate ?? '').toString().trim()) {
-        this.toastr.error('La placa es obligatoria para este tipo de vehículo.');
-        this.clean();
+      if (!isValidPeruvianLicensePlate(this.vehicleToAdd.license_plate)) {
+        this.toastr.error(PERUVIAN_LICENSE_PLATE_ERROR);
         return;
       }
     } else if (!(this.vehicleToAdd.photo_url ?? '').toString().trim()) {
@@ -502,7 +514,9 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
       this.vehicleToAdd.status_validated='PERMITIDO'
     }
     const payloadNew = { ...this.vehicleToAdd } as Vehicle;
-    if (!vehicleTypeRequiresLicensePlate(tv)) {
+    if (vehicleTypeRequiresLicensePlate(tv)) {
+      payloadNew.license_plate = normalizePeruvianLicensePlate(payloadNew.license_plate);
+    } else {
       (payloadNew as any).license_plate = null;
     }
     this.entranceService.addVehicle(payloadNew).subscribe({
@@ -537,7 +551,11 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     if (!plate && !doc) {
       return;
     }
-    this.entranceService.lookupExternalVisit({ plate: plate || undefined, doc: doc || undefined }).subscribe({
+    this.entranceService.lookupExternalVisit({
+      plate: plate || undefined,
+      doc: doc || undefined,
+      document_type: doc ? target.temp_visit_doc_type : undefined,
+    }).subscribe({
       next: (res: any) => {
         const body = res?.data ?? res;
         if (!body?.found || !body?.profile) {
@@ -569,7 +587,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
 
   saveEditExternalVehicle(){
     // Validar campos obligatorios
-    if (!this.externalVehicleToEdit.temp_visit_plate?.trim() || !this.externalVehicleToEdit.temp_visit_name?.trim()) {
+    if (!this.externalVehicleToEdit.temp_visit_name?.trim() || !this.normalizeExternalIdentity(this.externalVehicleToEdit)) {
       this.toastr.error('Los campos obligatorios no pueden estar vacíos');
       this.clean();
       return;
@@ -594,7 +612,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   
   saveNewExternalVehicle(): void {
     // Validar campos obligatorios
-    if (!this.externalVehicleToAdd.temp_visit_plate?.trim() || !this.externalVehicleToAdd.temp_visit_name?.trim()) {
+    if (!this.externalVehicleToAdd.temp_visit_name?.trim() || !this.normalizeExternalIdentity(this.externalVehicleToAdd)) {
       this.toastr.error('Los campos obligatorios no pueden estar vacíos');
       this.clean();
       return;
@@ -632,6 +650,24 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
         this.toastr.error('Error al guardar la visita externa');
       },
     });
+  }
+
+  private normalizeExternalIdentity(target: ExternalVehicle): boolean {
+    if (!isValidPeruvianLicensePlate(target.temp_visit_plate)) {
+      this.toastr.error(PERUVIAN_LICENSE_PLATE_ERROR);
+      return false;
+    }
+    target.temp_visit_plate = normalizePeruvianLicensePlate(target.temp_visit_plate);
+    const doc = target.temp_visit_doc?.trim();
+    if (doc) {
+      const type = target.temp_visit_doc_type || 'DNI';
+      if (!isValidIdentityDocument(type, doc)) {
+        this.toastr.error(identityDocumentError(type));
+        return false;
+      }
+      target.temp_visit_doc = normalizeIdentityDocument(type, doc);
+    }
+    return true;
   }
   
 

@@ -1,5 +1,9 @@
 
+import { IdentityDocumentType } from './shared/identity-document';
+
 export class ExternalVehicle {
+  public temp_visit_doc_type: IdentityDocumentType = 'DNI';
+
   constructor(
     public temp_visit_name: string,
     public temp_visit_doc: string,

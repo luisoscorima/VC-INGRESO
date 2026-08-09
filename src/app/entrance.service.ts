@@ -64,13 +64,16 @@ export class EntranceService {
     return this.http.get(`${this.baseUrl}/api/v1/external-visits?mine=1`);
   }
 
-  lookupExternalVisit(params: { plate?: string; doc?: string }) {
+  lookupExternalVisit(params: { plate?: string; doc?: string; document_type?: 'DNI' | 'CE' }) {
     const q = new URLSearchParams();
     if (params.plate) {
       q.set('plate', params.plate);
     }
     if (params.doc) {
       q.set('doc', params.doc);
+    }
+    if (params.document_type) {
+      q.set('document_type', params.document_type);
     }
     return this.http.get(`${this.baseUrl}/api/v1/external-visits/lookup?${q.toString()}`);
   }

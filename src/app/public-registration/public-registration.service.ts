@@ -4,6 +4,7 @@ import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { ApiService, ApiResponse } from '../api.service';
 import { environment } from '../../environments/environment';
+import { IdentityDocumentType } from '../shared/identity-document';
 
 export interface PublicRegisterHouse {
   house_type: string;
@@ -22,7 +23,7 @@ export interface HouseFromApi {
 }
 
 export interface PublicRegisterOwner {
-  type_doc: string;
+  type_doc: IdentityDocumentType;
   doc_number: string;
   first_name: string;
   paternal_surname: string;

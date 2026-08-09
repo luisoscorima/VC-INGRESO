@@ -134,8 +134,8 @@ class VehicleController extends Controller {
                 return;
             }
             $plateNorm = normalize_license_plate((string) $data['license_plate']);
-            if ($plateNorm === '') {
-                Response::error('Placa inválida: debe incluir al menos una letra o número', 400);
+            if (!validate_license_plate($plateNorm)) {
+                Response::error('Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.', 422);
                 return;
             }
             if ($this->exists('license_plate', $plateNorm)) {
@@ -298,8 +298,8 @@ class VehicleController extends Controller {
         } else {
             if (array_key_exists('license_plate', $filtered)) {
                 $plateNorm = normalize_license_plate((string) ($filtered['license_plate'] ?? ''));
-                if ($plateNorm === '') {
-                    Response::error('Placa inválida: debe incluir al menos una letra o número', 400);
+                if (!validate_license_plate($plateNorm)) {
+                    Response::error('Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.', 422);
                     return;
                 }
                 $stmt = $this->db->prepare('SELECT 1 FROM vehicles WHERE license_plate = ? AND vehicle_id != ? LIMIT 1');
@@ -311,8 +311,8 @@ class VehicleController extends Controller {
                 $filtered['license_plate'] = $plateNorm;
             } else {
                 $existing = normalize_license_plate((string) ($vehicle->license_plate ?? ''));
-                if ($existing === '') {
-                    Response::error('Este tipo de vehículo requiere placa.', 400);
+                if (!validate_license_plate($existing)) {
+                    Response::error('Este tipo de vehículo requiere una placa peruana válida.', 422);
                     return;
                 }
             }

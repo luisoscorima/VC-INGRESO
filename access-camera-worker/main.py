@@ -11,9 +11,8 @@ from typing import Optional
 import cv2
 import easyocr
 import requests
+from identity_validation import PLATE_PATTERN, normalize_plate
 
-
-PLATE_PATTERN = re.compile(r"^[A-Z0-9]{5,8}$")
 
 
 @dataclass(frozen=True)
@@ -58,10 +57,6 @@ def parse_roi(value: str) -> Optional[tuple[float, float, float, float]]:
     if x2 <= x1 or y2 <= y1:
         raise RuntimeError("CAMERA_ROI debe definir un rectángulo válido")
     return x1, y1, x2, y2
-
-
-def normalize_plate(text: str) -> str:
-    return re.sub(r"[^A-Z0-9]", "", text.upper())
 
 
 def crop_roi(frame, roi: Optional[tuple[float, float, float, float]]):

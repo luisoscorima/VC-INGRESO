@@ -1,3 +1,5 @@
+import { normalizePeruvianLicensePlate } from './shared/license-plate';
+
 /**
  * Catálogo único de tipos de vehículo (registro público, Mi casa, administración).
  * Placa obligatoria salvo BICICLETA y MOTO ELECTRICA; en esos casos la foto del vehículo es obligatoria.
@@ -42,8 +44,5 @@ export function vehicleTypeRequiresVehiclePhoto(type: string | null | undefined)
 
 /** Normalización alfanumérica de placa (solo A-Z0-9) para comparar duplicados en cliente */
 export function normalizeLicensePlateClient(raw: string | null | undefined): string {
-  return (raw ?? '')
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
+  return normalizePeruvianLicensePlate(raw);
 }

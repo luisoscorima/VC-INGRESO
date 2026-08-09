@@ -13,6 +13,7 @@ require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../helpers/license_plate.php';
 require_once __DIR__ . '/../helpers/vehicle_type_rules.php';
+require_once __DIR__ . '/../helpers/identity_document.php';
 
 use Utils\Response;
 
@@ -66,9 +67,14 @@ class PublicRegistrationController
      */
     public function checkDoc(): void
     {
-        $doc = trim($_GET['doc_number'] ?? '');
-        if ($doc === '') {
+        $rawDoc = trim((string) ($_GET['doc_number'] ?? ''));
+        if ($rawDoc === '') {
             Response::json(['success' => true, 'registered' => false]);
+            return;
+        }
+        $doc = normalize_untyped_identity_document($rawDoc);
+        if ($doc === '') {
+            Response::json(['success' => false, 'error' => 'Documento inválido. Use DNI o CE.'], 422);
             return;
         }
         $stmt = $this->pdo->prepare("SELECT 1 FROM persons WHERE doc_number = ? LIMIT 1");
@@ -120,12 +126,21 @@ class PublicRegistrationController
             return;
         }
 
-        foreach ($owners as $i => $o) {
+        foreach ($owners as $i => &$o) {
             if (empty($o['doc_number']) || empty($o['first_name']) || empty($o['paternal_surname'])) {
                 Response::json(['success' => false, 'error' => "Propietario " . ($i + 1) . ": se requieren doc_number, first_name y paternal_surname"], 400);
                 return;
             }
+            try {
+                $identity = require_valid_identity_document($o['type_doc'] ?? '', $o['doc_number']);
+                $o['type_doc'] = $identity['type'];
+                $o['doc_number'] = $identity['value'];
+            } catch (\InvalidArgumentException $e) {
+                Response::json(['success' => false, 'error' => 'Propietario ' . ($i + 1) . ': ' . $e->getMessage()], 422);
+                return;
+            }
         }
+        unset($o);
 
         // Propietarios duplicados en el mismo envío (mismo doc_number en más de un titular)
         $ownerDocs = array_map(function ($o) {
@@ -145,8 +160,8 @@ class PublicRegistrationController
             }
             if (vehicle_type_requires_license_plate($typeV)) {
                 $np = normalize_license_plate((string) ($v['license_plate'] ?? ''));
-                if ($np === '') {
-                    Response::json(['success' => false, 'error' => 'Vehículo ' . ($i + 1) . ': se requiere una placa válida (letras y números)'], 400);
+                if (!validate_license_plate($np)) {
+                    Response::json(['success' => false, 'error' => 'Vehículo ' . ($i + 1) . ': placa peruana inválida; use 6 letras o números'], 422);
                     return;
                 }
             } elseif (trim((string) ($v['photo_url'] ?? '')) === '') {

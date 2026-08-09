@@ -221,6 +221,7 @@ CREATE TABLE `temporary_visits` (
     `temp_visit_name` VARCHAR(100) DEFAULT NULL,
     `temp_visit_company` VARCHAR(150) DEFAULT NULL COMMENT 'Empresa o negocio (delivery, taxi, etc.)',
     `temp_visit_doc` VARCHAR(15) DEFAULT NULL,
+    `temp_visit_doc_type` ENUM('DNI','CE') DEFAULT NULL,
     `temp_visit_plate` VARCHAR(15) DEFAULT NULL,
     `temp_visit_cel` VARCHAR(15) DEFAULT NULL,
     `temp_visit_type` VARCHAR(15) NOT NULL,
@@ -237,6 +238,7 @@ CREATE TABLE `temporary_visits` (
     KEY `idx_temporary_visits_registered_by` (`registered_by_user_id`),
     KEY `idx_temp_visit_plate` (`temp_visit_plate`),
     KEY `idx_temp_visit_doc` (`temp_visit_doc`)
+    ,KEY `idx_temp_visit_doc_typed` (`temp_visit_doc_type`, `temp_visit_doc`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Catálogo global visitas externas (taxi, delivery, etc.)';
 
 -- -----------------------------------------------------------------------------
@@ -271,6 +273,7 @@ CREATE TABLE `access_logs` (
     `entity_kind` ENUM('PERSON','VEHICLE') DEFAULT NULL COMMENT 'Entidad principal del evento',
     `display_name_snapshot` VARCHAR(255) DEFAULT NULL,
     `document_snapshot` VARCHAR(20) DEFAULT NULL,
+    `document_type_snapshot` ENUM('DNI','CE') DEFAULT NULL,
     `license_plate_snapshot` VARCHAR(20) DEFAULT NULL,
     `identity_source` ENUM('LOCAL','RENIEC','LEGACY') DEFAULT NULL,
     `identity_resolved_at` DATETIME DEFAULT NULL,
@@ -302,6 +305,7 @@ CREATE TABLE `temporary_access_logs` (
     `entity_kind` ENUM('PERSON','VEHICLE') DEFAULT NULL COMMENT 'Entidad principal del evento',
     `display_name_snapshot` VARCHAR(255) DEFAULT NULL,
     `document_snapshot` VARCHAR(20) DEFAULT NULL,
+    `document_type_snapshot` ENUM('DNI','CE') DEFAULT NULL,
     `license_plate_snapshot` VARCHAR(20) DEFAULT NULL,
     `identity_source` ENUM('LOCAL','RENIEC','LEGACY') DEFAULT NULL,
     `identity_resolved_at` DATETIME DEFAULT NULL,

@@ -77,7 +77,7 @@
                 <div class="flex gap-2 items-end">
                   <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nº documento *</label>
-                    <input type="text" formControlName="doc_number" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white p-2 text-sm" placeholder="DNI 8 dígitos" />
+                    <input type="text" formControlName="doc_number" [attr.inputmode]="owner1.get('type_doc')?.value === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="owner1.get('type_doc')?.value === 'DNI' ? 8 : 15" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white p-2 text-sm uppercase" placeholder="Documento de identidad" />
                   </div>
                   <button type="button" (click)="fetchDni(0)" [disabled]="loadingDni || owner1.get('type_doc')?.value !== 'DNI'" class="btn-search-dni" title="Buscar datos por DNI">
                     <svg class="icon-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -152,7 +152,7 @@
                 <div class="flex gap-2 items-end">
                   <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nº documento *</label>
-                    <input type="text" formControlName="doc_number" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white p-2 text-sm" />
+                    <input type="text" formControlName="doc_number" [attr.inputmode]="owner2.get('type_doc')?.value === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="owner2.get('type_doc')?.value === 'DNI' ? 8 : 15" class="w-full rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white p-2 text-sm uppercase" />
                   </div>
                   <button type="button" (click)="fetchDni(1)" [disabled]="loadingDni || owner2.get('type_doc')?.value !== 'DNI'" class="btn-search-dni" title="Buscar datos por DNI">
                     <svg class="icon-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>

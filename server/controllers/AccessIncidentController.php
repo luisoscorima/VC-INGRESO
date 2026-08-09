@@ -7,6 +7,8 @@ require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/event_log.php';
+require_once __DIR__ . '/../helpers/license_plate.php';
+require_once __DIR__ . '/../helpers/identity_document.php';
 
 use Utils\Response;
 
@@ -262,6 +264,20 @@ class AccessIncidentController
         $licensePlate = $this->nullableStr($_POST['license_plate'] ?? null, 20);
         $statusValidated = $this->nullableStr($_POST['status_validated'] ?? null, 50);
         $createdBy = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
+        if ($docNumber !== null) {
+            $docNumber = normalize_untyped_identity_document($docNumber);
+            if ($docNumber === '') {
+                Response::error('Documento inválido. Use DNI o CE.', 422);
+                return;
+            }
+        }
+        if ($licensePlate !== null) {
+            $licensePlate = normalize_license_plate($licensePlate);
+            if (!validate_license_plate($licensePlate)) {
+                Response::error('Placa peruana inválida; use 6 letras o números.', 422);
+                return;
+            }
+        }
 
         if ($source === 'manual') {
             $houseId = $personId = $vehicleId = $tempVisitId = null;

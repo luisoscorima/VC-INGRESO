@@ -233,8 +233,8 @@ class CameraAccessController
 
         $rawPlate = trim((string) ($_POST['license_plate'] ?? ''));
         $plate = normalize_license_plate($rawPlate);
-        if ($plate === '' || strlen($plate) < 4 || strlen($plate) > 20) {
-            Response::error('license_plate inválida', 422);
+        if (!validate_license_plate($plate)) {
+            Response::error('license_plate debe ser una placa peruana de 6 caracteres', 422);
             return;
         }
 
@@ -403,18 +403,19 @@ class CameraAccessController
         $stayDeadline = date('Y-m-d H:i:s', strtotime($capturedAt) + ($minutes * 60));
         $stmt = $this->pdo->prepare(
             "INSERT INTO temporary_access_logs
-             (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot,
+             (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot, document_type_snapshot,
               license_plate_snapshot, identity_source, identity_resolved_at,
               assignment_id, assignment_valid_until, authorized_duration_minutes,
               stay_deadline, temp_entry_time, access_point_id, status_validated,
               entry_source, photo_url, house_id)
-             VALUES (?, 'VEHICLE', ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, 'PERMITIDO', 'camera', ?, ?)"
+             VALUES (?, 'VEHICLE', ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, 'PERMITIDO', 'camera', ?, ?)"
         );
         $stmt->execute([
             $tempVisitId,
             trim((string) ($external['temp_visit_name'] ?? '')) ?: null,
             trim((string) ($external['temp_visit_doc'] ?? '')) ?: null,
-            strtoupper(trim((string) ($external['temp_visit_plate'] ?? ''))) ?: null,
+            normalize_identity_document_type($external['temp_visit_doc_type'] ?? '') ?: null,
+            normalize_license_plate((string) ($external['temp_visit_plate'] ?? '')) ?: null,
             $capturedAt,
             (int) $assignment['assignment_id'],
             $assignment['valid_until'] ?? null,

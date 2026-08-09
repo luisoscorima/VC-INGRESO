@@ -22,6 +22,7 @@ namespace Controllers;
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/event_log.php';
+require_once __DIR__ . '/../helpers/identity_document.php';
 
 use Utils\Response;
 
@@ -104,10 +105,11 @@ class PersonController extends Controller {
      */
     public function byDocNumber($params = []) {
         $auth = requireAuth();
-        $docNumber = $params['doc_number'] ?? null;
+        $docNumber = normalize_untyped_identity_document($params['doc_number'] ?? null);
         
-        if (!$docNumber) {
-            Response::error('Numero de documento requerido', 400);
+        if ($docNumber === '') {
+            Response::error('Documento inválido. Use DNI o CE.', 422);
+            return;
         }
         
         $sql = "SELECT * FROM {$this->tableName} WHERE doc_number = ? LIMIT 1";
@@ -230,6 +232,14 @@ class PersonController extends Controller {
                 Response::error("Campo requerido faltante: $field", 400);
             }
         }
+        try {
+            $identity = require_valid_identity_document($data['type_doc'] ?? '', $data['doc_number']);
+            $data['type_doc'] = $identity['type'];
+            $data['doc_number'] = $identity['value'];
+        } catch (\InvalidArgumentException $e) {
+            Response::error($e->getMessage(), 422);
+            return;
+        }
         
         // Verificar si ya existe
         if ($this->exists('doc_number', $data['doc_number'])) {
@@ -251,7 +261,6 @@ class PersonController extends Controller {
                 $filtered[$field] = $data[$field];
             }
         }
-
         $role = strtoupper(trim($auth['role_system'] ?? ''));
         $requestedType = isset($filtered['person_type']) ? strtoupper(trim((string) $filtered['person_type'])) : 'RESIDENTE';
         if ($requestedType === '') {
@@ -360,6 +369,25 @@ class PersonController extends Controller {
         foreach ($allowed as $field) {
             if (isset($data[$field])) {
                 $filtered[$field] = $data[$field];
+            }
+        }
+        if (array_key_exists('type_doc', $data) || array_key_exists('doc_number', $data)) {
+            try {
+                $identity = require_valid_identity_document(
+                    $data['type_doc'] ?? $person->type_doc,
+                    $data['doc_number'] ?? $person->doc_number
+                );
+                $filtered['type_doc'] = $identity['type'];
+                $filtered['doc_number'] = $identity['value'];
+                $stmtDuplicate = $this->db->prepare('SELECT 1 FROM persons WHERE doc_number = ? AND id <> ? LIMIT 1');
+                $stmtDuplicate->execute([$identity['value'], $id]);
+                if ($stmtDuplicate->fetch()) {
+                    Response::error('Ya existe una persona con este documento', 409);
+                    return;
+                }
+            } catch (\InvalidArgumentException $e) {
+                Response::error($e->getMessage(), 422);
+                return;
             }
         }
 

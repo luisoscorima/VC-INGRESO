@@ -411,7 +411,12 @@
                 </div>
                 <div class="min-w-0 w-full">
                     <label for="vehicles-externalDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc de Visita Externa</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="externalDocNew" id="vehicles-externalDocNew" class="vc-field w-full" placeholder="Documento de identidad (opcional)..."/>
+                    <div class="flex gap-2">
+                        <select [(ngModel)]="externalVehicleToAdd.temp_visit_doc_type" name="externalDocTypeNew" class="vc-field w-24">
+                            <option *ngFor="let type of externalDocumentTypes" [value]="type">{{ type }}</option>
+                        </select>
+                        <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="externalDocNew" id="vehicles-externalDocNew" [attr.inputmode]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 8 : 15" class="vc-field w-full uppercase" placeholder="Documento de identidad (opcional)..."/>
+                    </div>
                 </div>
                 <div class="min-w-0 w-full">
                     <label for="vehicles-externalCelNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
@@ -494,7 +499,12 @@
                 </div>
                 <div class="min-w-0 w-full">
                     <label for="vehicles-externalDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Doc de Visita Externa</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="vehicles-externalDocEdit" class="vc-field w-full" placeholder="Documento de identidad (opcional)..."/>
+                    <div class="flex gap-2">
+                        <select [(ngModel)]="externalVehicleToEdit.temp_visit_doc_type" name="externalDocTypeEdit" class="vc-field w-24">
+                            <option *ngFor="let type of externalDocumentTypes" [value]="type">{{ type }}</option>
+                        </select>
+                        <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="vehicles-externalDocEdit" [attr.inputmode]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 8 : 15" class="vc-field w-full uppercase" placeholder="Documento de identidad (opcional)..."/>
+                    </div>
                 </div>
                 <div class="min-w-0 w-full">
                     <label for="vehicles-externalCelEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>

@@ -12,6 +12,7 @@ require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/event_log.php';
+require_once __DIR__ . '/../helpers/identity_document.php';
 
 use Utils\Response;
 use Utils\Router;
@@ -145,6 +146,14 @@ class UserController extends Controller {
             if (empty($data[$field])) {
                 Response::error("Campo requerido faltante: $field", 400);
             }
+        }
+        try {
+            $identity = require_valid_identity_document($data['type_doc'] ?? '', $data['doc_number']);
+            $data['type_doc'] = $identity['type'];
+            $data['doc_number'] = $identity['value'];
+        } catch (\InvalidArgumentException $e) {
+            Response::error($e->getMessage(), 422);
+            return;
         }
         
         $stmt = $this->db->prepare("SELECT id FROM persons WHERE doc_number = ? LIMIT 1");
@@ -312,6 +321,22 @@ class UserController extends Controller {
                 $pData['person_type'] = $pData['property_category'];
             }
             unset($pData['property_category']);
+            if (array_key_exists('type_doc', $pData) || array_key_exists('doc_number', $pData)) {
+                $stmtIdentity = $this->db->prepare('SELECT type_doc, doc_number FROM persons WHERE id = ? LIMIT 1');
+                $stmtIdentity->execute([$user->person_id]);
+                $currentIdentity = $stmtIdentity->fetch(\PDO::FETCH_ASSOC) ?: [];
+                try {
+                    $identity = require_valid_identity_document(
+                        $pData['type_doc'] ?? ($currentIdentity['type_doc'] ?? ''),
+                        $pData['doc_number'] ?? ($currentIdentity['doc_number'] ?? '')
+                    );
+                    $pData['type_doc'] = $identity['type'];
+                    $pData['doc_number'] = $identity['value'];
+                } catch (\InvalidArgumentException $e) {
+                    Response::error($e->getMessage(), 422);
+                    return;
+                }
+            }
             if (!empty($pData)) {
                 $set = implode(', ', array_map(fn($c) => "$c = ?", array_keys($pData)));
                 $params = array_values($pData);
@@ -475,9 +500,9 @@ class UserController extends Controller {
      */
     public function byDocNumber($params = []) {
         $auth = requireAuth();
-        $doc_number = $params['doc_number'] ?? $_GET['doc_number'] ?? '';
-        if (empty($doc_number)) {
-            Response::error('doc_number requerido', 400);
+        $doc_number = normalize_untyped_identity_document($params['doc_number'] ?? $_GET['doc_number'] ?? '');
+        if ($doc_number === '') {
+            Response::error('Documento inválido. Use DNI o CE.', 422);
             return;
         }
         $sql = "SELECT u.user_id, u.person_id, u.role_system, u.username_system, u.house_id, u.force_password_change,

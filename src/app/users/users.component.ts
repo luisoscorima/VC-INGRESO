@@ -10,6 +10,15 @@ import { isStaffRoleSystemValue } from '../system-roles';
 import { AuthService } from '../auth.service';
 import { NavPermissionService } from '../nav-permission.service';
 import { ExpandableRowId, isExpandableRowOpen, toggleExpandableRow } from '../shared/expandable-row';
+import {
+  IDENTITY_DOCUMENT_TYPES,
+  IdentityDocumentType,
+  canLookupReniec,
+  identityDocumentError,
+  isValidIdentityDocument,
+  normalizeIdentityDocument,
+  normalizeIdentityDocumentType,
+} from '../shared/identity-document';
 
 @Component({
   selector: 'app-users',
@@ -39,7 +48,7 @@ export class UsersComponent implements OnInit, AfterViewInit{
   giveAccessRole = 'USUARIO';
   savingGiveAccess = false;
 
-  typeDocs: string[] = ['DNI','CE'];
+  typeDocs: readonly IdentityDocumentType[] = IDENTITY_DOCUMENT_TYPES;
   genders: string[] = ['MASCULINO','FEMENINO'];
   roles: string[] = ['USUARIO', 'ADMINISTRADOR', 'OPERARIO'];
   status: string[] = ['ACTIVO', 'INACTIVO']
@@ -327,7 +336,14 @@ export class UsersComponent implements OnInit, AfterViewInit{
   }
 
   searchUser(doc_number: string){
-    this.usersService.getUserByDocNumber(doc_number).subscribe((resExistentUser:User)=>{
+    const type = normalizeIdentityDocumentType(this.userToAdd.type_doc);
+    if (!type || !isValidIdentityDocument(type, doc_number)) {
+      this.toastr.warning(identityDocumentError(type));
+      return;
+    }
+    const normalizedDoc = normalizeIdentityDocument(type, doc_number);
+    this.userToAdd.doc_number = normalizedDoc;
+    this.usersService.getUserByDocNumber(normalizedDoc).subscribe((resExistentUser:User)=>{
       if(resExistentUser.user_id){
         if(resExistentUser.role_system!='SN'&&resExistentUser.role_system!='NINGUNO'&&resExistentUser.role_system!=''){
           this.clean();
@@ -338,8 +354,8 @@ export class UsersComponent implements OnInit, AfterViewInit{
           this.userToAdd=resExistentUser;
         }
       }
-      else if(doc_number.trim().length==8){
-        this.usersService.getUserFromReniec(doc_number).subscribe((resReniecUser:any)=>{
+      else if(canLookupReniec(type, normalizedDoc)){
+        this.usersService.getUserFromReniec(normalizedDoc).subscribe((resReniecUser:any)=>{
           if(resReniecUser&&resReniecUser['success']){
             this.toastr.success('Datos obtenidos correctamente');
             this.userToAdd.type_doc='DNI';
@@ -366,6 +382,11 @@ export class UsersComponent implements OnInit, AfterViewInit{
         this.noData();
       }
     })
+  }
+
+  normalizeNewDocument(): void {
+    const type = normalizeIdentityDocumentType(this.userToAdd.type_doc);
+    if (type) this.userToAdd.doc_number = normalizeIdentityDocument(type, this.userToAdd.doc_number);
   }
 
   noData(){
@@ -703,12 +724,15 @@ export class UsersComponent implements OnInit, AfterViewInit{
 
   /** Datos civiles mínimos (sin domicilio; usado en alta de usuario sistema). */
   private validatePersonCoreRequired(u: User): string | null {
-    if (!this.trim(u.type_doc)) {
+    const type = normalizeIdentityDocumentType(u.type_doc);
+    if (!type) {
       return 'Seleccione el tipo de documento.';
     }
-    if (!this.trim(u.doc_number) || this.trim(u.doc_number).length < 8) {
-      return 'El número de documento es obligatorio (mínimo 8 caracteres).';
+    if (!isValidIdentityDocument(type, u.doc_number)) {
+      return identityDocumentError(type);
     }
+    u.type_doc = type;
+    u.doc_number = normalizeIdentityDocument(type, u.doc_number);
     if (!this.trim(u.paternal_surname)) {
       return 'El apellido paterno es obligatorio.';
     }
@@ -755,12 +779,15 @@ export class UsersComponent implements OnInit, AfterViewInit{
    */
   private validateNewPersonModal(): string | null {
     const u = this.userToAdd;
-    if (!this.trim(u.type_doc)) {
+    const type = normalizeIdentityDocumentType(u.type_doc);
+    if (!type) {
       return 'Seleccione el tipo de documento.';
     }
-    if (!this.trim(u.doc_number) || this.trim(u.doc_number).length < 8) {
-      return 'El número de documento es obligatorio (mínimo 8 caracteres).';
+    if (!isValidIdentityDocument(type, u.doc_number)) {
+      return identityDocumentError(type);
     }
+    u.type_doc = type;
+    u.doc_number = normalizeIdentityDocument(type, u.doc_number);
     if (!this.trim(u.paternal_surname)) {
       return 'El apellido paterno es obligatorio.';
     }
@@ -814,6 +841,13 @@ export class UsersComponent implements OnInit, AfterViewInit{
       this.saveEditPerson();
       return;
     }
+    const documentType = normalizeIdentityDocumentType(this.userToEdit.type_doc);
+    if (!documentType || !isValidIdentityDocument(documentType, this.userToEdit.doc_number)) {
+      this.toastr.error(identityDocumentError(documentType));
+      return;
+    }
+    this.userToEdit.type_doc = documentType;
+    this.userToEdit.doc_number = normalizeIdentityDocument(documentType, this.userToEdit.doc_number);
 
     this.userToEdit.force_password_change = Number(this.userToEdit.force_password_change ? 1 : 0);
     const userUpdatePayload = { ...this.userToEdit } as any;

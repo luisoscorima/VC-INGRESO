@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { ApiService, ApiResponse } from '../api.service';
 import { ExternalVisitAssignmentOption } from '../externalVehicle';
+import { IdentityDocumentType } from '../shared/identity-document';
 
 /** Respuesta unificada de scan / validate (cuerpo `data` de la API). */
 export interface AccessQrScanResult {
@@ -12,6 +13,7 @@ export interface AccessQrScanResult {
   vehicle: AccessQrVehiclePublic | null;
   person_id?: number | null;
   doc_number?: string | null;
+  document_type?: IdentityDocumentType | null;
   vehicle_id?: number | null;
   /** temporary_visits.temp_visit_id (vehículo externo / delivery). */
   temp_visit_id?: number | null;
@@ -73,9 +75,16 @@ export interface AccessQrGenerateResult {
 export class QrAccessService {
   constructor(private api: ApiService) {}
 
-  scan(input: string): Observable<AccessQrScanResult> {
+  scan(
+    input: string,
+    inputKind?: 'PLATE' | 'DOCUMENT',
+    documentType?: IdentityDocumentType
+  ): Observable<AccessQrScanResult> {
     return this.api
-      .post<{ input: string }>('api/v1/access-qr/scan', { input: input.trim() })
+      .post<{ input: string; input_kind?: 'PLATE' | 'DOCUMENT'; document_type?: IdentityDocumentType }>(
+        'api/v1/access-qr/scan',
+        { input: input.trim(), input_kind: inputKind, document_type: documentType }
+      )
       .pipe(
         map((res: ApiResponse<AccessQrScanResult>) => {
           if (!res.success || res.data == null) {

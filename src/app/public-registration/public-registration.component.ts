@@ -19,8 +19,17 @@ import {
   vehicleTypeRequiresLicensePlate,
   normalizeLicensePlateClient
 } from '../vehicle-types';
+import { peruvianLicensePlateValidator } from '../shared/license-plate';
+import {
+  IDENTITY_DOCUMENT_TYPES,
+  IdentityDocumentType,
+  identityDocumentValidator,
+  isValidIdentityDocument,
+  normalizeIdentityDocument,
+  normalizeIdentityDocumentType,
+} from '../shared/identity-document';
 
-const DOC_TYPES = ['DNI', 'CE', 'Otros'];
+const DOC_TYPES: readonly IdentityDocumentType[] = IDENTITY_DOCUMENT_TYPES;
 /** Estado civil (guardado en mayúsculas en BD, alineado con apidev/Nuevo Residente) */
 const CIVIL_STATUS_OPTIONS = ['SOLTERO', 'CASADO', 'CONVIVIENTE', 'VIUDO', 'DIVORCIADO', 'OTRO'];
 /** Categoría de mascota (plan: PERRO, GATO, AVE, pequeño mamífero, Acuático, EXÓTICO, OTROS) */
@@ -267,9 +276,9 @@ export class PublicRegistrationComponent implements OnInit {
   }
 
   private buildOwnerGroup(): FormGroup {
-    return this.fb.group({
+    const group = this.fb.group({
       type_doc: ['DNI', Validators.required],
-      doc_number: ['', [Validators.required, Validators.minLength(8)]],
+      doc_number: ['', Validators.required],
       first_name: ['', Validators.required],
       paternal_surname: ['', Validators.required],
       maternal_surname: [''],
@@ -283,6 +292,11 @@ export class PublicRegistrationComponent implements OnInit {
       region: [null as string | null],
       civil_status: [null as string | null]
     });
+    const typeControl = group.get('type_doc')!;
+    const docControl = group.get('doc_number')!;
+    docControl.addValidators(identityDocumentValidator(typeControl));
+    typeControl.valueChanges.subscribe(() => docControl.updateValueAndValidity());
+    return group;
   }
 
   private buildVehicleGroup(): FormGroup {
@@ -313,7 +327,7 @@ export class PublicRegistrationComponent implements OnInit {
     const plateCtrl = g.get('license_plate');
     const photoCtrl = g.get('photo_url');
     if (vehicleTypeRequiresLicensePlate(type)) {
-      plateCtrl?.setValidators([Validators.required]);
+      plateCtrl?.setValidators([Validators.required, peruvianLicensePlateValidator]);
       photoCtrl?.clearValidators();
     } else {
       plateCtrl?.clearValidators();
@@ -463,12 +477,12 @@ export class PublicRegistrationComponent implements OnInit {
   fetchDni(ownerIndex: number): void {
     const group = this.owners.at(ownerIndex) as FormGroup;
     const doc = group.get('doc_number')?.value?.trim();
-    if (!doc || doc.length < 8) {
-      this.toastr.warning('Ingrese un número de DNI válido (mín. 8 dígitos)');
-      return;
-    }
     if (group.get('type_doc')?.value !== 'DNI') {
       this.toastr.info('La consulta automática solo está disponible para DNI');
+      return;
+    }
+    if (!isValidIdentityDocument('DNI', doc)) {
+      this.toastr.warning('El DNI debe contener exactamente 8 dígitos.');
       return;
     }
     this.loadingDni = true;
@@ -580,9 +594,10 @@ export class PublicRegistrationComponent implements OnInit {
 
   private ownerToPayload(g: FormGroup): PublicRegisterOwner {
     const v = g.value;
+    const type = normalizeIdentityDocumentType(v.type_doc) ?? 'DNI';
     const o: PublicRegisterOwner = {
-      type_doc: v.type_doc || 'DNI',
-      doc_number: String(v.doc_number).trim(),
+      type_doc: type,
+      doc_number: normalizeIdentityDocument(type, v.doc_number),
       first_name: String(v.first_name).trim(),
       paternal_surname: String(v.paternal_surname).trim()
     };
@@ -610,7 +625,7 @@ export class PublicRegistrationComponent implements OnInit {
       photo_url: v.photo_url?.trim() || null
     };
     if (vehicleTypeRequiresLicensePlate(typeVehicle)) {
-      out.license_plate = String(v.license_plate ?? '').trim();
+      out.license_plate = normalizeLicensePlateClient(String(v.license_plate ?? ''));
     } else {
       out.license_plate = null;
     }
@@ -638,7 +653,8 @@ export class PublicRegistrationComponent implements OnInit {
   /** Normaliza documento para comparar (trim, sin espacios extra). */
   private normalizedDoc(g: FormGroup): string {
     const v = g.value;
-    return String(v?.doc_number ?? '').trim();
+    const type = normalizeIdentityDocumentType(v?.type_doc);
+    return type ? `${type}:${normalizeIdentityDocument(type, v?.doc_number)}` : '';
   }
 
   /** Detecta si hay propietarios duplicados (mismo DNI en 1 y 2). */
