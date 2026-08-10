@@ -1,10 +1,15 @@
 # Backend PHP image for VC-INGRESO
-# Simple Apache + PHP 8.2 with PDO MySQL
+# Simple Apache + PHP 8.2 with PDO MySQL + AWS SDK (Composer)
 
 FROM php:8.2-apache
 
-# Install extensions
-RUN docker-php-ext-install pdo pdo_mysql mysqli
+# Install extensions + Composer deps (unzip, git, zip)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    unzip git libzip-dev \
+    && docker-php-ext-install pdo pdo_mysql mysqli \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Silence ServerName warning; enable mod_rewrite and mod_headers for .htaccess (CORS)
 RUN echo 'ServerName localhost' > /etc/apache2/conf-available/servername.conf \
@@ -36,7 +41,13 @@ RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/Allo
 
 # Copy backend source
 WORKDIR /var/www/html
+COPY server/composer.json ./
+RUN composer update --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
 COPY server/ ./
+
+# Asegurar vendor (por si COPY pisó algo inesperado)
+RUN test -f vendor/autoload.php || composer update --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
 # Apache: IP real del cliente vía X-Forwarded-For (NPM / reverse proxy)
 COPY server/apache-remoteip.conf /etc/apache2/conf-available/remoteip.conf

@@ -7,6 +7,7 @@ require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/event_log.php';
+require_once __DIR__ . '/../helpers/upload_storage.php';
 require_once __DIR__ . '/../utils/Response.php';
 
 use Utils\Response;
@@ -238,35 +239,23 @@ class AnnouncementController
             return;
         }
 
-        $allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-        $maxSizeBytes = 8 * 1024 * 1024; // 8 MB
-        $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
-        if ($ext === '' || !in_array($ext, $allowedExts, true)) {
-            Response::error('Formato no permitido. Use JPG, PNG, WEBP o GIF.', 400);
-            return;
-        }
-        if (($file['size'] ?? 0) > $maxSizeBytes) {
-            Response::error('La imagen no debe superar 8 MB.', 400);
+        $result = storeUploadedFile($file, 'announcements', [
+            'allowed_exts' => ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+            'max_bytes' => 8 * 1024 * 1024,
+        ]);
+        if (!$result['success']) {
+            Response::error($result['error'] ?? 'Error al guardar la imagen.', 400);
             return;
         }
 
-        $baseDir = __DIR__ . '/../uploads/public/announcements/';
-        if (!is_dir($baseDir) && !@mkdir($baseDir, 0755, true)) {
-            Response::error('Error al crear directorio de almacenamiento.', 500);
-            return;
-        }
-
-        $filename = date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-        $filepath = $baseDir . $filename;
-        if (!move_uploaded_file($file['tmp_name'], $filepath)) {
-            Response::error('Error al guardar la imagen.', 500);
-            return;
-        }
-
-        $url = '/uploads/public/announcements/' . $filename;
+        $url = $result['photo_url'];
+        $ext = strtolower(pathinfo((string) $url, PATHINFO_EXTENSION));
         Response::json([
             'success' => true,
-            'data' => ['url' => $url, 'ext' => $ext]
+            'data' => [
+                'url' => $url,
+                'ext' => $ext,
+            ]
         ]);
     }
 }

@@ -531,11 +531,7 @@ class CameraAccessController
         if (!$photoUrl || !str_starts_with($photoUrl, '/uploads/public/camera-access/')) {
             return;
         }
-        $path = realpath(__DIR__ . '/../uploads/public/camera-access');
-        $file = realpath(__DIR__ . '/..' . $photoUrl);
-        if ($path && $file && str_starts_with($file, $path . DIRECTORY_SEPARATOR) && is_file($file)) {
-            @unlink($file);
-        }
+        deleteStoredMedia($photoUrl);
     }
 
     private function cameraById(int $id): ?array

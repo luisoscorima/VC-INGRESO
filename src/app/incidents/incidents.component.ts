@@ -30,6 +30,11 @@ export class IncidentsComponent implements OnInit {
   accessPointId: number | null = null;
   sourceFilter: '' | 'scan' | 'manual' = '';
 
+  pageIndex = 0;
+  pageSize = 50;
+  total = 0;
+  readonly pageSizeOptions = [25, 50, 100];
+
   selected: AccessIncident | null = null;
   detailLoading = false;
 
@@ -63,17 +68,33 @@ export class IncidentsComponent implements OnInit {
         fecha_final: this.fechaFinal,
         access_point_id: this.accessPointId ?? undefined,
         source: this.sourceFilter,
+        page: this.pageIndex + 1,
+        page_size: this.pageSize,
       })
       .subscribe({
-        next: (rows) => {
-          this.rows = rows;
+        next: (result) => {
+          this.rows = result.items;
+          this.total = result.pagination.total;
           this.loading = false;
         },
         error: (e: Error) => {
           this.loading = false;
+          this.rows = [];
+          this.total = 0;
           this.toastr.error(e.message || 'No se pudieron cargar las incidencias');
         },
       });
+  }
+
+  applyFilters(): void {
+    this.pageIndex = 0;
+    this.loadRows();
+  }
+
+  onPageChange(event: { pageIndex: number; pageSize: number }): void {
+    this.pageIndex = event.pageIndex;
+    this.pageSize = event.pageSize;
+    this.loadRows();
   }
 
   openCreate(): void {

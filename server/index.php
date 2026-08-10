@@ -71,6 +71,10 @@ spl_autoload_register(function ($class) {
 require_once __DIR__ . '/error-handler.php';
 require_once __DIR__ . '/auth_middleware.php';
 require_once __DIR__ . '/sanitize.php';
+if (is_readable(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+require_once __DIR__ . '/helpers/upload_storage.php';
 
 // Obtener ruta
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -105,6 +109,16 @@ if ($method === 'GET' && str_starts_with($uri, '/uploads/')) {
             header('Content-Type: ' . ($mime ?: 'application/octet-stream'));
             header('Cache-Control: public, max-age=86400');
             readfile($filePath);
+            exit;
+        }
+    }
+
+    // Compat: si ya no está en disco pero vive en S3, redirigir a URL pública.
+    if (storageDriver() === 's3') {
+        $resolved = resolveMediaUrl($uri);
+        if ($resolved && (str_starts_with($resolved, 'http://') || str_starts_with($resolved, 'https://'))) {
+            header('Location: ' . $resolved, true, 302);
+            header('Cache-Control: public, max-age=300');
             exit;
         }
     }

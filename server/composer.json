@@ -1,0 +1,12 @@
+{
+  "name": "crearttech/vc-ingreso-api",
+  "description": "VC-Ingreso PHP API",
+  "require": {
+    "php": ">=8.2",
+    "aws/aws-sdk-php": "^3.300"
+  },
+  "config": {
+    "sort-packages": true,
+    "optimize-autoloader": true
+  }
+}

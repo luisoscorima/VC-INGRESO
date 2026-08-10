@@ -9,11 +9,15 @@ require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/event_log.php';
 require_once __DIR__ . '/../helpers/license_plate.php';
 require_once __DIR__ . '/../helpers/identity_document.php';
+require_once __DIR__ . '/../helpers/upload_storage.php';
 
 use Utils\Response;
 
 class AccessIncidentController
 {
+    private const MAX_PAGE_SIZE = 100;
+    private const DEFAULT_PAGE_SIZE = 50;
+
     private $pdo;
 
     public function __construct($pdo)
@@ -76,6 +80,9 @@ class AccessIncidentController
         $ff = trim((string) ($_GET['fecha_final'] ?? ''));
         $ap = (int) ($_GET['access_point_id'] ?? 0);
         $source = strtolower(trim((string) ($_GET['source'] ?? '')));
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $pageSize = min(self::MAX_PAGE_SIZE, max(1, (int) ($_GET['page_size'] ?? self::DEFAULT_PAGE_SIZE)));
+        $offset = ($page - 1) * $pageSize;
 
         $where = ['1=1'];
         $params = [];
@@ -94,6 +101,14 @@ class AccessIncidentController
             $params[] = $source;
         }
 
+        $whereSql = implode(' AND ', $where);
+
+        $countStmt = $this->pdo->prepare(
+            "SELECT COUNT(*) FROM access_incidents ai WHERE {$whereSql}"
+        );
+        $countStmt->execute($params);
+        $total = (int) $countStmt->fetchColumn();
+
         $sql = "
             SELECT ai.*,
                    ap.name AS access_point_name,
@@ -101,16 +116,23 @@ class AccessIncidentController
             FROM access_incidents ai
             LEFT JOIN access_points ap ON ap.id = ai.access_point_id
             LEFT JOIN users u ON u.user_id = ai.created_by_user_id
-            WHERE " . implode(' AND ', $where) . "
+            WHERE {$whereSql}
             ORDER BY ai.created_at DESC, ai.incident_id DESC
-            LIMIT 500
-        ";
+            LIMIT " . (int) $pageSize . ' OFFSET ' . (int) $offset;
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
 
         $out = array_map(fn ($row) => $this->normalizeRow($row, false), $rows);
-        Response::success($out);
+        Response::success([
+            'items' => $out,
+            'pagination' => [
+                'page' => $page,
+                'page_size' => $pageSize,
+                'total' => $total,
+                'total_pages' => $pageSize > 0 ? (int) ceil($total / $pageSize) : 0,
+            ],
+        ]);
     }
 
     /**
@@ -385,7 +407,7 @@ class AccessIncidentController
             'license_plate' => $row['license_plate'] ?? null,
             'status_validated' => $row['status_validated'] ?? null,
             'description' => (string) ($row['description'] ?? ''),
-            'photo_url' => $row['photo_url'] ?? null,
+            'photo_url' => resolveMediaUrl($row['photo_url'] ?? null),
             'created_by_user_id' => $this->nullableInt($row['created_by_user_id'] ?? null),
             'created_by_username' => (string) ($row['created_by_username'] ?? ''),
             'created_at' => $row['created_at'] ?? null,
@@ -488,31 +510,18 @@ class AccessIncidentController
             throw new \RuntimeException($this->uploadErrorMessage((int) ($file['error'] ?? UPLOAD_ERR_OK)));
         }
 
-        // server/uploads/incidents (misma raíz que index.php sirve en GET /uploads/...)
-        $uploadDir = __DIR__ . '/../uploads/incidents/';
-        if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0755, true)) {
-            throw new \RuntimeException('No se pudo crear el directorio de almacenamiento de fotos.');
-        }
-
         $ext = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
-        $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        if (!in_array($ext, $allowedExts, true)) {
-            throw new \RuntimeException('Formato de imagen no permitido. Use JPG, PNG, GIF o WEBP.');
+        $filename = 'incident_' . $incidentId . '_' . time() . '.' . ($ext !== '' ? $ext : 'jpg');
+        $result = storeUploadedFile($file, 'incidents', [
+            'allowed_exts' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+            'max_bytes' => 5 * 1024 * 1024,
+            'filename' => $filename,
+        ]);
+        if (!$result['success']) {
+            throw new \RuntimeException($result['error'] ?? 'Error al guardar la imagen.');
         }
 
-        $maxSize = 5 * 1024 * 1024;
-        if (($file['size'] ?? 0) > $maxSize) {
-            throw new \RuntimeException('La imagen no debe superar 5 MB.');
-        }
-
-        $filename = 'incident_' . $incidentId . '_' . time() . '.' . $ext;
-        $filepath = $uploadDir . $filename;
-
-        if (!move_uploaded_file($file['tmp_name'], $filepath)) {
-            throw new \RuntimeException('Error al guardar la imagen en el servidor.');
-        }
-
-        return '/uploads/incidents/' . $filename;
+        return $result['photo_url'];
     }
 
     private function uploadErrorMessage(int $code): string

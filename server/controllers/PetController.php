@@ -13,6 +13,7 @@ require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/event_log.php';
+require_once __DIR__ . '/../helpers/upload_storage.php';
 
 use Utils\Response;
 
@@ -527,44 +528,25 @@ class PetController {
                 ], 400);
                 return;
             }
-            
-            $uploadDir = __DIR__ . '/../../uploads/pets/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
-            }
-            
-            $file = $_FILES['photo'];
-            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $allowedExts = ['jpg', 'jpeg', 'png', 'gif'];
-            
-            if (!in_array($ext, $allowedExts)) {
+
+            $result = storePublicPhoto($_FILES['photo'], 'pets');
+            if (!$result['success']) {
                 Response::json([
                     'success' => false,
-                    'error' => 'Formato de imagen no permitido'
+                    'error' => $result['error'] ?? 'Error al subir la imagen'
                 ], 400);
                 return;
             }
-            
-            $filename = "pet_{$id}_{$file['name']}";
-            $filepath = $uploadDir . $filename;
-            
-            if (move_uploaded_file($file['tmp_name'], $filepath)) {
-                $photoUrl = "/uploads/pets/{$filename}";
-                
-                $stmt = $this->pdo->prepare("UPDATE pets SET photo_url = ?, updated_at = NOW() WHERE id = ?");
-                $stmt->execute([$photoUrl, $id]);
-                
-                Response::json([
-                    'success' => true,
-                    'photo_url' => $photoUrl,
-                    'message' => 'Foto subida exitosamente'
-                ]);
-            } else {
-                Response::json([
-                    'success' => false,
-                    'error' => 'Error al subir la imagen'
-                ], 500);
-            }
+
+            $photoUrl = $result['photo_url'];
+            $stmt = $this->pdo->prepare("UPDATE pets SET photo_url = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->execute([$photoUrl, $id]);
+
+            Response::json([
+                'success' => true,
+                'photo_url' => resolveMediaUrl($photoUrl) ?? $photoUrl,
+                'message' => 'Foto subida exitosamente'
+            ]);
         } catch (\Exception $e) {
             Response::json([
                 'success' => false,

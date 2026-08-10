@@ -7,6 +7,7 @@ require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../db_connection.php';
 require_once __DIR__ . '/../helpers/event_log.php';
+require_once __DIR__ . '/../helpers/upload_storage.php';
 
 use Utils\Response;
 
@@ -597,37 +598,23 @@ class ReadonlyDocumentsController
             'ppt', 'pptx', 'odp',
             'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'
         ];
-        $maxSizeBytes = 20 * 1024 * 1024; // 20 MB
-
-        $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
-        if ($ext === '' || !in_array($ext, $allowedExts, true)) {
-            Response::error('Formato no permitido. Extensión no aceptada.', 400);
-            return;
-        }
-        if (($file['size'] ?? 0) > $maxSizeBytes) {
-            Response::error('El archivo no debe superar 20 MB.', 400);
-            return;
-        }
-
-        $baseDir = __DIR__ . '/../uploads/public/readonly-docs/';
-        if (!is_dir($baseDir)) {
-            if (!@mkdir($baseDir, 0755, true)) {
-                Response::error('Error al crear directorio de almacenamiento.', 500);
-                return;
-            }
-        }
 
         $safeName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', (string) ($file['name'] ?? 'document'));
         $title = pathinfo($safeName, PATHINFO_FILENAME);
-        $filename = date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-        $filepath = $baseDir . $filename;
+        $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+        $filename = date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . ($ext !== '' ? $ext : 'bin');
 
-        if (!move_uploaded_file($file['tmp_name'], $filepath)) {
-            Response::error('Error al guardar el archivo.', 500);
+        $result = storeUploadedFile($file, 'readonly-docs', [
+            'allowed_exts' => $allowedExts,
+            'max_bytes' => 20 * 1024 * 1024,
+            'filename' => $filename,
+        ]);
+        if (!$result['success']) {
+            Response::error($result['error'] ?? 'Error al guardar el archivo.', 400);
             return;
         }
 
-        $url = '/uploads/public/readonly-docs/' . $filename;
+        $url = $result['photo_url'];
         recordEventLog(getDbConnection(), $auth, 'readonly_documents.upload', [
             'summary' => 'Documento subido: ' . ($title !== '' ? $title : $filename),
             'entity_type' => 'readonly_documents',

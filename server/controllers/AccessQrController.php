@@ -10,6 +10,7 @@ require_once __DIR__ . '/../helpers/license_plate.php';
 require_once __DIR__ . '/../helpers/temporary_visit.php';
 require_once __DIR__ . '/../helpers/access_identity.php';
 require_once __DIR__ . '/../helpers/reniec.php';
+require_once __DIR__ . '/../helpers/upload_storage.php';
 require_once __DIR__ . '/../token.php';
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../utils/Response.php';
@@ -587,7 +588,7 @@ class AccessQrController
             'house_id' => $houseId,
             'brand' => $tv['temp_visit_type'] ?? null,
             'model' => $tv['temp_visit_name'] ?? null,
-            'photo_url' => $tv['photo_url'] ?? null,
+            'photo_url' => resolveMediaUrl($tv['photo_url'] ?? null),
             'status_validated' => $tv['status_validated'] ?? null,
         ];
 
@@ -662,7 +663,7 @@ class AccessQrController
             'first_name' => $p['first_name'] ?? null,
             'paternal_surname' => $p['paternal_surname'] ?? null,
             'maternal_surname' => $p['maternal_surname'] ?? null,
-            'photo_url' => $p['photo_url'] ?? null,
+            'photo_url' => resolveMediaUrl($p['photo_url'] ?? null),
             'birth_date' => $p['birth_date'] ?? null,
             'status_validated' => $p['status_validated'] ?? null,
             'person_type' => $p['person_type'] ?? null,
@@ -682,7 +683,7 @@ class AccessQrController
             'house_id' => isset($v['house_id']) ? (int) $v['house_id'] : null,
             'brand' => $v['brand'] ?? null,
             'model' => $v['model'] ?? null,
-            'photo_url' => $v['photo_url'] ?? null,
+            'photo_url' => resolveMediaUrl($v['photo_url'] ?? null),
             'status_validated' => $v['status_validated'] ?? null,
         ];
     }

@@ -13,6 +13,7 @@ require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
 require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/event_log.php';
+require_once __DIR__ . '/../helpers/upload_storage.php';
 require_once __DIR__ . '/../helpers/temporary_visit.php';
 require_once __DIR__ . '/../helpers/access_identity.php';
 
@@ -764,7 +765,7 @@ class AccessLogController
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(array_merge($paramsMain, $paramsTemp));
-        Response::json($stmt->fetchAll(\PDO::FETCH_OBJ));
+        Response::json($this->resolveHistoryMediaUrls($stmt->fetchAll(\PDO::FETCH_OBJ)));
     }
 
     /** GET ?fecha_inicial=&fecha_final=&access_point= (opcional: vacío = todos los puntos). Incluye access_logs + temporary_access_logs. */
@@ -799,7 +800,7 @@ class AccessLogController
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(array_merge($paramsMain, $paramsTemp));
-        Response::json($stmt->fetchAll(\PDO::FETCH_OBJ));
+        Response::json($this->resolveHistoryMediaUrls($stmt->fetchAll(\PDO::FETCH_OBJ)));
     }
 
     /** GET ?fecha=&access_point=&doc= — fecha YYYY-MM-DD. access_point vacío = todos. Incluye access_logs + temporary_access_logs. */
@@ -839,7 +840,7 @@ class AccessLogController
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(array_merge($paramsMain, $paramsTemp));
-        Response::json($stmt->fetchAll(\PDO::FETCH_OBJ));
+        Response::json($this->resolveHistoryMediaUrls($stmt->fetchAll(\PDO::FETCH_OBJ)));
     }
 
     /**
@@ -1023,6 +1024,27 @@ class AccessLogController
             LEFT JOIN users u ON u.user_id = COALESCE(tal.created_by_user_id, tal.operario_id)
             {$incidentJoin}
         ";
+    }
+
+    /**
+     * Expone URLs de captura de cámara listas para el cliente (S3 público o path local).
+     *
+     * @param array<int, object> $rows
+     * @return array<int, object>
+     */
+    private function resolveHistoryMediaUrls(array $rows): array
+    {
+        foreach ($rows as $row) {
+            if (!is_object($row)) {
+                continue;
+            }
+            if (isset($row->access_photo_url)) {
+                $row->access_photo_url = resolveMediaUrl(
+                    $row->access_photo_url !== null ? (string) $row->access_photo_url : null
+                );
+            }
+        }
+        return $rows;
     }
 
     private function normalizeHistoryRangeStart(string $value): string

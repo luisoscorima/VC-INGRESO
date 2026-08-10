@@ -12,6 +12,7 @@ require_once __DIR__ . '/../utils/Response.php';
 require_once __DIR__ . '/../helpers/role_policy.php';
 require_once __DIR__ . '/../helpers/reservation_auto_complete.php';
 require_once __DIR__ . '/../helpers/event_log.php';
+require_once __DIR__ . '/../helpers/upload_storage.php';
 
 use Utils\Response;
 
@@ -114,6 +115,17 @@ class AuthController
                     $user->{$key} = $value;
                 }
             }
+        }
+
+        if (isset($user->photo_url)) {
+            $user->photo_url = resolveMediaUrl(
+                $user->photo_url !== null ? (string) $user->photo_url : null
+            );
+        }
+        if ($person && isset($person->photo_url)) {
+            $person->photo_url = resolveMediaUrl(
+                $person->photo_url !== null ? (string) $person->photo_url : null
+            );
         }
 
         // Añadir manzana, lote y departamento de la vivienda principal para side-nav y nav-bar (getUserDomicilio).

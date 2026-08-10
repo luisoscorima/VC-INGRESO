@@ -60,6 +60,18 @@ export interface IncidentFormDialogData {
   scanContext?: IncidentScanContext;
 }
 
+export interface IncidentPagination {
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+}
+
+export interface IncidentListResult {
+  items: AccessIncident[];
+  pagination: IncidentPagination;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AccessIncidentService {
   constructor(private readonly api: ApiService) {}
@@ -69,7 +81,9 @@ export class AccessIncidentService {
     fecha_final?: string;
     access_point_id?: number;
     source?: IncidentSource | '';
-  }): Observable<AccessIncident[]> {
+    page?: number;
+    page_size?: number;
+  }): Observable<IncidentListResult> {
     const query: Record<string, string | number> = {};
     if (params.fecha_inicial) query['fecha_inicial'] = params.fecha_inicial;
     if (params.fecha_final) query['fecha_final'] = params.fecha_final;
@@ -77,9 +91,36 @@ export class AccessIncidentService {
       query['access_point_id'] = params.access_point_id;
     }
     if (params.source) query['source'] = params.source;
+    if (params.page) query['page'] = params.page;
+    if (params.page_size) query['page_size'] = params.page_size;
 
-    return this.api.get<AccessIncident[]>('api/v1/access-incidents', query).pipe(
-      map((res) => (Array.isArray(res.data) ? res.data : []))
+    return this.api.get<{ items?: AccessIncident[]; pagination?: IncidentPagination } | AccessIncident[]>(
+      'api/v1/access-incidents',
+      query
+    ).pipe(
+      map((res) => {
+        const data = res.data;
+        // Compat: respuesta antigua = array plano
+        if (Array.isArray(data)) {
+          return {
+            items: data,
+            pagination: {
+              page: 1,
+              page_size: data.length,
+              total: data.length,
+              total_pages: 1,
+            },
+          };
+        }
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const pagination = data?.pagination ?? {
+          page: 1,
+          page_size: items.length,
+          total: items.length,
+          total_pages: 1,
+        };
+        return { items, pagination };
+      })
     );
   }
 

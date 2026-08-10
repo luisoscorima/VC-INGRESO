@@ -726,6 +726,11 @@ class UserController extends Controller {
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$userId]);
         $updated = $stmt->fetch(\PDO::FETCH_OBJ);
+        if ($updated && isset($updated->photo_url)) {
+            $updated->photo_url = resolveMediaUrl(
+                $updated->photo_url !== null ? (string) $updated->photo_url : null
+            );
+        }
         Response::success($updated, 'Foto de perfil actualizada');
     }
 }
