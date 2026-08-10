@@ -63,10 +63,13 @@ fi
 echo "==> 3. Actualizar repo"
 git fetch origin
 git checkout main
-if ! git diff --quiet -- scripts/deploy-prod.sh 2>/dev/null; then
-  echo "    Restaurando scripts/deploy-prod.sh (cambios locales descartados para permitir el pull)"
-  git restore -- scripts/deploy-prod.sh 2>/dev/null || git checkout -- scripts/deploy-prod.sh
+# Descartar edits locales en scripts/ (el servidor a veces tiene chmod/edits que bloquean el pull)
+if ! git diff --quiet -- scripts/ 2>/dev/null \
+  || ! git diff --quiet --cached -- scripts/ 2>/dev/null; then
+  echo "    Restaurando scripts/ (cambios locales descartados para permitir el pull)"
+  git restore -- scripts/ 2>/dev/null || git checkout -- scripts/
 fi
+# Untracked en scripts/ no bloquean pull; tracked con mods sí.
 git pull --ff-only origin main
 
 echo "==> 4. Migraciones SQL"
