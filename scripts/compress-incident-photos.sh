@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Comprime fotos histÃ³ricas de incidencias en el volumen Docker uploads.
-# One-shot / mantenimiento. Por defecto: dry-run de las 10 mÃ¡s antiguas.
+# Comprime fotos historicas de incidencias en el volumen Docker uploads.
+# One-shot / mantenimiento. Por defecto: dry-run de las 10 mas antiguas.
 #
 # Uso (en el servidor, desde ~/vc-ingreso):
 #   chmod +x scripts/compress-incident-photos.sh
 #   ./scripts/compress-incident-photos.sh                 # dry-run, 10 primeras
 #   ./scripts/compress-incident-photos.sh --limit 5       # dry-run, 5
 #   ./scripts/compress-incident-photos.sh --limit 10 --apply
-#   ./scripts/compress-incident-photos.sh --all --apply   # todo el histÃ³rico
+#   ./scripts/compress-incident-photos.sh --all --apply   # todo el historico
 #
 # No cambia photo_url en BD: sobrescribe el mismo archivo (.jpg/.jpeg).
 # El backup de uploads ya corre en cada deploy (scripts/deploy-prod.sh).
-# RecomendaciÃ³n: desplegar (con backup) antes de --apply masivo.
+# Recomendacion: desplegar (con backup) antes de --apply masivo.
 set -Eeuo pipefail
 
 LIMIT=10
@@ -19,7 +19,7 @@ APPLY=0
 ALL=0
 MAX_EDGE="${VC_COMPRESS_MAX_EDGE:-1600}"
 QUALITY="${VC_COMPRESS_QUALITY:-82}"
-# No tocar archivos ya pequeÃ±os (bytes). 400 KiB por defecto.
+# No tocar archivos ya pequenos (bytes). 400 KiB por defecto.
 MIN_BYTES="${VC_COMPRESS_MIN_BYTES:-409600}"
 VOLUME_NAME="${VC_UPLOADS_VOLUME:-}"
 INCIDENTS_DIR="incidents"
@@ -59,7 +59,7 @@ while [[ $# -gt 0 ]]; do
       usage
       ;;
     *)
-      echo "OpciÃ³n desconocida: $1" >&2
+      echo "Opcion desconocida: $1" >&2
       usage
       ;;
   esac
@@ -71,8 +71,8 @@ if [[ -z "$VOLUME_NAME" ]]; then
   elif docker volume inspect uploads_data >/dev/null 2>&1; then
     VOLUME_NAME="uploads_data"
   else
-    echo "No se encontrÃ³ el volumen de uploads. PÃ¡salo con --volume NOMBRE" >&2
-    echo "VolÃºmenes disponibles:" >&2
+    echo "No se encontro el volumen de uploads. Pasalo con --volume NOMBRE" >&2
+    echo "Volumenes disponibles:" >&2
     docker volume ls --format '{{.Name}}' | grep -i upload || true
     exit 1
   fi
@@ -91,7 +91,7 @@ echo "==> Modo: $MODE_LABEL | max_edge=${MAX_EDGE}px | quality=${QUALITY} | min_
 if [[ "$ALL" == "1" ]]; then
   echo "==> Alcance: TODAS las fotos jpg/jpeg"
 else
-  echo "==> Alcance: primeras ${LIMIT} (mÃ¡s antiguas por nombre)"
+  echo "==> Alcance: primeras ${LIMIT} (mas antiguas por nombre)"
 fi
 echo ""
 
@@ -107,7 +107,8 @@ docker run --rm \
   alpine:3.20 \
   sh -c '
 set -eu
-apk add --no-cache imagemagick >/dev/null
+# Alpine parte ImageMagick por formato: sin imagemagick-jpeg no lee JPG
+apk add --no-cache imagemagick imagemagick-jpeg >/dev/null
 
 if command -v magick >/dev/null 2>&1; then
   IM="magick"
@@ -164,7 +165,7 @@ while IFS= read -r f; do
 
   newsize=$(wc -c < "$out" | tr -d " ")
   if [ "$newsize" -ge "$size" ]; then
-    echo "[skip]  $name  (${size} â†’ ${newsize}, no mejora)"
+    echo "[skip]  $name  (${size} -> ${newsize}, no mejora)"
     SKIPPED=$((SKIPPED + 1))
     rm -f "$out"
     continue
@@ -175,9 +176,9 @@ while IFS= read -r f; do
 
   if [ "$APPLY" = "1" ]; then
     mv "$out" "$f"
-    echo "[ok]    $name  ${size} â†’ ${newsize}  (-${pct}%)"
+    echo "[ok]    $name  ${size} -> ${newsize}  (-${pct}%)"
   else
-    echo "[dry]   $name  ${size} â†’ ${newsize}  (-${pct}%)"
+    echo "[dry]   $name  ${size} -> ${newsize}  (-${pct}%)"
     rm -f "$out"
   fi
   CHANGED=$((CHANGED + 1))
@@ -185,9 +186,9 @@ while IFS= read -r f; do
 done < "$WORK_FILE"
 
 echo ""
-echo "==> Resumen: cambiadas=$CHANGED  omitidas=$SKIPPED  fallidas=$FAILED  ahorroâ‰ˆ${SAVED} bytes"
+echo "==> Resumen: cambiadas=$CHANGED  omitidas=$SKIPPED  fallidas=$FAILED  ahorro~=${SAVED} bytes"
 if [ "$APPLY" != "1" ]; then
-  echo "    Dry-run: no se modificÃ³ nada. Para aplicar: aÃ±ade --apply (mismo --limit o --all)."
+  echo "    Dry-run: no se modifico nada. Para aplicar: anade --apply (mismo --limit o --all)."
 fi
 '
 
