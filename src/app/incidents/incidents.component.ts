@@ -38,6 +38,14 @@ export class IncidentsComponent implements OnInit {
   selected: AccessIncident | null = null;
   detailLoading = false;
 
+  showViewPhotoDialog = false;
+  viewPhotoUrl: string | null = null;
+  viewPhotoTitle = '';
+  photoZoom = 1;
+  private readonly zoomMin = 0.5;
+  private readonly zoomMax = 3;
+  private readonly zoomStep = 0.25;
+
   constructor(
     public readonly navPerm: NavPermissionService,
     private readonly incidentService: AccessIncidentService,
@@ -133,6 +141,37 @@ export class IncidentsComponent implements OnInit {
   closeDetail(): void {
     this.selected = null;
     this.detailLoading = false;
+  }
+
+  openViewPhoto(row: AccessIncident, event?: Event): void {
+    event?.stopPropagation();
+    const url = this.photoUrl(row.photo_url);
+    if (!url) {
+      return;
+    }
+    this.viewPhotoUrl = url;
+    this.viewPhotoTitle = `Incidencia #${row.incident_id}`;
+    this.photoZoom = 1;
+    this.showViewPhotoDialog = true;
+  }
+
+  closeViewPhoto(): void {
+    this.showViewPhotoDialog = false;
+    this.viewPhotoUrl = null;
+    this.viewPhotoTitle = '';
+    this.photoZoom = 1;
+  }
+
+  zoomIn(): void {
+    this.photoZoom = Math.min(this.zoomMax, Math.round((this.photoZoom + this.zoomStep) * 100) / 100);
+  }
+
+  zoomOut(): void {
+    this.photoZoom = Math.max(this.zoomMin, Math.round((this.photoZoom - this.zoomStep) * 100) / 100);
+  }
+
+  resetZoom(): void {
+    this.photoZoom = 1;
   }
 
   photoUrl(path: string | null | undefined): string | null {

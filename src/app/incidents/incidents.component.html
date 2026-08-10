@@ -82,13 +82,20 @@
             <td class="vc-td max-w-[280px] truncate" [title]="row.description">{{ row.description }}</td>
             <td class="vc-td">{{ row.created_by_username || '—' }}</td>
             <td class="vc-td">
-              <img
+              <button
                 *ngIf="photoUrl(row.photo_url); else noPhoto"
-                [src]="photoUrl(row.photo_url)!"
-                alt=""
-                loading="lazy"
-                decoding="async"
-                class="h-10 w-10 rounded object-cover" />
+                type="button"
+                (click)="openViewPhoto(row, $event)"
+                class="block rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
+                title="Ver foto"
+                aria-label="Ver foto de incidencia">
+                <img
+                  [src]="photoUrl(row.photo_url)!"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  class="h-10 w-10 cursor-pointer rounded object-cover hover:opacity-90" />
+              </button>
               <ng-template #noPhoto>—</ng-template>
             </td>
             <td class="vc-td text-right">
@@ -137,11 +144,18 @@
       </p>
       <p class="mt-3 whitespace-pre-wrap text-sm text-gray-900 dark:text-gray-100">{{ selected.description }}</p>
 
-      <img
+      <button
         *ngIf="photoUrl(selected.photo_url)"
-        [src]="photoUrl(selected.photo_url)!"
-        alt="Foto incidencia"
-        class="mt-4 max-h-64 w-full rounded-lg object-contain" />
+        type="button"
+        (click)="openViewPhoto(selected)"
+        class="mt-4 block w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+        title="Ampliar foto"
+        aria-label="Ampliar foto de incidencia">
+        <img
+          [src]="photoUrl(selected.photo_url)!"
+          alt="Foto incidencia"
+          class="max-h-64 w-full cursor-pointer rounded-lg object-contain hover:opacity-95" />
+      </button>
 
       <div
         *ngIf="selected.has_access_context && selected.access_context as ctx"
@@ -165,5 +179,37 @@
 
       <p class="mt-3 text-xs text-gray-500">Registrado por: {{ selected.created_by_username || '—' }}</p>
     </ng-container>
+  </div>
+</div>
+
+<!-- Modal ver foto (con zoom) -->
+<div *ngIf="showViewPhotoDialog" class="photo-view-overlay photo-view-overlay--top" (click)="closeViewPhoto()">
+  <div class="photo-view-modal photo-view-modal--media" (click)="$event.stopPropagation()">
+    <div class="photo-view-header">
+      <h3>{{ viewPhotoTitle }}</h3>
+      <div class="photo-zoom-toolbar">
+        <button type="button" class="photo-zoom-btn" (click)="zoomOut()" title="Alejar" aria-label="Alejar">
+          <mat-icon class="!h-5 !w-5">zoom_out</mat-icon>
+        </button>
+        <span class="photo-zoom-label">{{ photoZoom | number : '1.0-2' }}×</span>
+        <button type="button" class="photo-zoom-btn" (click)="zoomIn()" title="Acercar" aria-label="Acercar">
+          <mat-icon class="!h-5 !w-5">zoom_in</mat-icon>
+        </button>
+        <button type="button" class="photo-zoom-btn" (click)="resetZoom()" title="Restablecer" aria-label="Restablecer zoom">
+          <mat-icon class="!h-5 !w-5">restart_alt</mat-icon>
+        </button>
+        <button type="button" (click)="closeViewPhoto()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white" aria-label="Cerrar">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+    <div class="photo-zoom-viewport">
+      <img
+        *ngIf="viewPhotoUrl"
+        [src]="viewPhotoUrl"
+        [alt]="viewPhotoTitle"
+        class="photo-view-img"
+        [style.transform]="'scale(' + photoZoom + ')'" />
+    </div>
   </div>
 </div>
