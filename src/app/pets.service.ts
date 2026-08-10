@@ -5,6 +5,7 @@ import { map } from 'rxjs/operators';
 import { environment } from '../environments/environment';
 import { Pet } from './pet';
 import { ApiService } from './api.service';
+import { compressThenUpload } from './shared/compress-image';
 
 @Injectable({
   providedIn: 'root'
@@ -79,11 +80,13 @@ export class PetsService {
   }
 
   /**
-   * Sube una foto de la mascota
+   * Sube una foto de la mascota (comprime en cliente antes de enviar).
    */
   uploadPetPhoto(petId: number, photo: File): Observable<{ photo_url: string }> {
-    const formData = new FormData();
-    formData.append('photo', photo);
-    return this.http.post<{ photo_url: string }>(`${this.apiUrl}/${petId}/photo`, formData);
+    return compressThenUpload(photo, (compressed) => {
+      const formData = new FormData();
+      formData.append('photo', compressed);
+      return this.http.post<{ photo_url: string }>(`${this.apiUrl}/${petId}/photo`, formData);
+    });
   }
 }

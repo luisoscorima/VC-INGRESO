@@ -1,3 +1,6 @@
+import { from, Observable } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
+
 /**
  * Reduce tamaño de imagen para subidas móviles (canvas → JPEG).
  * Si falla o el resultado no mejora, devuelve el archivo original.
@@ -46,7 +49,7 @@ export async function compressImageFile(
       return file;
     }
 
-    const base = file.name.replace(/\.[^.]+$/, '') || 'incident';
+    const base = file.name.replace(/\.[^.]+$/, '') || 'photo';
     return new File([blob], `${base}.jpg`, {
       type: 'image/jpeg',
       lastModified: Date.now(),
@@ -54,4 +57,13 @@ export async function compressImageFile(
   } finally {
     bitmap.close();
   }
+}
+
+/** Observable helper: comprime y luego ejecuta el upload. */
+export function compressThenUpload<T>(
+  file: File,
+  upload: (compressed: File) => Observable<T>,
+  options?: { maxEdge?: number; quality?: number }
+): Observable<T> {
+  return from(compressImageFile(file, options)).pipe(switchMap((compressed) => upload(compressed)));
 }

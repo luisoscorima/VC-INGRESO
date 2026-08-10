@@ -5,6 +5,7 @@ import { map, catchError } from 'rxjs/operators';
 import { ApiService, ApiResponse } from '../api.service';
 import { environment } from '../../environments/environment';
 import { IdentityDocumentType } from '../shared/identity-document';
+import { compressThenUpload } from '../shared/compress-image';
 
 export interface PublicRegisterHouse {
   house_type: string;
@@ -129,27 +130,33 @@ export class PublicRegistrationService {
   /**
    * Sube una foto de vehículo. POST multipart/form-data, campo "photo".
    * Devuelve la URL que debe enviarse en photo_url del vehículo en el registro.
+   * Comprime la imagen en cliente antes de enviar.
    */
   uploadVehiclePhoto(file: File): Observable<{ success: boolean; photo_url?: string; error?: string }> {
-    const formData = new FormData();
-    formData.append('photo', file, file.name);
-    return this.http.post<{ success: boolean; photo_url?: string; error?: string }>(
-      `${this.apiBase}/api/v1/public/upload/vehicle-photo`,
-      formData
-    );
+    return compressThenUpload(file, (compressed) => {
+      const formData = new FormData();
+      formData.append('photo', compressed, compressed.name);
+      return this.http.post<{ success: boolean; photo_url?: string; error?: string }>(
+        `${this.apiBase}/api/v1/public/upload/vehicle-photo`,
+        formData
+      );
+    });
   }
 
   /**
    * Sube una foto de mascota. POST multipart/form-data, campo "photo".
    * Devuelve la URL que debe enviarse en photo_url de la mascota en el registro.
+   * Comprime la imagen en cliente antes de enviar.
    */
   uploadPetPhoto(file: File): Observable<{ success: boolean; photo_url?: string; error?: string }> {
-    const formData = new FormData();
-    formData.append('photo', file, file.name);
-    return this.http.post<{ success: boolean; photo_url?: string; error?: string }>(
-      `${this.apiBase}/api/v1/public/upload/pet-photo`,
-      formData
-    );
+    return compressThenUpload(file, (compressed) => {
+      const formData = new FormData();
+      formData.append('photo', compressed, compressed.name);
+      return this.http.post<{ success: boolean; photo_url?: string; error?: string }>(
+        `${this.apiBase}/api/v1/public/upload/pet-photo`,
+        formData
+      );
+    });
   }
 
   /**

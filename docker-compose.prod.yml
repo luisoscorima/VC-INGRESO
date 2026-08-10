@@ -51,12 +51,10 @@ services:
       - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN}
       - PHP_OPCACHE_ENABLE=1
       - PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
-    volumes:
-      - uploads_data:/var/www/html/uploads
+    restart: unless-stopped
     depends_on:
       mysql:
         condition: service_healthy
-    restart: unless-stopped
     networks:
       - default
       - nginx-proxy-manager_default
@@ -87,7 +85,6 @@ services:
 
 volumes:
   mysql_data:
-  uploads_data:
 
 networks:
   default:

@@ -1,19 +1,11 @@
 <?php
 /**
- * Almacenamiento de archivos subidos (fotos / documentos).
- * STORAGE_DRIVER=local (default) | s3
+ * Almacenamiento de media en S3 únicamente.
  *
- * En BD se guardan paths relativos estables (/uploads/...).
- * resolveMediaUrl() expone URL pública S3 cuando aplica (listo para URLs firmadas después).
+ * - Staging en /tmp → PutObject → borra el temp (nada en disco persistente).
+ * - En BD se guardan paths lógicos relativos (/uploads/...) como keys estables.
+ * - resolveMediaUrl() expone la URL pública S3 (listo para firmadas después).
  */
-
-if (!function_exists('storageDriver')) {
-    function storageDriver(): string
-    {
-        $d = strtolower(trim((string) (getenv('STORAGE_DRIVER') ?: 'local')));
-        return $d === 's3' ? 's3' : 'local';
-    }
-}
 
 if (!function_exists('storageEnv')) {
     function storageEnv(string $key, string $default = ''): string
@@ -23,6 +15,14 @@ if (!function_exists('storageEnv')) {
             return $default;
         }
         return trim((string) $v);
+    }
+}
+
+/** @deprecated El media es siempre S3; se mantiene por compat de llamadas antiguas. */
+if (!function_exists('storageDriver')) {
+    function storageDriver(): string
+    {
+        return 's3';
     }
 }
 
@@ -90,7 +90,7 @@ if (!function_exists('s3MediaPublicBaseUrl')) {
 }
 
 /**
- * Mapea path relativo de BD a key S3 bajo {prefix}/media/...
+ * Path lógico BD → key S3 bajo {prefix}/media/...
  *
  * /uploads/incidents/X          → {prefix}/media/incidents/X
  * /uploads/public/{subdir}/X    → {prefix}/media/{subdir}/X
@@ -123,12 +123,7 @@ if (!function_exists('storedPathToS3Key')) {
 }
 
 /**
- * Path relativo estable guardado en BD según directorio lógico.
- *
- * logicalDir:
- *   - "incidents" → /uploads/incidents/{file}
- *   - "pets" (legacy auth) → /uploads/pets/{file}
- *   - "vehicles"|"pets"|"profiles"|... → /uploads/public/{subdir}/{file}
+ * Path lógico guardado en BD según directorio.
  */
 if (!function_exists('logicalDirToStoredPath')) {
     function logicalDirToStoredPath(string $logicalDir, string $filename): string
@@ -141,14 +136,6 @@ if (!function_exists('logicalDirToStoredPath')) {
             return '/uploads/pets/' . $filename;
         }
         return '/uploads/public/' . $dir . '/' . $filename;
-    }
-}
-
-if (!function_exists('localPathForStored')) {
-    function localPathForStored(string $storedPath): string
-    {
-        $path = '/' . ltrim(str_replace('\\', '/', $storedPath), '/');
-        return __DIR__ . '/..' . $path;
     }
 }
 
@@ -177,8 +164,8 @@ if (!function_exists('guessMimeFromExt')) {
 }
 
 /**
- * Resuelve path relativo (o URL absoluta) a URL usable en el cliente.
- * Hoy: público S3. Futuro: STORAGE_MEDIA_VISIBILITY=private → URLs firmadas.
+ * Resuelve path lógico (o URL absoluta) a URL pública S3.
+ * Futuro: STORAGE_MEDIA_VISIBILITY=private → URLs firmadas.
  */
 if (!function_exists('resolveMediaUrl')) {
     function resolveMediaUrl(?string $storedPath): ?string
@@ -197,13 +184,8 @@ if (!function_exists('resolveMediaUrl')) {
             return $u;
         }
 
-        if (storageDriver() !== 's3') {
-            return $u;
-        }
-
         $visibility = strtolower(storageEnv('STORAGE_MEDIA_VISIBILITY', 'public'));
         if ($visibility === 'private') {
-            // Pendiente: presigned / proxy auth. Mientras tanto devolver path relativo.
             return $u;
         }
 
@@ -213,7 +195,6 @@ if (!function_exists('resolveMediaUrl')) {
             return $u;
         }
 
-        // base = .../vc-ingreso/media ; key = vc-ingreso/media/incidents/x.jpg
         $mediaPrefix = s3KeyPrefix() . '/media/';
         $suffix = str_starts_with($key, $mediaPrefix)
             ? substr($key, strlen($mediaPrefix))
@@ -260,32 +241,23 @@ if (!function_exists('deleteStoredMedia')) {
             return;
         }
 
-        $local = localPathForStored($path);
-        $realBase = realpath(__DIR__ . '/../uploads');
-        $realFile = realpath($local);
-        if ($realBase && $realFile && str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR) && is_file($realFile)) {
-            @unlink($realFile);
-        }
-
-        if (storageDriver() === 's3') {
-            $client = getS3Client();
-            $key = storedPathToS3Key($path);
-            if ($client && $key) {
-                try {
-                    $client->deleteObject([
-                        'Bucket' => s3Bucket(),
-                        'Key' => $key,
-                    ]);
-                } catch (\Throwable $e) {
-                    error_log('S3 deleteObject failed: ' . $e->getMessage());
-                }
+        $client = getS3Client();
+        $key = storedPathToS3Key($path);
+        if ($client && $key) {
+            try {
+                $client->deleteObject([
+                    'Bucket' => s3Bucket(),
+                    'Key' => $key,
+                ]);
+            } catch (\Throwable $e) {
+                error_log('S3 deleteObject failed: ' . $e->getMessage());
             }
         }
     }
 }
 
 /**
- * Guarda un archivo subido (elemento $_FILES) en local y/o S3.
+ * Guarda un archivo subido en S3 (staging temporal; no persiste en disco).
  *
  * @param array|null $file Elemento de $_FILES
  * @param string     $logicalDir incidents|vehicles|pets|profiles|camera-access|announcements|readonly-docs|pets_root
@@ -336,43 +308,42 @@ if (!function_exists('storeUploadedFile')) {
             ];
         }
 
+        if (s3MediaPublicBaseUrl() === '' || s3Bucket() === '') {
+            return [
+                'success' => false,
+                'photo_url' => null,
+                'stored_path' => null,
+                'error' => 'Almacenamiento S3 no configurado (S3_BUCKET / S3_MEDIA_PUBLIC_BASE_URL).',
+            ];
+        }
+
         $filename = $opts['filename'] ?? (date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext);
         $storedPath = logicalDirToStoredPath($logicalDir, $filename);
-        $localPath = localPathForStored($storedPath);
-        $localDir = dirname($localPath);
 
-        if (!is_dir($localDir) && !@mkdir($localDir, 0755, true)) {
+        $tmpBase = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR);
+        $tmpPath = $tmpBase . DIRECTORY_SEPARATOR . 'vc_upload_' . bin2hex(random_bytes(8)) . '.' . $ext;
+        if (!move_uploaded_file($file['tmp_name'], $tmpPath)) {
             return [
                 'success' => false,
                 'photo_url' => null,
                 'stored_path' => null,
-                'error' => 'Error al crear directorio de almacenamiento.',
+                'error' => 'Error al guardar el archivo temporal.',
             ];
         }
 
-        if (!move_uploaded_file($file['tmp_name'], $localPath)) {
+        $ctype = null;
+        if (is_callable('mime_content_type')) {
+            $ctype = @mime_content_type($tmpPath) ?: null;
+        }
+        $ok = putStoredFileToS3($tmpPath, $storedPath, $ctype);
+        @unlink($tmpPath);
+        if (!$ok) {
             return [
                 'success' => false,
                 'photo_url' => null,
                 'stored_path' => null,
-                'error' => 'Error al guardar el archivo.',
+                'error' => 'Error al subir el archivo a S3.',
             ];
-        }
-
-        if (storageDriver() === 's3') {
-            $ctype = null;
-            if (is_callable('mime_content_type')) {
-                $ctype = @mime_content_type($localPath) ?: null;
-            }
-            if (!putStoredFileToS3($localPath, $storedPath, $ctype)) {
-                @unlink($localPath);
-                return [
-                    'success' => false,
-                    'photo_url' => null,
-                    'stored_path' => null,
-                    'error' => 'Error al subir el archivo a S3.',
-                ];
-            }
         }
 
         return [
@@ -386,7 +357,7 @@ if (!function_exists('storeUploadedFile')) {
 
 if (!function_exists('storePublicPhoto')) {
     /**
-     * Compat: guarda en /uploads/public/{subdir}/
+     * Compat: guarda bajo el path lógico /uploads/public/{subdir}/
      *
      * @param array|null $file Elemento de $_FILES (ej. $_FILES['photo'])
      * @param string     $subdir 'vehicles', 'pets', 'profiles', 'camera-access', ...

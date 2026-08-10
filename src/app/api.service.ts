@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../environments/environment';
+import { compressThenUpload } from './shared/compress-image';
 
 /**
  * Interfaz base para respuestas de la API
@@ -102,37 +103,50 @@ export class ApiService {
   /**
    * Subir foto de perfil del usuario autenticado (POST multipart).
    * Requiere token. Devuelve { success, data: usuario actualizado }.
+   * Comprime la imagen en cliente antes de enviar.
    */
   uploadProfilePhoto(file: File): Observable<ApiResponse<any>> {
-    const form = new FormData();
-    form.append('photo', file);
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/api/v1/users/me/photo`, form).pipe(
-      catchError(this.handleError)
-    );
+    return compressThenUpload(file, (compressed) => {
+      const form = new FormData();
+      form.append('photo', compressed);
+      return this.http.post<ApiResponse<any>>(`${this.baseUrl}/api/v1/users/me/photo`, form).pipe(
+        catchError(this.handleError)
+      );
+    });
   }
 
   /**
    * Subir documento para sección readonly/documents.
    * Devuelve { url, title, ext }.
+   * Si el archivo es imagen, se comprime; PDF/otros se envían tal cual.
    */
   uploadReadonlyDocument(file: File): Observable<ApiResponse<any>> {
-    const form = new FormData();
-    form.append('file', file);
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/api/v1/readonly/documents/upload`, form).pipe(
-      catchError(this.handleError)
-    );
+    const send = (f: File) => {
+      const form = new FormData();
+      form.append('file', f);
+      return this.http.post<ApiResponse<any>>(`${this.baseUrl}/api/v1/readonly/documents/upload`, form).pipe(
+        catchError(this.handleError)
+      );
+    };
+    if (file.type.startsWith('image/')) {
+      return compressThenUpload(file, send);
+    }
+    return send(file);
   }
 
   /**
    * Subir imagen para comunicados (CRUD admin).
    * Devuelve { url, ext }.
+   * Comprime la imagen en cliente antes de enviar.
    */
   uploadAnnouncementImage(file: File): Observable<ApiResponse<any>> {
-    const form = new FormData();
-    form.append('file', file);
-    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/api/v1/announcements/upload-image`, form).pipe(
-      catchError(this.handleError)
-    );
+    return compressThenUpload(file, (compressed) => {
+      const form = new FormData();
+      form.append('file', compressed);
+      return this.http.post<ApiResponse<any>>(`${this.baseUrl}/api/v1/announcements/upload-image`, form).pipe(
+        catchError(this.handleError)
+      );
+    });
   }
 
   /**

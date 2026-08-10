@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Despliegue en producción: backup → (S3) → pull GHCR → reinicio API/frontend.
+# Despliegue en producción: backup BD → S3 → pull GHCR → reinicio API/frontend.
 #
 # Uso:
 #   ./scripts/deploy-prod.sh
@@ -9,6 +9,7 @@
 #
 # Requiere (una vez): docker login ghcr.io  si los paquetes GHCR son privados.
 # Para S3: AWS CLI + credenciales (mismo usuario IAM de docs/aws-s3-setup.md).
+# El media ya está en S3; este script solo respalda la BD (no hay volumen uploads).
 set -Eeuo pipefail
 
 PROJECT_DIR="${VC_PROJECT_DIR:-$HOME/vc-ingreso}"
@@ -37,7 +38,6 @@ fi
 
 DB_BACKUP_SQL="$BACKUP_DIR/backup_vc_db_$TS.sql"
 DB_BACKUP_GZ="$DB_BACKUP_SQL.gz"
-UPLOADS_BACKUP="$BACKUP_DIR/uploads_$TS.tar.gz"
 
 if [[ "${VC_SKIP_BACKUP:-0}" != "1" ]]; then
   echo "==> 1. Backup de BD → $BACKUP_DIR"
@@ -46,24 +46,15 @@ if [[ "${VC_SKIP_BACKUP:-0}" != "1" ]]; then
     > "$DB_BACKUP_SQL"
   gzip -kf "$DB_BACKUP_SQL"
 
-  echo "==> 2. Backup de imágenes (volumen uploads) → $BACKUP_DIR"
-  docker run --rm \
-    --user "$(id -u):$(id -g)" \
-    -v vc-ingreso_uploads_data:/data:ro \
-    -v "$BACKUP_DIR:/backup" \
-    alpine \
-    tar czf "/backup/uploads_$TS.tar.gz" -C /data .
-
   if [[ "${VC_SKIP_S3_BACKUP:-0}" != "1" ]]; then
     if command -v aws >/dev/null 2>&1; then
-      echo "==> 2b. Subir backups a S3 (s3://${S3_BUCKET}/${S3_KEY_PREFIX}/backups/)"
+      echo "==> 2. Subir backup BD a S3 (s3://${S3_BUCKET}/${S3_KEY_PREFIX}/backups/db/)"
       aws s3 cp "$DB_BACKUP_GZ" "s3://${S3_BUCKET}/${S3_KEY_PREFIX}/backups/db/"
-      aws s3 cp "$UPLOADS_BACKUP" "s3://${S3_BUCKET}/${S3_KEY_PREFIX}/backups/uploads/"
     else
-      echo "    AVISO: aws CLI no encontrado; backups solo en disco local."
+      echo "    AVISO: aws CLI no encontrado; backup solo en disco local."
     fi
   else
-    echo "==> 2b. Subida S3 omitida (VC_SKIP_S3_BACKUP=1)"
+    echo "==> 2. Subida S3 omitida (VC_SKIP_S3_BACKUP=1)"
   fi
 else
   echo "==> 1–2. Backup omitido (VC_SKIP_BACKUP=1)"
@@ -97,17 +88,14 @@ if [[ "${VC_SKIP_BACKUP:-0}" != "1" ]]; then
   echo "==> 8. Limpieza (mantener últimos ${KEEP_BACKUPS} backups)"
   ls -1t "$BACKUP_DIR"/backup_vc_db_*.sql 2>/dev/null | tail -n +$((KEEP_BACKUPS + 1)) | xargs -r rm -f
   ls -1t "$BACKUP_DIR"/backup_vc_db_*.sql.gz 2>/dev/null | tail -n +$((KEEP_BACKUPS + 1)) | xargs -r rm -f
-  ls -1t "$BACKUP_DIR"/uploads_*.tar.gz 2>/dev/null | tail -n +$((KEEP_BACKUPS + 1)) | xargs -r rm -f
 fi
 
 echo ""
 echo "Deploy listo."
 if [[ "${VC_SKIP_BACKUP:-0}" != "1" ]]; then
   echo "Backup BD:      $DB_BACKUP_SQL (+ .gz)"
-  echo "Backup uploads: $UPLOADS_BACKUP"
   if [[ "${VC_SKIP_S3_BACKUP:-0}" != "1" ]] && command -v aws >/dev/null 2>&1; then
     echo "S3 BD:          s3://${S3_BUCKET}/${S3_KEY_PREFIX}/backups/db/$(basename "$DB_BACKUP_GZ")"
-    echo "S3 uploads:     s3://${S3_BUCKET}/${S3_KEY_PREFIX}/backups/uploads/$(basename "$UPLOADS_BACKUP")"
   fi
 fi
 echo "Los usuarios con pestaña abierta verán aviso de actualización al detectar version.json nuevo."

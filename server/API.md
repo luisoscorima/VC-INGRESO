@@ -65,7 +65,7 @@ Solo tres familias; **todo lo demás se rechaza** (no es caso de uso):
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/uploads/...` | Sirve imágenes bajo `server/uploads/` si el archivo existe y es imagen (MIME `image/*`). |
+| GET | `/uploads/...` | 302 a la URL pública S3 del objeto (paths lógicos en BD). |
 
 ---
 

@@ -47,7 +47,6 @@ services:
       - "8089:80"
     volumes:
       - ./server:/var/www/html
-      - uploads_data:/var/www/html/uploads
     depends_on:
       mysql:
         condition: service_healthy
@@ -75,7 +74,6 @@ services:
 volumes:
   mysql_data:
   frontend_node_modules:
-  uploads_data:
 
 networks:
   default:

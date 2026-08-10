@@ -80,48 +80,20 @@ require_once __DIR__ . '/helpers/upload_storage.php';
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Servir archivos subidos (fotos) en GET /uploads/... (desde server/uploads/)
+// Media: paths lógicos /uploads/... → 302 a S3 (ya no se sirve desde disco).
 if ($method === 'GET' && str_starts_with($uri, '/uploads/')) {
-    $filePath = __DIR__ . $uri;
-    if (is_file($filePath) && is_readable($filePath)) {
-        $mime = mime_content_type($filePath);
-        $ext = strtolower(pathinfo($uri, PATHINFO_EXTENSION));
-        $allowedExts = [
-            // Images (existing)
-            'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
-            // Documents
-            'pdf',
-            'doc', 'docx', 'odt', 'rtf',
-            'xls', 'xlsx', 'ods', 'csv',
-            'txt', 'md', 'log',
-            'ppt', 'pptx', 'odp',
-            // Archives (optional)
-            'zip', 'rar', '7z', 'tar', 'gz'
-        ];
-
-        // Servir imágenes y documentos permitidos.
-        $ok = is_string($mime) && str_starts_with($mime, 'image/');
-        if (!$ok && in_array($ext, $allowedExts, true)) {
-            $ok = true;
-        }
-
-        if ($ok) {
-            header('Content-Type: ' . ($mime ?: 'application/octet-stream'));
-            header('Cache-Control: public, max-age=86400');
-            readfile($filePath);
-            exit;
-        }
+    // Evitar que PHP emita JSON en redirects de media.
+    header_remove('Content-Type');
+    $resolved = resolveMediaUrl($uri);
+    if ($resolved && (str_starts_with($resolved, 'http://') || str_starts_with($resolved, 'https://'))) {
+        header('Location: ' . $resolved, true, 302);
+        header('Cache-Control: public, max-age=300');
+        exit;
     }
-
-    // Compat: si ya no está en disco pero vive en S3, redirigir a URL pública.
-    if (storageDriver() === 's3') {
-        $resolved = resolveMediaUrl($uri);
-        if ($resolved && (str_starts_with($resolved, 'http://') || str_starts_with($resolved, 'https://'))) {
-            header('Location: ' . $resolved, true, 302);
-            header('Cache-Control: public, max-age=300');
-            exit;
-        }
-    }
+    http_response_code(404);
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'error' => 'Archivo no encontrado'], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 // API v1 Routes

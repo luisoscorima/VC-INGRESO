@@ -53,7 +53,7 @@ RUN test -f vendor/autoload.php || composer update --no-dev --no-interaction --p
 COPY server/apache-remoteip.conf /etc/apache2/conf-available/remoteip.conf
 RUN a2enconf remoteip
 
-# Entrypoint: crea uploads/public/{vehicles,pets} y asigna permisos (para volumen en Docker)
+# Entrypoint: crea storage/ y permisos (media en S3; sin volumen uploads)
 COPY server/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

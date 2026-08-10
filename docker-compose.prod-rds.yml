@@ -24,8 +24,6 @@ services:
       - PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
     ports:
       - "80:80"
-    volumes:
-      - uploads_data:/var/www/html/uploads
     restart: unless-stopped
 
   frontend:
@@ -38,9 +36,6 @@ services:
     depends_on:
       - api
     restart: unless-stopped
-
-volumes:
-  uploads_data:
 
 networks:
   default:
