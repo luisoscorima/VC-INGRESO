@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { ToastrService } from 'ngx-toastr';
 import { AccessIncidentService, IncidentFormDialogData } from './access-incident.service';
 import { ApiService } from '../api.service';
+import { compressImageFile } from '../shared/compress-image';
 
 /** panelClass para MatDialog (estilos en styles.css → .vc-incident-dialog) */
 export const INCIDENT_DIALOG_PANEL_CLASS = 'vc-incident-dialog';
@@ -63,7 +64,11 @@ interface AccessPointOption {
             (change)="onPhotoSelected($event)"
             class="hidden" />
 
-          <div *ngIf="!photoPreview" class="flex flex-wrap items-center gap-3">
+          <p *ngIf="compressingPhoto" class="text-sm text-gray-600 dark:text-gray-300">
+            Procesando foto…
+          </p>
+
+          <div *ngIf="!photoPreview && !compressingPhoto" class="flex flex-wrap items-center gap-3">
             <button
               type="button"
               class="vc-btn-primary inline-flex items-center gap-2 !px-4 !py-2.5"
@@ -88,6 +93,7 @@ interface AccessPointOption {
               <button
                 type="button"
                 class="vc-btn-primary inline-flex items-center gap-2 !px-4 !py-2"
+                [disabled]="compressingPhoto || saving"
                 (click)="openCamera()">
                 <mat-icon class="!h-5 !w-5 !text-xl">photo_camera</mat-icon>
                 Volver a tomar
@@ -95,6 +101,7 @@ interface AccessPointOption {
               <button
                 type="button"
                 class="text-sm font-medium text-red-700 hover:underline dark:text-red-400"
+                [disabled]="compressingPhoto || saving"
                 (click)="removePhoto()">
                 Quitar foto
               </button>
@@ -109,7 +116,7 @@ interface AccessPointOption {
         type="button"
         class="vc-btn-primary !px-5 !py-2.5"
         (click)="submit()"
-        [disabled]="saving || !canSubmit">
+        [disabled]="saving || compressingPhoto || !canSubmit">
         {{ saving ? 'Guardando…' : 'Registrar' }}
       </button>
     </mat-dialog-actions>
@@ -126,6 +133,8 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
   photoPreview: string | null = null;
   saving = false;
   loadingPoints = false;
+  compressingPhoto = false;
+  private photoPickSeq = 0;
 
   constructor(
     private readonly dialogRef: MatDialogRef<IncidentFormDialogComponent, boolean>,
@@ -141,6 +150,7 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.photoPickSeq++;
     this.clearPhotoPreview();
   }
 
@@ -173,9 +183,10 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
   onPhotoSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
-    this.photoFile = file;
-    this.clearPhotoPreview();
-    this.photoPreview = file ? URL.createObjectURL(file) : null;
+    if (!file) {
+      return;
+    }
+    void this.applyPhoto(file);
   }
 
   openCamera(): void {
@@ -187,6 +198,8 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
   }
 
   removePhoto(): void {
+    this.photoPickSeq++;
+    this.compressingPhoto = false;
     this.photoFile = null;
     this.clearPhotoPreview();
     this.resetFileInputs();
@@ -216,8 +229,35 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
     }
   }
 
+  private async applyPhoto(file: File): Promise<void> {
+    const seq = ++this.photoPickSeq;
+    this.compressingPhoto = true;
+    this.photoFile = null;
+    this.clearPhotoPreview();
+
+    try {
+      const compressed = await compressImageFile(file, { maxEdge: 1280, quality: 0.72 });
+      if (seq !== this.photoPickSeq) {
+        return;
+      }
+      this.photoFile = compressed;
+      this.photoPreview = URL.createObjectURL(compressed);
+    } catch {
+      if (seq !== this.photoPickSeq) {
+        return;
+      }
+      this.photoFile = file;
+      this.photoPreview = URL.createObjectURL(file);
+      this.toastr.warning('No se pudo comprimir la foto; se usará el original.');
+    } finally {
+      if (seq === this.photoPickSeq) {
+        this.compressingPhoto = false;
+      }
+    }
+  }
+
   submit(): void {
-    if (!this.canSubmit || !this.accessPointId) {
+    if (!this.canSubmit || !this.accessPointId || this.compressingPhoto) {
       return;
     }
 

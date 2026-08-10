@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../environments/environment';
@@ -171,41 +171,55 @@ export class ApiService {
   }
 
   /**
-   * Manejo centralizado de errores
+   * Manejo centralizado de errores.
+   * Preserva mensajes ya normalizados (p. ej. por el interceptor) y evita el fallback genérico.
    */
-  private handleError(error: any): Observable<never> {
+  private handleError(error: unknown): Observable<never> {
     let errorMessage = 'Error desconocido';
 
-    if (error.error instanceof ErrorEvent) {
-      // Error del lado del cliente
-      errorMessage = `Error: ${error.error.message}`;
-    } else if (error.status) {
-      // Error del lado del servidor
-      switch (error.status) {
-        case 400:
-          errorMessage = error.error?.error || 'Solicitud incorrecta';
-          break;
-        case 401:
-          errorMessage = 'No autorizado. Por favor inicie sesion nuevamente.';
-          break;
-        case 403:
-          errorMessage = 'Acceso prohibido';
-          break;
-        case 404:
-          errorMessage = 'Recurso no encontrado';
-          break;
-        case 409:
-          errorMessage = error.error?.error || 'Conflicto de datos';
-          break;
-        case 500:
-          errorMessage = 'Error interno del servidor';
-          break;
-        default:
-          errorMessage = `Error ${error.status}: ${error.message}`;
-      }
+    if (error instanceof HttpErrorResponse) {
+      errorMessage = ApiService.messageFromHttp(error);
+    } else if (error instanceof Error && error.message.trim()) {
+      errorMessage = error.message;
+    } else if (typeof error === 'string' && error.trim()) {
+      errorMessage = error;
     }
 
     console.error('ApiService Error:', errorMessage, error);
     return throwError(() => new Error(errorMessage));
+  }
+
+  private static messageFromHttp(error: HttpErrorResponse): string {
+    const bodyError =
+      typeof error.error?.error === 'string'
+        ? error.error.error
+        : typeof error.error?.message === 'string'
+          ? error.error.message
+          : null;
+
+    if (error.error instanceof ErrorEvent) {
+      return error.error.message || 'Error de red';
+    }
+
+    switch (error.status) {
+      case 0:
+        return 'No se pudo conectar con el servidor. Revise la red e intente de nuevo.';
+      case 400:
+      case 409:
+      case 422:
+        return bodyError || 'Solicitud incorrecta';
+      case 401:
+        return 'No autorizado. Por favor inicie sesion nuevamente.';
+      case 403:
+        return 'Acceso prohibido';
+      case 404:
+        return bodyError || 'Recurso no encontrado';
+      case 413:
+        return bodyError || 'El archivo es demasiado grande.';
+      case 500:
+        return bodyError || 'Error interno del servidor';
+      default:
+        return bodyError || `Error ${error.status}: ${error.message}`;
+    }
   }
 }

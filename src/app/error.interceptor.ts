@@ -7,60 +7,64 @@ import { currentInternalPath, isPublicGuestPath } from './public-route.utils';
 
 let loginRedirectInProgress = false;
 
+function messageFromHttp(error: HttpErrorResponse): string {
+  const bodyError =
+    typeof error.error?.error === 'string'
+      ? error.error.error
+      : typeof error.error?.message === 'string'
+        ? error.error.message
+        : null;
+
+  if (error.error instanceof ErrorEvent) {
+    return error.error.message || 'Error de red';
+  }
+
+  switch (error.status) {
+    case 0:
+      return 'No se pudo conectar con el servidor. Revise la red e intente de nuevo.';
+    case 400:
+    case 409:
+    case 422:
+      return bodyError || 'Solicitud incorrecta';
+    case 401:
+      return 'No autorizado';
+    case 403:
+      return 'Acceso prohibido';
+    case 404:
+      return bodyError || 'Recurso no encontrado';
+    case 413:
+      return bodyError || 'El archivo es demasiado grande.';
+    case 500:
+      return bodyError || 'Error interno del servidor';
+    default:
+      return bodyError || (error.status ? `Error ${error.status}: ${error.message}` : 'Error desconocido');
+  }
+}
+
 /**
  * ErrorInterceptor - Manejo centralizado de errores HTTP
- * 
+ *
  * Captura todos los errores de las peticiones HTTP y:
  * - Registra el error en consola
- * - Redirige a página de error en caso de 500
  * - Maneja errores 401 (no autorizado)
  */
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const auth = inject(AuthService);
-  
+
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      let errorMessage = 'Error desconocido';
+      const errorMessage = messageFromHttp(error);
 
-      if (error.error instanceof ErrorEvent) {
-        // Error del lado del cliente
-        errorMessage = `Error: ${error.error.message}`;
-      } else {
-        // Error del lado del servidor
-        switch (error.status) {
-          case 400:
-            errorMessage = error.error?.error || 'Solicitud incorrecta';
-            break;
-          case 401:
-            errorMessage = 'No autorizado';
-            {
-              const path = currentInternalPath(router);
-              const publicNoRedirect = isPublicGuestPath(path);
-              auth.clearAuthState();
-              if (!publicNoRedirect && !loginRedirectInProgress) {
-                loginRedirectInProgress = true;
-                router.navigate(['/login'], { replaceUrl: true }).finally(() => {
-                  loginRedirectInProgress = false;
-                });
-              }
-            }
-            break;
-          case 403:
-            errorMessage = 'Acceso prohibido';
-            break;
-          case 404:
-            errorMessage = 'Recurso no encontrado';
-            break;
-          case 409:
-            errorMessage = error.error?.error || 'Conflicto de datos';
-            break;
-          case 500:
-            errorMessage = (typeof error.error?.error === 'string' ? error.error.error : null)
-              || 'Error interno del servidor';
-            break;
-          default:
-            errorMessage = `Error ${error.status}: ${error.message}`;
+      if (error.status === 401) {
+        const path = currentInternalPath(router);
+        const publicNoRedirect = isPublicGuestPath(path);
+        auth.clearAuthState();
+        if (!publicNoRedirect && !loginRedirectInProgress) {
+          loginRedirectInProgress = true;
+          router.navigate(['/login'], { replaceUrl: true }).finally(() => {
+            loginRedirectInProgress = false;
+          });
         }
       }
 
