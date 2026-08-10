@@ -117,3 +117,28 @@
   transform-origin: center center;
   transition: transform 0.12s ease-out;
 }
+
+/* Foto en detalle: ancho completo del modal, marco rectangular 4:3 */
+.incident-detail-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+}
+
+.dark .incident-detail-photo {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.incident-detail-photo__img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  transition: opacity 0.15s ease;
+}
+
+.incident-detail-photo:hover .incident-detail-photo__img {
+  opacity: 0.95;
+}

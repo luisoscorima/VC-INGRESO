@@ -148,13 +148,13 @@
         *ngIf="photoUrl(selected.photo_url)"
         type="button"
         (click)="openViewPhoto(selected)"
-        class="mt-4 block w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+        class="incident-detail-photo mt-4 block w-full overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
         title="Ampliar foto"
         aria-label="Ampliar foto de incidencia">
         <img
           [src]="photoUrl(selected.photo_url)!"
           alt="Foto incidencia"
-          class="max-h-64 w-full cursor-pointer rounded-lg object-contain hover:opacity-95" />
+          class="incident-detail-photo__img" />
       </button>
 
       <div
