@@ -17,6 +17,19 @@ interface AccessPointOption {
   name: string;
 }
 
+interface HouseOption {
+  house_id: number;
+  block_house: string;
+  lot: string;
+  apartment: string | null;
+}
+
+interface PendingPhoto {
+  id: number;
+  file: File;
+  preview: string;
+}
+
 @Component({
   selector: 'app-incident-form-dialog',
   standalone: true,
@@ -38,6 +51,42 @@ interface AccessPointOption {
           </select>
         </div>
 
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">Mz (opcional)</label>
+            <select
+              [(ngModel)]="selectedBlock"
+              (ngModelChange)="onBlockChange()"
+              [disabled]="loadingHouses"
+              class="vc-select-sm w-full">
+              <option value="">— Ninguna —</option>
+              <option *ngFor="let b of uniqueBlocks" [value]="b">Mz: {{ b }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">Lote (opcional)</label>
+            <select
+              [(ngModel)]="selectedLot"
+              (ngModelChange)="onLotChange()"
+              [disabled]="loadingHouses || !selectedBlock"
+              class="vc-select-sm w-full">
+              <option value="">— Seleccione —</option>
+              <option *ngFor="let lot of uniqueLots" [value]="lot">Lt: {{ lot }}</option>
+            </select>
+          </div>
+        </div>
+        <p *ngIf="data.mode === 'scan'" class="text-xs text-gray-500 dark:text-gray-400">
+          Útil en denegados o visitas sin casa: se guarda en la incidencia y en el historial de acceso.
+        </p>
+
+        <div *ngIf="apartmentOptions.length > 1">
+          <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">Dpto (opcional)</label>
+          <select [(ngModel)]="selectedApartment" class="vc-select-sm w-full">
+            <option value="">— Sin dpto / primero —</option>
+            <option *ngFor="let apt of apartmentOptions" [value]="apt">{{ apt }}</option>
+          </select>
+        </div>
+
         <div>
           <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">Descripción</label>
           <textarea
@@ -49,7 +98,9 @@ interface AccessPointOption {
         </div>
 
         <div>
-          <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">Foto (opcional)</label>
+          <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">
+            Fotos (opcional, máx. {{ maxPhotos }})
+          </label>
           <input
             #cameraInput
             type="file"
@@ -68,45 +119,44 @@ interface AccessPointOption {
             Procesando foto…
           </p>
 
-          <div *ngIf="!photoPreview && !compressingPhoto" class="flex flex-wrap items-center gap-3">
+          <div *ngIf="photos.length" class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div *ngFor="let ph of photos; let i = index" class="relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600">
+              <img [src]="ph.preview" [alt]="'Foto ' + (i + 1)" class="h-28 w-full object-cover" />
+              <button
+                type="button"
+                class="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                [disabled]="compressingPhoto || saving"
+                (click)="removePhoto(i)"
+                title="Quitar foto"
+                aria-label="Quitar foto">
+                <mat-icon class="!h-4 !w-4 !text-base">close</mat-icon>
+              </button>
+              <span class="absolute bottom-1 left-1 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-white">
+                {{ i + 1 }}/{{ photos.length }}
+              </span>
+            </div>
+          </div>
+
+          <div *ngIf="!compressingPhoto && canAddPhoto" class="mt-2 flex flex-wrap items-center gap-3">
             <button
               type="button"
               class="vc-btn-primary inline-flex items-center gap-2 !px-4 !py-2.5"
+              [disabled]="saving"
               (click)="openCamera()">
               <mat-icon class="!h-5 !w-5 !text-xl">photo_camera</mat-icon>
-              Tomar foto
+              {{ photos.length ? 'Tomar otra foto' : 'Tomar foto' }}
             </button>
             <button
               type="button"
               class="text-sm font-medium text-amber-700 hover:underline dark:text-amber-400"
+              [disabled]="saving"
               (click)="openGallery()">
               Elegir de galería
             </button>
           </div>
-
-          <div *ngIf="photoPreview" class="mt-2">
-            <img
-              [src]="photoPreview"
-              alt="Vista previa de la incidencia"
-              class="max-h-40 rounded-lg border border-gray-200 object-contain dark:border-gray-600" />
-            <div class="mt-2 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                class="vc-btn-primary inline-flex items-center gap-2 !px-4 !py-2"
-                [disabled]="compressingPhoto || saving"
-                (click)="openCamera()">
-                <mat-icon class="!h-5 !w-5 !text-xl">photo_camera</mat-icon>
-                Volver a tomar
-              </button>
-              <button
-                type="button"
-                class="text-sm font-medium text-red-700 hover:underline dark:text-red-400"
-                [disabled]="compressingPhoto || saving"
-                (click)="removePhoto()">
-                Quitar foto
-              </button>
-            </div>
-          </div>
+          <p *ngIf="photos.length >= maxPhotos" class="mt-1 text-xs text-gray-500">
+            Límite de {{ maxPhotos }} fotos alcanzado.
+          </p>
         </div>
       </div>
     </mat-dialog-content>
@@ -126,15 +176,23 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
   @ViewChild('cameraInput') private cameraInput?: ElementRef<HTMLInputElement>;
   @ViewChild('galleryInput') private galleryInput?: ElementRef<HTMLInputElement>;
 
+  readonly maxPhotos = 5;
+
   accessPoints: AccessPointOption[] = [];
   accessPointId: number | null = null;
   description = '';
-  photoFile: File | null = null;
-  photoPreview: string | null = null;
+  photos: PendingPhoto[] = [];
   saving = false;
   loadingPoints = false;
   compressingPhoto = false;
   private photoPickSeq = 0;
+  private nextPhotoId = 1;
+
+  houses: HouseOption[] = [];
+  loadingHouses = false;
+  selectedBlock = '';
+  selectedLot = '';
+  selectedApartment = '';
 
   constructor(
     private readonly dialogRef: MatDialogRef<IncidentFormDialogComponent, boolean>,
@@ -142,20 +200,65 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
     private readonly incidentService: AccessIncidentService,
     private readonly api: ApiService,
     private readonly toastr: ToastrService
-  ) {}
+  ) {
+    // Evita que un toque fuera (p. ej. bajar el teclado en móvil) cierre el modal y pierda fotos.
+    this.dialogRef.disableClose = true;
+  }
 
   ngOnInit(): void {
     this.accessPointId = this.data.accessPointId ?? null;
     this.loadAccessPoints();
+    this.loadHouses();
   }
 
   ngOnDestroy(): void {
     this.photoPickSeq++;
-    this.clearPhotoPreview();
+    this.clearAllPreviews();
   }
 
   get canSubmit(): boolean {
     return !!this.accessPointId && this.description.trim().length > 0;
+  }
+
+  get canAddPhoto(): boolean {
+    return this.photos.length < this.maxPhotos;
+  }
+
+  get uniqueBlocks(): string[] {
+    return [...new Set(this.houses.map((h) => h.block_house).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    );
+  }
+
+  get uniqueLots(): string[] {
+    if (!this.selectedBlock) {
+      return [];
+    }
+    const filtered = this.houses.filter((h) => h.block_house === this.selectedBlock);
+    return [...new Set(filtered.map((h) => h.lot).filter(Boolean))].sort(
+      (a, b) => parseInt(a, 10) - parseInt(b, 10) || a.localeCompare(b)
+    );
+  }
+
+  get apartmentOptions(): string[] {
+    if (!this.selectedBlock || !this.selectedLot) {
+      return [];
+    }
+    return this.houses
+      .filter((h) => h.block_house === this.selectedBlock && h.lot === this.selectedLot)
+      .map((h) => (h.apartment ?? '').trim())
+      .filter((apt) => apt !== '')
+      .filter((apt, i, arr) => arr.indexOf(apt) === i)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }
+
+  onBlockChange(): void {
+    this.selectedLot = '';
+    this.selectedApartment = '';
+  }
+
+  onLotChange(): void {
+    this.selectedApartment = '';
   }
 
   private loadAccessPoints(): void {
@@ -180,13 +283,77 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadHouses(): void {
+    this.loadingHouses = true;
+    this.api.getRaw('api/v1/houses').subscribe({
+      next: (raw: unknown) => {
+        const list = Array.isArray(raw)
+          ? raw
+          : raw && typeof raw === 'object' && Array.isArray((raw as { data?: unknown }).data)
+            ? (raw as { data: unknown[] }).data
+            : [];
+        this.houses = (list as any[])
+          .map((h) => ({
+            house_id: Number(h.house_id),
+            block_house: String(h.block_house ?? '').trim(),
+            lot: String(h.lot ?? '').trim(),
+            apartment: h.apartment != null && String(h.apartment).trim() !== '' ? String(h.apartment).trim() : null,
+          }))
+          .filter((h) => h.house_id > 0 && h.block_house !== '');
+        this.loadingHouses = false;
+        this.prefillHouseFromScanContext();
+      },
+      error: () => {
+        this.loadingHouses = false;
+        this.toastr.error('No se pudieron cargar las casas (Mz/Lote)');
+      },
+    });
+  }
+
+  /** Si el escaneo ya trae house_id, preselecciona Mz/Lt. */
+  private prefillHouseFromScanContext(): void {
+    const houseId = this.data.mode === 'scan' ? this.data.scanContext?.house_id ?? null : null;
+    if (!houseId) {
+      return;
+    }
+    const house = this.houses.find((h) => h.house_id === houseId);
+    if (!house) {
+      return;
+    }
+    this.selectedBlock = house.block_house;
+    this.selectedLot = house.lot;
+    this.selectedApartment = house.apartment ?? '';
+  }
+
+  /** Resuelve house_id a partir de Mz + Lote (+ dpto si aplica). */
+  private resolveHouseId(): number | null {
+    if (!this.selectedBlock || !this.selectedLot) {
+      return null;
+    }
+    const matches = this.houses.filter(
+      (h) => h.block_house === this.selectedBlock && h.lot === this.selectedLot
+    );
+    if (!matches.length) {
+      return null;
+    }
+    if (this.selectedApartment) {
+      const byApt = matches.find((h) => (h.apartment ?? '') === this.selectedApartment);
+      if (byApt) {
+        return byApt.house_id;
+      }
+    }
+    const noApt = matches.find((h) => !h.apartment);
+    return (noApt ?? matches[0]).house_id;
+  }
+
   onPhotoSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
+    input.value = '';
     if (!file) {
       return;
     }
-    void this.applyPhoto(file);
+    void this.addPhoto(file);
   }
 
   openCamera(): void {
@@ -197,58 +364,58 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
     this.openFileInput(this.galleryInput);
   }
 
-  removePhoto(): void {
-    this.photoPickSeq++;
-    this.compressingPhoto = false;
-    this.photoFile = null;
-    this.clearPhotoPreview();
-    this.resetFileInputs();
+  removePhoto(index: number): void {
+    const [removed] = this.photos.splice(index, 1);
+    if (removed?.preview) {
+      URL.revokeObjectURL(removed.preview);
+    }
   }
 
   private openFileInput(input?: ElementRef<HTMLInputElement>): void {
-    if (!input) {
+    if (!input || !this.canAddPhoto) {
       return;
     }
     input.nativeElement.value = '';
     input.nativeElement.click();
   }
 
-  private resetFileInputs(): void {
-    if (this.cameraInput) {
-      this.cameraInput.nativeElement.value = '';
+  private clearAllPreviews(): void {
+    for (const ph of this.photos) {
+      URL.revokeObjectURL(ph.preview);
     }
-    if (this.galleryInput) {
-      this.galleryInput.nativeElement.value = '';
-    }
+    this.photos = [];
   }
 
-  private clearPhotoPreview(): void {
-    if (this.photoPreview) {
-      URL.revokeObjectURL(this.photoPreview);
-      this.photoPreview = null;
+  private async addPhoto(file: File): Promise<void> {
+    if (!this.canAddPhoto) {
+      this.toastr.warning(`Máximo ${this.maxPhotos} fotos.`);
+      return;
     }
-  }
 
-  private async applyPhoto(file: File): Promise<void> {
     const seq = ++this.photoPickSeq;
     this.compressingPhoto = true;
-    this.photoFile = null;
-    this.clearPhotoPreview();
 
     try {
-      const compressed = await compressImageFile(file, { maxEdge: 1280, quality: 0.72 });
+      let ready = file;
+      try {
+        ready = await compressImageFile(file, { maxEdge: 1280, quality: 0.72 });
+      } catch {
+        this.toastr.warning('No se pudo comprimir la foto; se usará el original.');
+      }
       if (seq !== this.photoPickSeq) {
         return;
       }
-      this.photoFile = compressed;
-      this.photoPreview = URL.createObjectURL(compressed);
-    } catch {
-      if (seq !== this.photoPickSeq) {
+      if (this.photos.length >= this.maxPhotos) {
         return;
       }
-      this.photoFile = file;
-      this.photoPreview = URL.createObjectURL(file);
-      this.toastr.warning('No se pudo comprimir la foto; se usará el original.');
+      this.photos = [
+        ...this.photos,
+        {
+          id: this.nextPhotoId++,
+          file: ready,
+          preview: URL.createObjectURL(ready),
+        },
+      ];
     } finally {
       if (seq === this.photoPickSeq) {
         this.compressingPhoto = false;
@@ -273,14 +440,19 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
       if (ctx.person_id) form.append('person_id', String(ctx.person_id));
       if (ctx.vehicle_id) form.append('vehicle_id', String(ctx.vehicle_id));
       if (ctx.temp_visit_id) form.append('temp_visit_id', String(ctx.temp_visit_id));
-      if (ctx.house_id) form.append('house_id', String(ctx.house_id));
       if (ctx.doc_number) form.append('doc_number', ctx.doc_number);
       if (ctx.license_plate) form.append('license_plate', ctx.license_plate);
       if (ctx.status_validated) form.append('status_validated', ctx.status_validated);
     }
 
-    if (this.photoFile) {
-      form.append('photo', this.photoFile);
+    // Casa elegida por el operario (manual o escaneo denegado / sin casa)
+    const houseId = this.resolveHouseId() ?? (this.data.mode === 'scan' ? this.data.scanContext?.house_id ?? null : null);
+    if (houseId) {
+      form.append('house_id', String(houseId));
+    }
+
+    for (const ph of this.photos) {
+      form.append('photos[]', ph.file, ph.file.name || 'incident.jpg');
     }
 
     this.saving = true;

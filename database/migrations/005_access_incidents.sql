@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS `access_incidents` (
     `status_validated` VARCHAR(50) DEFAULT NULL,
     `description` TEXT NOT NULL,
     `photo_url` VARCHAR(255) DEFAULT NULL,
+    `photo_urls` JSON DEFAULT NULL,
     `created_by_user_id` INT UNSIGNED DEFAULT NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`incident_id`),

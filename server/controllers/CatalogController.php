@@ -23,6 +23,19 @@ class CatalogController
     public static function dashboardSummary(): void
     {
         requireAuth();
+        $cacheFile = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'vc_dashboard_summary.json';
+        $ttlSeconds = 90;
+        if (is_file($cacheFile)) {
+            $age = time() - (int) filemtime($cacheFile);
+            if ($age >= 0 && $age < $ttlSeconds) {
+                $cached = json_decode((string) file_get_contents($cacheFile), true);
+                if (is_array($cached)) {
+                    Response::success($cached, 'Resumen dashboard');
+                    return;
+                }
+            }
+        }
+
         $pdo = getDbConnection();
         $usersCount = (int) $pdo->query('SELECT COUNT(*) FROM users WHERE COALESCE(is_active, 1) = 1')->fetchColumn();
         $housesTotal = (int) $pdo->query('SELECT COUNT(*) FROM houses')->fetchColumn();
@@ -36,13 +49,15 @@ class CatalogController
         $housesRegistered = max(0, $housesTotal - $housesAvailable);
         $vehiclesCount = (int) $pdo->query('SELECT COUNT(*) FROM vehicles')->fetchColumn();
         $petsCount = (int) $pdo->query('SELECT COUNT(*) FROM pets')->fetchColumn();
-        Response::success([
+        $payload = [
             'users_count' => $usersCount,
             'houses_total' => $housesTotal,
             'houses_registered' => $housesRegistered,
             'vehicles_count' => $vehiclesCount,
             'pets_count' => $petsCount,
-        ], 'Resumen dashboard');
+        ];
+        @file_put_contents($cacheFile, json_encode($payload));
+        Response::success($payload, 'Resumen dashboard');
     }
 
     /**

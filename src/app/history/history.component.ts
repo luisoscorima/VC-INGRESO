@@ -126,6 +126,12 @@ export class HistoryComponent implements OnInit {
   /** Filas crudas del API */
   allRows: HistoryRow[] = [];
 
+  /** Total reportado por el servidor (antes de filtros locales). */
+  serverTotal = 0;
+
+  /** true = la página actual viene del servidor; false = filtros locales sobre un tope de 500. */
+  private serverPagingActive = true;
+
   filterQuery = '';
   sourceFilter: '' | 'manual' | 'qr' | 'camera' = '';
   sortKey: keyof HistoryRow | string = 'date_entry';
@@ -135,6 +141,10 @@ export class HistoryComponent implements OnInit {
   pageSize = 50;
 
   readonly pageSizeOptions = [25, 50, 100, 200];
+
+  private get hasLocalFilter(): boolean {
+    return !!(this.filterQuery.trim() || this.sourceFilter);
+  }
 
   /** Columna documento: solo personal (admin/operario), no vecinos USUARIO. */
   showDocColumn = true;
@@ -205,11 +215,17 @@ export class HistoryComponent implements OnInit {
   }
 
   get pagedRows(): HistoryRow[] {
+    if (this.serverPagingActive && !this.hasLocalFilter) {
+      return this.filteredRows;
+    }
     const start = this.pageIndex * this.pageSize;
     return this.filteredRows.slice(start, start + this.pageSize);
   }
 
   get totalFiltered(): number {
+    if (this.serverPagingActive && !this.hasLocalFilter) {
+      return this.serverTotal;
+    }
     return this.filteredRows.length;
   }
 
@@ -278,9 +294,13 @@ export class HistoryComponent implements OnInit {
   }
 
   onFilterInput(value: string): void {
+    const hadFilter = this.hasLocalFilter;
     this.filterQuery = value;
     this.pageIndex = 0;
     this.expandedHistoryRowId = null;
+    if (hadFilter !== this.hasLocalFilter) {
+      this.fetchHistory();
+    }
   }
 
   getHistoryRowId(a: HistoryRow): string {
@@ -317,23 +337,39 @@ export class HistoryComponent implements OnInit {
   goPrevPage(): void {
     this.pageIndex = Math.max(0, this.pageIndex - 1);
     this.expandedHistoryRowId = null;
+    if (this.serverPagingActive && !this.hasLocalFilter) {
+      this.fetchHistory();
+    }
   }
 
   goNextPage(): void {
     this.pageIndex = Math.min(this.totalPages - 1, this.pageIndex + 1);
     this.expandedHistoryRowId = null;
+    if (this.serverPagingActive && !this.hasLocalFilter) {
+      this.fetchHistory();
+    }
   }
 
   onPageSizeChange(): void {
     this.pageIndex = 0;
     this.expandedHistoryRowId = null;
+    this.fetchHistory();
   }
 
   exportExcel(): void {
-    const rows = this.filteredRows;
+    const rows = this.hasLocalFilter
+      ? this.filteredRows
+      : this.serverPagingActive && this.serverTotal > this.allRows.length
+        ? this.allRows
+        : this.filteredRows;
     if (!rows.length) {
       this.toastr.warning('No hay datos para exportar.');
       return;
+    }
+    if (this.serverPagingActive && !this.hasLocalFilter && this.serverTotal > rows.length) {
+      this.toastr.info(
+        `Se exportan ${rows.length} filas de esta página. Amplía el tamaño de página o filtra para acotar.`
+      );
     }
     const data = rows.map((r) => ({
       TIPO: r['type'],
@@ -365,6 +401,7 @@ export class HistoryComponent implements OnInit {
   onSourceFilterChange(): void {
     this.pageIndex = 0;
     this.expandedHistoryRowId = null;
+    this.fetchHistory();
   }
 
   entrySourceLabel(row: HistoryRow): string {
@@ -426,7 +463,7 @@ export class HistoryComponent implements OnInit {
     this.fetchHistory();
   }
 
-  /** Respuesta del API: array JSON o { data: [] } */
+  /** Respuesta del API: array JSON o { data: [], total?: number } */
   private unwrapHistoryRows(raw: unknown): HistoryRow[] {
     if (Array.isArray(raw)) {
       return raw as HistoryRow[];
@@ -435,6 +472,16 @@ export class HistoryComponent implements OnInit {
       return (raw as { data: HistoryRow[] }).data;
     }
     return [];
+  }
+
+  private unwrapHistoryTotal(raw: unknown, rows: HistoryRow[]): number {
+    if (raw && typeof raw === 'object' && 'total' in raw) {
+      const t = Number((raw as { total: unknown }).total);
+      if (Number.isFinite(t)) {
+        return t;
+      }
+    }
+    return rows.length;
   }
 
   private toYmd(d: Date | null | undefined): string | null {
@@ -456,10 +503,17 @@ export class HistoryComponent implements OnInit {
     this.loading = true;
     const ap =
       this.access_point != null && this.access_point > 0 ? String(this.access_point) : undefined;
-    this.accessLogService.getHistoryByRange(fi, ff, ap).subscribe({
+
+    const useServerPage = !this.hasLocalFilter;
+    this.serverPagingActive = useServerPage;
+    const limit = useServerPage ? Math.min(500, this.pageSize) : 500;
+    const offset = useServerPage ? this.pageIndex * this.pageSize : 0;
+
+    this.accessLogService.getHistoryByRange(fi, ff, ap, { limit, offset }).subscribe({
       next: (raw: unknown) => {
         const rows = this.unwrapHistoryRows(raw);
         this.allRows = rows;
+        this.serverTotal = this.unwrapHistoryTotal(raw, rows);
         this.loading = false;
       },
       error: (err) => {
@@ -552,11 +606,13 @@ export class HistoryComponent implements OnInit {
       <div *ngFor="let inc of rows" class="mb-4 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
         <p class="text-xs text-gray-500">{{ inc.created_at | date : 'dd/MM/yyyy HH:mm' }} · {{ inc.created_by_username }}</p>
         <p class="mt-2 text-sm whitespace-pre-wrap">{{ inc.description }}</p>
-        <img
-          *ngIf="photoUrl(inc.photo_url)"
-          [src]="photoUrl(inc.photo_url)!"
-          alt=""
-          class="mt-2 max-h-40 rounded object-contain" />
+        <div *ngIf="photoUrlsOf(inc).length" class="mt-2 flex flex-wrap gap-2">
+          <img
+            *ngFor="let url of photoUrlsOf(inc)"
+            [src]="url"
+            alt=""
+            class="max-h-40 rounded object-contain" />
+        </div>
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
@@ -592,6 +648,10 @@ export class DialogHistoryIncidents implements OnInit {
 
   photoUrl(path: string | null | undefined): string | null {
     return this.api.getPhotoUrl(path ?? null);
+  }
+
+  photoUrlsOf(inc: AccessIncident): string[] {
+    return this.incidentService.photoUrlsOf(inc);
   }
 }
 
@@ -632,7 +692,7 @@ export class DialogHistoryDetail implements OnInit {
     this.loading = true;
     const ap =
       accessPointId != null && accessPointId > 0 ? String(accessPointId) : undefined;
-    this.accessLogService.getHistoryByDocumentDay(fecha, doc, ap).subscribe({
+    this.accessLogService.getHistoryByDocumentDay(fecha, doc, ap, { limit: 500, offset: 0 }).subscribe({
       next: (list: unknown) => {
         const rows = Array.isArray(list)
           ? list

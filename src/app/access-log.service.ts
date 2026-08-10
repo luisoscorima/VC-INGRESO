@@ -78,19 +78,41 @@ export class AccessLogService {
   // ==================== HISTORIAL UNIFICADO ====================
 
   /** access_point vacío u omitido = todos los puntos (access_logs + temporary_access_logs). */
-  getHistoryByRange(fecha_inicial: string, fecha_final: string, access_point?: string): Observable<any> {
+  getHistoryByRange(
+    fecha_inicial: string,
+    fecha_final: string,
+    access_point?: string,
+    options?: { limit?: number; offset?: number }
+  ): Observable<any> {
     const params: Record<string, string> = { fecha_inicial, fecha_final };
     if (access_point != null && access_point !== '') {
       params['access_point'] = access_point;
+    }
+    if (options?.limit != null) {
+      params['limit'] = String(options.limit);
+    }
+    if (options?.offset != null) {
+      params['offset'] = String(options.offset);
     }
     return this.api.getRaw('api/v1/access-logs/history-by-range', params);
   }
 
   /** Movimientos del mismo documento en un día; accessPoint opcional (todos si vacío). */
-  getHistoryByDocumentDay(fecha: string, docNumber: string, accessPoint?: string): Observable<any> {
+  getHistoryByDocumentDay(
+    fecha: string,
+    docNumber: string,
+    accessPoint?: string,
+    options?: { limit?: number; offset?: number }
+  ): Observable<any> {
     const params: Record<string, string> = { fecha, doc: docNumber };
     if (accessPoint != null && accessPoint !== '') {
       params['access_point'] = accessPoint;
+    }
+    if (options?.limit != null) {
+      params['limit'] = String(options.limit);
+    }
+    if (options?.offset != null) {
+      params['offset'] = String(options.offset);
     }
     return this.api.getRaw('api/v1/access-logs/history-by-client', params);
   }

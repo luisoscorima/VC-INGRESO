@@ -17,6 +17,7 @@ class AccessIncidentController
 {
     private const MAX_PAGE_SIZE = 100;
     private const DEFAULT_PAGE_SIZE = 50;
+    private const MAX_PHOTOS = 5;
 
     private $pdo;
 
@@ -43,6 +44,7 @@ class AccessIncidentController
                 status_validated VARCHAR(50) DEFAULT NULL,
                 description TEXT NOT NULL,
                 photo_url VARCHAR(255) DEFAULT NULL,
+                photo_urls JSON DEFAULT NULL,
                 created_by_user_id INT UNSIGNED DEFAULT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (incident_id),
@@ -53,6 +55,19 @@ class AccessIncidentController
                 KEY idx_ai_temp_access_log (temp_access_log_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
+        self::ensureColumn($pdo, 'photo_urls', 'photo_urls JSON DEFAULT NULL');
+    }
+
+    private static function ensureColumn(\PDO $pdo, string $column, string $sqlDefinition): void
+    {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+        );
+        $stmt->execute(['access_incidents', $column]);
+        if ((int) $stmt->fetchColumn() === 0) {
+            $pdo->exec('ALTER TABLE access_incidents ADD COLUMN ' . $sqlDefinition);
+        }
     }
 
     private function requireIncidentAccess(array $auth): void
@@ -302,8 +317,17 @@ class AccessIncidentController
         }
 
         if ($source === 'manual') {
-            $houseId = $personId = $vehicleId = $tempVisitId = null;
+            $personId = $vehicleId = $tempVisitId = null;
             $docNumber = $licensePlate = $statusValidated = null;
+        }
+
+        if ($houseId !== null) {
+            $stmtH = $this->pdo->prepare('SELECT house_id FROM houses WHERE house_id = ?');
+            $stmtH->execute([$houseId]);
+            if (!$stmtH->fetch()) {
+                Response::error('Casa (Mz/Lote) no encontrada', 404);
+                return;
+            }
         }
 
         try {
@@ -332,11 +356,19 @@ class AccessIncidentController
             ]);
 
             $incidentId = (int) $this->pdo->lastInsertId();
-            $photoUrl = $this->uploadPhotoIfPresent($incidentId);
+            $photoPaths = $this->uploadPhotosIfPresent($incidentId);
 
-            if ($photoUrl !== null) {
-                $upd = $this->pdo->prepare('UPDATE access_incidents SET photo_url = ? WHERE incident_id = ?');
-                $upd->execute([$photoUrl, $incidentId]);
+            if (!empty($photoPaths)) {
+                $upd = $this->pdo->prepare(
+                    'UPDATE access_incidents SET photo_url = ?, photo_urls = ? WHERE incident_id = ?'
+                );
+                $upd->execute([$photoPaths[0], json_encode(array_values($photoPaths), JSON_UNESCAPED_SLASHES), $incidentId]);
+            }
+
+            // Si el operario asigna casa en incidencia de escaneo, reflejarla en el log
+            // (p. ej. denegados sin persona/casa) para que el historial muestre domicilio.
+            if ($source === 'scan' && $houseId !== null) {
+                $this->syncHouseToLinkedLog($accessLogId, $tempAccessLogId, $houseId);
             }
 
             recordEventLog($this->pdo, $auth, 'access_incident.create', [
@@ -348,6 +380,7 @@ class AccessIncidentController
                     'access_point_id' => $accessPointId,
                     'access_log_id' => $accessLogId,
                     'temp_access_log_id' => $tempAccessLogId,
+                    'house_id' => $houseId,
                 ],
             ]);
 
@@ -372,14 +405,46 @@ class AccessIncidentController
         }
     }
 
+    /**
+     * Rellena house_id en el log vinculado solo si aún no tiene casa.
+     */
+    private function syncHouseToLinkedLog(?int $accessLogId, ?int $tempAccessLogId, int $houseId): void
+    {
+        if ($tempAccessLogId !== null) {
+            $upd = $this->pdo->prepare(
+                'UPDATE temporary_access_logs
+                 SET house_id = ?
+                 WHERE temp_access_log_id = ?
+                   AND (house_id IS NULL OR house_id = 0)'
+            );
+            $upd->execute([$houseId, $tempAccessLogId]);
+            return;
+        }
+        if ($accessLogId !== null) {
+            $upd = $this->pdo->prepare(
+                'UPDATE access_logs
+                 SET house_id = ?
+                 WHERE id = ?
+                   AND (house_id IS NULL OR house_id = 0)'
+            );
+            $upd->execute([$houseId, $accessLogId]);
+        }
+    }
+
     private function fetchRowById(int $incidentId): ?array
     {
         $stmt = $this->pdo->prepare(
             "SELECT ai.*, ap.name AS access_point_name,
-                    COALESCE(u.username_system, CONCAT('#', ai.created_by_user_id)) AS created_by_username
+                    COALESCE(u.username_system, CONCAT('#', ai.created_by_user_id)) AS created_by_username,
+                    CONCAT_WS(' ',
+                        NULLIF(h.block_house,''),
+                        NULLIF(CAST(h.lot AS CHAR),''),
+                        NULLIF(h.apartment,'')
+                    ) AS house_address
              FROM access_incidents ai
              LEFT JOIN access_points ap ON ap.id = ai.access_point_id
              LEFT JOIN users u ON u.user_id = ai.created_by_user_id
+             LEFT JOIN houses h ON h.house_id = ai.house_id
              WHERE ai.incident_id = ?"
         );
         $stmt->execute([$incidentId]);
@@ -407,17 +472,68 @@ class AccessIncidentController
             'license_plate' => $row['license_plate'] ?? null,
             'status_validated' => $row['status_validated'] ?? null,
             'description' => (string) ($row['description'] ?? ''),
-            'photo_url' => resolveMediaUrl($row['photo_url'] ?? null),
+            'photo_url' => null,
+            'photo_urls' => [],
             'created_by_user_id' => $this->nullableInt($row['created_by_user_id'] ?? null),
             'created_by_username' => (string) ($row['created_by_username'] ?? ''),
             'created_at' => $row['created_at'] ?? null,
+            'house_address' => isset($row['house_address']) && trim((string) $row['house_address']) !== ''
+                ? trim((string) $row['house_address'])
+                : null,
         ];
+
+        $photoUrls = $this->decodePhotoUrls($row);
+        $resolved = [];
+        foreach ($photoUrls as $path) {
+            $url = resolveMediaUrl($path);
+            if ($url !== null && $url !== '') {
+                $resolved[] = $url;
+            }
+        }
+        $out['photo_urls'] = $resolved;
+        $out['photo_url'] = $resolved[0] ?? null;
 
         if ($full) {
             $out['has_access_context'] = ($out['access_log_id'] !== null || $out['temp_access_log_id'] !== null);
         }
 
         return $out;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function decodePhotoUrls(array $row): array
+    {
+        $raw = $row['photo_urls'] ?? null;
+        $paths = [];
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $item) {
+                    $s = trim((string) $item);
+                    if ($s !== '') {
+                        $paths[] = $s;
+                    }
+                }
+            }
+        } elseif (is_array($raw)) {
+            foreach ($raw as $item) {
+                $s = trim((string) $item);
+                if ($s !== '') {
+                    $paths[] = $s;
+                }
+            }
+        }
+
+        if (empty($paths)) {
+            $single = trim((string) ($row['photo_url'] ?? ''));
+            if ($single !== '') {
+                $paths[] = $single;
+            }
+        }
+
+        return array_values(array_unique($paths));
     }
 
     private function loadAccessContext(array $incident): ?array
@@ -466,7 +582,7 @@ class AccessIncidentController
                  LEFT JOIN access_points ap ON ap.id = al.access_point_id
                  LEFT JOIN persons p ON p.id = al.person_id
                  LEFT JOIN vehicles v ON v.vehicle_id = al.vehicle_id
-                 LEFT JOIN houses h ON h.house_id = COALESCE(p.house_id, v.house_id)
+                 LEFT JOIN houses h ON h.house_id = COALESCE(al.house_id, p.house_id, v.house_id)
                  WHERE al.id = ?"
             );
             $stmt->execute([(int) $incident['access_log_id']]);
@@ -497,31 +613,96 @@ class AccessIncidentController
         return null;
     }
 
-    private function uploadPhotoIfPresent(int $incidentId): ?string
+    /**
+     * Acepta photos[] (múltiples) y/o photo (una, compat).
+     *
+     * @return list<string> Rutas relativas guardadas
+     */
+    private function uploadPhotosIfPresent(int $incidentId): array
     {
-        if (!isset($_FILES['photo']) || !is_array($_FILES['photo'])) {
-            return null;
+        $files = $this->collectUploadedPhotoFiles();
+        if (empty($files)) {
+            return [];
         }
-        $file = $_FILES['photo'];
-        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
-            return null;
-        }
-        if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
-            throw new \RuntimeException($this->uploadErrorMessage((int) ($file['error'] ?? UPLOAD_ERR_OK)));
+        if (count($files) > self::MAX_PHOTOS) {
+            throw new \RuntimeException('Máximo ' . self::MAX_PHOTOS . ' fotos por incidencia.');
         }
 
-        $ext = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
-        $filename = 'incident_' . $incidentId . '_' . time() . '.' . ($ext !== '' ? $ext : 'jpg');
-        $result = storeUploadedFile($file, 'incidents', [
-            'allowed_exts' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-            'max_bytes' => 5 * 1024 * 1024,
-            'filename' => $filename,
-        ]);
-        if (!$result['success']) {
-            throw new \RuntimeException($result['error'] ?? 'Error al guardar la imagen.');
+        $paths = [];
+        $i = 0;
+        foreach ($files as $file) {
+            $error = (int) ($file['error'] ?? UPLOAD_ERR_OK);
+            if ($error === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+            if ($error !== UPLOAD_ERR_OK) {
+                throw new \RuntimeException($this->uploadErrorMessage($error));
+            }
+
+            $ext = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
+            $filename = 'incident_' . $incidentId . '_' . time() . '_' . $i . '.' . ($ext !== '' ? $ext : 'jpg');
+            $result = storeUploadedFile($file, 'incidents', [
+                'allowed_exts' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+                'max_bytes' => 5 * 1024 * 1024,
+                'filename' => $filename,
+            ]);
+            if (!$result['success']) {
+                throw new \RuntimeException($result['error'] ?? 'Error al guardar la imagen.');
+            }
+            $paths[] = $result['photo_url'];
+            $i++;
         }
 
-        return $result['photo_url'];
+        return $paths;
+    }
+
+    /**
+     * @return list<array{name:string,type:string,tmp_name:string,error:int,size:int}>
+     */
+    private function collectUploadedPhotoFiles(): array
+    {
+        $out = [];
+
+        // photos[] o photos (array de archivos)
+        foreach (['photos', 'photos[]'] as $key) {
+            if (!isset($_FILES[$key]) || !is_array($_FILES[$key])) {
+                continue;
+            }
+            $bag = $_FILES[$key];
+            if (isset($bag['name']) && is_array($bag['name'])) {
+                $n = count($bag['name']);
+                for ($i = 0; $i < $n; $i++) {
+                    $out[] = [
+                        'name' => (string) ($bag['name'][$i] ?? ''),
+                        'type' => (string) ($bag['type'][$i] ?? ''),
+                        'tmp_name' => (string) ($bag['tmp_name'][$i] ?? ''),
+                        'error' => (int) ($bag['error'][$i] ?? UPLOAD_ERR_NO_FILE),
+                        'size' => (int) ($bag['size'][$i] ?? 0),
+                    ];
+                }
+            } elseif (isset($bag['tmp_name']) && is_string($bag['tmp_name'])) {
+                $out[] = [
+                    'name' => (string) ($bag['name'] ?? ''),
+                    'type' => (string) ($bag['type'] ?? ''),
+                    'tmp_name' => (string) $bag['tmp_name'],
+                    'error' => (int) ($bag['error'] ?? UPLOAD_ERR_NO_FILE),
+                    'size' => (int) ($bag['size'] ?? 0),
+                ];
+            }
+        }
+
+        // Compat: campo único "photo"
+        if (isset($_FILES['photo']) && is_array($_FILES['photo']) && isset($_FILES['photo']['tmp_name']) && !is_array($_FILES['photo']['tmp_name'])) {
+            $out[] = [
+                'name' => (string) ($_FILES['photo']['name'] ?? ''),
+                'type' => (string) ($_FILES['photo']['type'] ?? ''),
+                'tmp_name' => (string) $_FILES['photo']['tmp_name'],
+                'error' => (int) ($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE),
+                'size' => (int) ($_FILES['photo']['size'] ?? 0),
+            ];
+        }
+
+        return $out;
     }
 
     private function uploadErrorMessage(int $code): string

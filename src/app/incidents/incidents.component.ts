@@ -115,6 +115,7 @@ export class IncidentsComponent implements OnInit {
       .open(IncidentFormDialogComponent, {
         width: 'min(480px, 96vw)',
         panelClass: INCIDENT_DIALOG_PANEL_CLASS,
+        disableClose: true,
         data,
       })
       .afterClosed()
@@ -145,12 +146,19 @@ export class IncidentsComponent implements OnInit {
 
   openViewPhoto(row: AccessIncident, event?: Event): void {
     event?.stopPropagation();
-    const url = this.photoUrl(row.photo_url);
+    const urls = this.photoUrlsOf(row);
+    if (!urls.length) {
+      return;
+    }
+    this.openViewPhotoUrl(urls[0], row.incident_id, 0);
+  }
+
+  openViewPhotoUrl(url: string, incidentId: number, index = 0): void {
     if (!url) {
       return;
     }
     this.viewPhotoUrl = url;
-    this.viewPhotoTitle = `Incidencia #${row.incident_id}`;
+    this.viewPhotoTitle = `Incidencia #${incidentId} · foto ${index + 1}`;
     this.photoZoom = 1;
     this.showViewPhotoDialog = true;
   }
@@ -176,6 +184,10 @@ export class IncidentsComponent implements OnInit {
 
   photoUrl(path: string | null | undefined): string | null {
     return this.incidentService.photoUrl(path);
+  }
+
+  photoUrlsOf(incident: AccessIncident | null | undefined): string[] {
+    return this.incidentService.photoUrlsOf(incident);
   }
 
   sourceLabel(source: string): string {

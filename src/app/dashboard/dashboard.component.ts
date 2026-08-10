@@ -220,7 +220,10 @@ export class DashboardComponent implements OnInit {
   private reloadTodayMetrics(todayStr: string): void {
     const ap = this.isStaffView ? this.staffHistoryAccessPointParam() : undefined;
     this.loadingLogs = true;
-    this.accessLogService.getHistoryByRange(todayStr, todayStr, ap).subscribe({
+    if (this.isStaffView && this.hourChartPreset === 'today') {
+      this.loadingHourChart = true;
+    }
+    this.accessLogService.getHistoryByRange(todayStr, todayStr, ap, { limit: 500, offset: 0 }).subscribe({
       next: (raw: unknown) => {
         const list = this.unwrapHistoryRows(raw);
         const ingreso = list.filter((r: any) => this.rowIsIngressMovement(r));
@@ -229,8 +232,11 @@ export class DashboardComponent implements OnInit {
           (r: any) => String(r?.type ?? '').toUpperCase() === 'PERSONA'
         ).length;
         const isVehicleType = (t: unknown) => {
-          const x = String(t ?? '').toUpperCase();
-          return x === 'VEHÃCULO' || x === 'VEHICULO';
+          const x = String(t ?? '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase();
+          return x === 'VEHICULO';
         };
         this.vehiclesTodayCount = ingreso.filter((r: any) => isVehicleType(r?.type)).length;
 
@@ -257,11 +263,19 @@ export class DashboardComponent implements OnInit {
             return tb - ta;
           });
           this.lastAccessLogs = sorted.slice(0, 8);
+          if (this.hourChartPreset === 'today') {
+            this.applyHourBucketsFromRows(ingreso);
+          }
         }
         this.loadingLogs = false;
       },
       error: () => {
         this.loadingLogs = false;
+        if (this.isStaffView && this.hourChartPreset === 'today') {
+          this.loadingHourChart = false;
+          this.chartIngresosPorHora = [];
+          this.ingresosHoraTotalCount = 0;
+        }
       },
     });
   }
@@ -272,11 +286,10 @@ export class DashboardComponent implements OnInit {
     }
     const todayStr = todayYmdInAppTimeZone();
     this.reloadTodayMetrics(todayStr);
-    this.reloadHourIngresos();
-    if (this.chartIngresosPorDia.length || this.dayTrendStart) {
-      this.reloadDayTrend();
+    if (this.hourChartPreset !== 'today') {
+      this.reloadHourIngresos();
     }
-    this.loadStaffAlerts(todayStr);
+    this.reloadDayTrendAndAlerts(todayStr);
   }
 
   private loadDashboardData(): void {
@@ -289,8 +302,10 @@ export class DashboardComponent implements OnInit {
     if (this.isStaffView) {
       const mm = todayStr.slice(5, 7);
       this.loadStaffMonthBirthdays(mm);
-      this.loadStaffAlerts(todayStr);
-      this.reloadHourIngresos();
+      if (this.hourChartPreset !== 'today') {
+        this.reloadHourIngresos();
+      }
+      this.reloadDayTrendAndAlerts(todayStr);
     }
 
     if (this.isNeighborView) {
@@ -371,7 +386,6 @@ export class DashboardComponent implements OnInit {
           this.upcomingReservations = sorted.slice(0, 6);
         },
       });
-      this.reloadDayTrend();
     }
   }
 
@@ -464,32 +478,70 @@ export class DashboardComponent implements OnInit {
   }
 
   private loadStaffAlerts(todayStr: string): void {
-    const start = addDaysYmd(todayStr, -7);
-    this.accessLogService.getHistoryByRange(start, todayStr, this.staffHistoryAccessPointParam()).subscribe({
-      next: (raw: unknown) => {
-        const list = this.unwrapHistoryRows(raw);
-        const rows = list.filter(
-          (r: any) =>
-            this.rowIsIngressMovement(r) &&
-            String(r?.type ?? '').toUpperCase() === 'PERSONA' &&
-            this.isAlertIngressObs(r?.obs)
-        );
-        rows.sort((a: any, b: any) => {
-          const ta = new Date(String(a?.date_entry ?? 0)).getTime();
-          const tb = new Date(String(b?.date_entry ?? 0)).getTime();
-          return tb - ta;
-        });
-        this.activeAlerts = rows.slice(0, 5).map((r: any) => ({
-          name: r.name,
-          doc_number: r.doc_number,
-          status: r.obs,
-          at: r.date_entry,
-        }));
-      },
-      error: () => {
-        this.activeAlerts = [];
-      },
-    });
+    this.reloadDayTrendAndAlerts(todayStr);
+  }
+
+  /** Un solo fetch de ~14 días: tendencia diaria + alertas (últimos 7). */
+  private reloadDayTrendAndAlerts(todayStr?: string): void {
+    if (!this.isStaffView) {
+      return;
+    }
+    const end = this.dayTrendEnd || todayStr || todayYmdInAppTimeZone();
+    const start = this.dayTrendStart || addDaysYmd(end, -13);
+    if (!start || !end || start > end) {
+      this.toastr.warning('Indica un rango de fechas válido (desde ≤ hasta).');
+      return;
+    }
+    this.loadingDayTrend = true;
+    this.accessLogService
+      .getHistoryByRange(start, end, this.staffHistoryAccessPointParam(), { limit: 500, offset: 0 })
+      .subscribe({
+        next: (raw: unknown) => {
+          const list = this.unwrapHistoryRows(raw);
+          const ingreso = list.filter((r: any) => this.rowIsIngressMovement(r));
+
+          const byDay = new Map<string, number>();
+          for (const r of ingreso) {
+            const ds = String(r?.date_entry ?? r?.created_at ?? '').slice(0, 10);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(ds)) {
+              byDay.set(ds, (byDay.get(ds) || 0) + 1);
+            }
+          }
+          const keys = [...byDay.keys()].sort();
+          const max = Math.max(1, ...keys.map((k) => byDay.get(k) || 0));
+          this.chartIngresosPorDia = keys.map((k) => {
+            const c = byDay.get(k) || 0;
+            return { label: k, count: c, value: Math.round((c / max) * 100) };
+          });
+          this.loadingDayTrend = false;
+
+          const alertFrom = addDaysYmd(end, -7);
+          const rows = ingreso.filter((r: any) => {
+            const ds = String(r?.date_entry ?? r?.created_at ?? '').slice(0, 10);
+            return (
+              ds >= alertFrom &&
+              String(r?.type ?? '').toUpperCase() === 'PERSONA' &&
+              this.isAlertIngressObs(r?.obs)
+            );
+          });
+          rows.sort((a: any, b: any) => {
+            const ta = new Date(String(a?.date_entry ?? 0)).getTime();
+            const tb = new Date(String(b?.date_entry ?? 0)).getTime();
+            return tb - ta;
+          });
+          this.activeAlerts = rows.slice(0, 5).map((r: any) => ({
+            name: r.name,
+            doc_number: r.doc_number,
+            status: r.obs,
+            at: r.date_entry,
+          }));
+        },
+        error: () => {
+          this.loadingDayTrend = false;
+          this.chartIngresosPorDia = [];
+          this.activeAlerts = [];
+        },
+      });
   }
 
   /**
@@ -605,83 +657,59 @@ export class DashboardComponent implements OnInit {
     return isNaN(d.getTime()) ? 0 : d.getHours();
   }
 
+  private applyHourBucketsFromRows(ingreso: any[]): void {
+    const buckets = new Array(24).fill(0);
+    for (const r of ingreso) {
+      const h = this.hourFromHistoryRow(r);
+      if (h >= 0 && h < 24) {
+        buckets[h]++;
+      }
+    }
+    this.ingresosHoraTotalCount = buckets.reduce((a, b) => a + b, 0);
+    const max = Math.max(...buckets, 1);
+    this.chartIngresosPorHora = buckets.map((c, h) => ({
+      label: `${h}h`,
+      count: c,
+      value: max > 0 ? Math.round((c / max) * 100) : 0,
+    }));
+    this.loadingHourChart = false;
+  }
+
   reloadHourIngresos(): void {
     if (!this.isStaffView) {
       return;
     }
     const todayStr = todayYmdInAppTimeZone();
+    if (this.hourChartPreset === 'today') {
+      this.reloadTodayMetrics(todayStr);
+      return;
+    }
     let start: string;
     let end: string;
-    if (this.hourChartPreset === 'today') {
-      start = end = todayStr;
-    } else if (this.hourChartPreset === 'yesterday') {
+    if (this.hourChartPreset === 'yesterday') {
       start = end = addDaysYmd(todayStr, -1);
     } else {
       start = mondayOfWeekYmd(todayStr);
       end = todayStr;
     }
     this.loadingHourChart = true;
-    this.accessLogService.getHistoryByRange(start, end, this.staffHistoryAccessPointParam()).subscribe({
-      next: (raw: unknown) => {
-        const list = this.unwrapHistoryRows(raw).filter((r: any) => this.rowIsIngressMovement(r));
-        const buckets = new Array(24).fill(0);
-        for (const r of list) {
-          const h = this.hourFromHistoryRow(r);
-          if (h >= 0 && h < 24) {
-            buckets[h]++;
-          }
-        }
-        this.ingresosHoraTotalCount = buckets.reduce((a, b) => a + b, 0);
-        const max = Math.max(...buckets, 1);
-        this.chartIngresosPorHora = buckets.map((c, h) => ({
-          label: `${h}h`,
-          count: c,
-          value: max > 0 ? Math.round((c / max) * 100) : 0,
-        }));
-        this.loadingHourChart = false;
-      },
-      error: () => {
-        this.loadingHourChart = false;
-        this.chartIngresosPorHora = [];
-        this.ingresosHoraTotalCount = 0;
-      },
-    });
+    this.accessLogService
+      .getHistoryByRange(start, end, this.staffHistoryAccessPointParam(), { limit: 500, offset: 0 })
+      .subscribe({
+        next: (raw: unknown) => {
+          const list = this.unwrapHistoryRows(raw).filter((r: any) => this.rowIsIngressMovement(r));
+          this.applyHourBucketsFromRows(list);
+        },
+        error: () => {
+          this.loadingHourChart = false;
+          this.chartIngresosPorHora = [];
+          this.ingresosHoraTotalCount = 0;
+        },
+      });
   }
 
   reloadDayTrend(): void {
-    if (!this.isStaffView) {
-      return;
-    }
-    const a = this.dayTrendStart;
-    const b = this.dayTrendEnd;
-    if (!a || !b || a > b) {
-      this.toastr.warning('Indica un rango de fechas válido (desde ≤ hasta).');
-      return;
-    }
-    this.loadingDayTrend = true;
-    this.accessLogService.getHistoryByRange(a, b, this.staffHistoryAccessPointParam()).subscribe({
-      next: (raw: unknown) => {
-        const list = this.unwrapHistoryRows(raw).filter((r: any) => this.rowIsIngressMovement(r));
-        const byDay = new Map<string, number>();
-        for (const r of list) {
-          const ds = String(r?.date_entry ?? r?.created_at ?? '').slice(0, 10);
-          if (/^\d{4}-\d{2}-\d{2}$/.test(ds)) {
-            byDay.set(ds, (byDay.get(ds) || 0) + 1);
-          }
-        }
-        const keys = [...byDay.keys()].sort();
-        const max = Math.max(1, ...keys.map((k) => byDay.get(k) || 0));
-        this.chartIngresosPorDia = keys.map((k) => {
-          const c = byDay.get(k) || 0;
-          return { label: k, count: c, value: Math.round((c / max) * 100) };
-        });
-        this.loadingDayTrend = false;
-      },
-      error: () => {
-        this.loadingDayTrend = false;
-        this.chartIngresosPorDia = [];
-      },
-    });
+    this.reloadDayTrendAndAlerts();
   }
 
   onNeighborPhotoChange(event: Event): void {

@@ -257,14 +257,14 @@ body {
     @apply w-full px-4 py-2 border border-gray-300 rounded-lg dark:bg-gray-600 dark:border-gray-500 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent;
   }
 
-  /* Select pequeño Mz/Lt */
+  /* Select pequeño Mz/Lt — text-base en móvil evita zoom iOS al enfocar (<16px) */
   .vc-select-sm {
-    @apply w-full min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white focus:ring-1 focus:ring-teal-500 md:w-auto md:max-w-[12rem];
+    @apply w-full min-w-0 px-2 py-1.5 text-base border border-gray-300 rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white focus:ring-1 focus:ring-teal-500 md:w-auto md:max-w-[12rem] md:text-xs;
   }
 
-  /* Campos de formulario (encuestas, comunicados, etc.) */
+  /* Campos de formulario — text-base en móvil evita zoom iOS al enfocar */
   .vc-field {
-    @apply mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500;
+    @apply mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-base text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 md:text-sm;
   }
 
   /* Botón cancelar / secundario en modales */

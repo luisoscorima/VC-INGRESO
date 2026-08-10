@@ -270,6 +270,7 @@ CREATE TABLE `access_logs` (
     `person_id` INT UNSIGNED DEFAULT NULL COMMENT 'Persona/residente',
     `doc_number` VARCHAR(20) DEFAULT NULL COMMENT 'Si no hay person_id',
     `vehicle_id` INT UNSIGNED DEFAULT NULL,
+    `house_id` INT UNSIGNED DEFAULT NULL COMMENT 'Casa asociada (operario / incidente)',
     `entity_kind` ENUM('PERSON','VEHICLE') DEFAULT NULL COMMENT 'Entidad principal del evento',
     `display_name_snapshot` VARCHAR(255) DEFAULT NULL,
     `document_snapshot` VARCHAR(20) DEFAULT NULL,
@@ -289,10 +290,14 @@ CREATE TABLE `access_logs` (
     KEY `idx_person` (`person_id`),
     KEY `idx_doc_number` (`doc_number`),
     KEY `idx_vehicle` (`vehicle_id`),
+    KEY `idx_access_logs_house` (`house_id`),
     KEY `idx_type` (`type`),
     KEY `idx_access_logs_entry_source` (`entry_source`),
     KEY `idx_access_identity_cache` (`document_snapshot`, `identity_source`, `identity_resolved_at`),
     KEY `idx_created_at` (`created_at`),
+    KEY `idx_al_point_created` (`access_point_id`, `created_at`),
+    KEY `idx_al_point_type_created` (`access_point_id`, `type`, `created_at`),
+    KEY `idx_al_license_plate_snapshot` (`license_plate_snapshot`),
     KEY `idx_created_by_user` (`created_by_user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Registro de ingresos/egresos';
 
@@ -331,6 +336,8 @@ CREATE TABLE `temporary_access_logs` (
     KEY `idx_temp_access_logs_entry_source` (`entry_source`),
     KEY `idx_temp_access_identity_cache` (`document_snapshot`, `identity_source`, `identity_resolved_at`),
     KEY `idx_access_point` (`access_point_id`),
+    KEY `idx_tal_point_entry` (`access_point_id`, `temp_entry_time`),
+    KEY `idx_tal_license_plate_snapshot` (`license_plate_snapshot`),
     KEY `idx_house` (`house_id`),
     KEY `idx_operario` (`operario_id`),
     KEY `idx_created_by_user` (`created_by_user_id`)
@@ -354,6 +361,7 @@ CREATE TABLE `access_incidents` (
     `status_validated` VARCHAR(50) DEFAULT NULL,
     `description` TEXT NOT NULL,
     `photo_url` VARCHAR(255) DEFAULT NULL,
+    `photo_urls` JSON DEFAULT NULL COMMENT 'Array de rutas/URLs de fotos',
     `created_by_user_id` INT UNSIGNED DEFAULT NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`incident_id`),
@@ -631,6 +639,7 @@ ALTER TABLE `access_logs`
     ADD CONSTRAINT `fk_access_logs_ap` FOREIGN KEY (`access_point_id`) REFERENCES `access_points` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
     ADD CONSTRAINT `fk_access_logs_person` FOREIGN KEY (`person_id`) REFERENCES `persons` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
     ADD CONSTRAINT `fk_access_logs_vehicle` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles` (`vehicle_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    ADD CONSTRAINT `fk_access_logs_house` FOREIGN KEY (`house_id`) REFERENCES `houses` (`house_id`) ON DELETE SET NULL ON UPDATE CASCADE,
     ADD CONSTRAINT `fk_access_logs_created_by` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- temporary_access_logs -> users

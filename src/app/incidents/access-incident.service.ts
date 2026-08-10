@@ -26,6 +26,7 @@ export interface AccessIncident {
   access_point_id: number;
   access_point_name?: string;
   house_id?: number | null;
+  house_address?: string | null;
   person_id?: number | null;
   vehicle_id?: number | null;
   temp_visit_id?: number | null;
@@ -34,6 +35,8 @@ export interface AccessIncident {
   status_validated?: string | null;
   description: string;
   photo_url?: string | null;
+  /** Todas las fotos (incluye la de photo_url como primera). */
+  photo_urls?: string[] | null;
   created_by_user_id?: number | null;
   created_by_username?: string;
   created_at?: string | null;
@@ -144,5 +147,20 @@ export class AccessIncidentService {
 
   photoUrl(path: string | null | undefined): string | null {
     return this.api.getPhotoUrl(path ?? null);
+  }
+
+  /** URLs de fotos de una incidencia (compat con solo photo_url). */
+  photoUrlsOf(incident: AccessIncident | null | undefined): string[] {
+    if (!incident) {
+      return [];
+    }
+    const fromArray = Array.isArray(incident.photo_urls)
+      ? incident.photo_urls.map((u) => this.photoUrl(u)).filter((u): u is string => !!u)
+      : [];
+    if (fromArray.length) {
+      return fromArray;
+    }
+    const single = this.photoUrl(incident.photo_url);
+    return single ? [single] : [];
   }
 }

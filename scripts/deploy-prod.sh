@@ -74,8 +74,8 @@ git pull --ff-only origin main
 
 echo "==> 4. Migraciones SQL"
 echo "    Si hay archivos nuevos en database/migrations/, ejecútalos antes de continuar."
-echo "    Ejemplo (cámaras LPR → BD):"
-echo "    docker exec -i vc-ingreso-mysql sh -c 'mysql -uroot -p\"\$MYSQL_ROOT_PASSWORD\" vc_db' < database/migrations/009_camera_lpr_access.sql"
+echo "    Ejemplo (casa en access_logs + incidencias denegadas):"
+echo "    docker exec -i vc-ingreso-mysql sh -c 'mysql -uroot -p\"\$MYSQL_ROOT_PASSWORD\" vc_db' < database/migrations/013_access_logs_house_id.sql"
 
 echo "==> 5. Descargar imágenes GHCR (tag: ${IMAGE_TAG})"
 export VC_IMAGE_TAG="${IMAGE_TAG}"

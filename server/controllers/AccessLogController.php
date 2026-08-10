@@ -61,10 +61,14 @@ class AccessLogController
             $values[] = strtoupper($params['type']);
         }
 
-        // Filtro por fecha específica
+        // Filtro por fecha específica (rango para usar idx_created_at)
         if (isset($params['date']) && $params['date']) {
-            $where[] = 'DATE(created_at) = ?';
-            $values[] = $params['date'];
+            $day = trim((string) $params['date']);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+                $where[] = 'created_at >= ? AND created_at < ?';
+                $values[] = $day . ' 00:00:00';
+                $values[] = (new \DateTimeImmutable($day))->modify('+1 day')->format('Y-m-d') . ' 00:00:00';
+            }
         }
 
         // Filtro por rango de fechas
@@ -742,17 +746,20 @@ class AccessLogController
         $auth = requireAuth();
         $fecha = trim((string) ($_GET['fecha'] ?? ''));
         $ap = $this->accessPointQueryValue();
-        if ($fecha === '') {
+        if ($fecha === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
             Response::json(['success' => false, 'error' => 'fecha requerida'], 400);
             return;
         }
 
-        $whereMain = ['DATE(al.created_at) = ?'];
-        $paramsMain = [$fecha];
+        $dayStart = $fecha . ' 00:00:00';
+        $dayEndExclusive = (new \DateTimeImmutable($fecha))->modify('+1 day')->format('Y-m-d') . ' 00:00:00';
+
+        $whereMain = ['al.created_at >= ? AND al.created_at < ?'];
+        $paramsMain = [$dayStart, $dayEndExclusive];
         $this->appendAccessPointFilter($ap, $whereMain, $paramsMain, 'al');
 
-        $whereTemp = ['DATE(tal.temp_entry_time) = ?'];
-        $paramsTemp = [$fecha];
+        $whereTemp = ['tal.temp_entry_time >= ? AND tal.temp_entry_time < ?'];
+        $paramsTemp = [$dayStart, $dayEndExclusive];
         $this->appendAccessPointFilter($ap, $whereTemp, $paramsTemp, 'tal');
 
         $this->appendHistoryNeighborHouseScope($auth, $whereMain, $paramsMain, $whereTemp, $paramsTemp);
@@ -761,14 +768,10 @@ class AccessLogController
 
         $sqlMain = $this->historyRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereMain);
         $sqlTemp = $this->historyTemporaryRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereTemp);
-        $sql = 'SELECT * FROM ((' . $sqlMain . ') UNION ALL (' . $sqlTemp . ')) AS combined ORDER BY date_entry DESC';
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(array_merge($paramsMain, $paramsTemp));
-        Response::json($this->resolveHistoryMediaUrls($stmt->fetchAll(\PDO::FETCH_OBJ)));
+        $this->respondHistoryUnion($sqlMain, $paramsMain, $sqlTemp, $paramsTemp, 'DESC');
     }
 
-    /** GET ?fecha_inicial=&fecha_final=&access_point= (opcional: vacío = todos los puntos). Incluye access_logs + temporary_access_logs. */
+    /** GET ?fecha_inicial=&fecha_final=&access_point=&limit=&offset= (opcional: vacío = todos los puntos). */
     public function historyByRange()
     {
         $auth = requireAuth();
@@ -796,11 +799,7 @@ class AccessLogController
 
         $sqlMain = $this->historyRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereMain);
         $sqlTemp = $this->historyTemporaryRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereTemp);
-        $sql = 'SELECT * FROM ((' . $sqlMain . ') UNION ALL (' . $sqlTemp . ')) AS combined ORDER BY date_entry DESC';
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(array_merge($paramsMain, $paramsTemp));
-        Response::json($this->resolveHistoryMediaUrls($stmt->fetchAll(\PDO::FETCH_OBJ)));
+        $this->respondHistoryUnion($sqlMain, $paramsMain, $sqlTemp, $paramsTemp, 'DESC');
     }
 
     /** GET ?fecha=&access_point=&doc= — fecha YYYY-MM-DD. access_point vacío = todos. Incluye access_logs + temporary_access_logs. */
@@ -810,12 +809,16 @@ class AccessLogController
         $fecha = trim((string) ($_GET['fecha'] ?? ''));
         $ap = $this->accessPointQueryValue();
         $doc = trim((string) ($_GET['doc'] ?? ''));
-        if ($fecha === '') {
+        if ($fecha === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
             Response::json(['success' => false, 'error' => 'fecha requerida'], 400);
             return;
         }
-        $whereMain = ['DATE(al.created_at) = ?'];
-        $paramsMain = [$fecha];
+
+        $dayStart = $fecha . ' 00:00:00';
+        $dayEndExclusive = (new \DateTimeImmutable($fecha))->modify('+1 day')->format('Y-m-d') . ' 00:00:00';
+
+        $whereMain = ['al.created_at >= ? AND al.created_at < ?'];
+        $paramsMain = [$dayStart, $dayEndExclusive];
         $this->appendAccessPointFilter($ap, $whereMain, $paramsMain, 'al');
         if ($doc !== '') {
             $whereMain[] = '(al.doc_number = ? OR p.doc_number = ?)';
@@ -823,8 +826,8 @@ class AccessLogController
             $paramsMain[] = $doc;
         }
 
-        $whereTemp = ['DATE(tal.temp_entry_time) = ?'];
-        $paramsTemp = [$fecha];
+        $whereTemp = ['tal.temp_entry_time >= ? AND tal.temp_entry_time < ?'];
+        $paramsTemp = [$dayStart, $dayEndExclusive];
         $this->appendAccessPointFilter($ap, $whereTemp, $paramsTemp, 'tal');
         if ($doc !== '') {
             $whereTemp[] = '(tv.temp_visit_doc = ? OR tv.temp_visit_plate = ?)';
@@ -836,11 +839,56 @@ class AccessLogController
 
         $sqlMain = $this->historyRowsSelectSql() . ' WHERE ' . implode(' AND ', $whereMain);
         $sqlTemp = $this->historyTemporaryRowsSelectSql() . ' WHERE ' . implode(' AND ', $whereTemp);
-        $sql = 'SELECT * FROM ((' . $sqlMain . ') UNION ALL (' . $sqlTemp . ')) AS combined ORDER BY date_entry ASC';
+        $this->respondHistoryUnion($sqlMain, $paramsMain, $sqlTemp, $paramsTemp, 'ASC');
+    }
 
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(array_merge($paramsMain, $paramsTemp));
-        Response::json($this->resolveHistoryMediaUrls($stmt->fetchAll(\PDO::FETCH_OBJ)));
+    /**
+     * @return array{0: int, 1: int} [limit, offset]
+     */
+    private function historyPagination(): array
+    {
+        $limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 200;
+        $offset = isset($_GET['offset']) ? (int) $_GET['offset'] : 0;
+        $limit = max(1, min(500, $limit));
+        $offset = max(0, $offset);
+
+        return [$limit, $offset];
+    }
+
+    /**
+     * Respuesta paginada { data, total } para UNION access_logs + temporary_access_logs.
+     *
+     * @param list<mixed> $paramsMain
+     * @param list<mixed> $paramsTemp
+     */
+    private function respondHistoryUnion(
+        string $sqlMain,
+        array $paramsMain,
+        string $sqlTemp,
+        array $paramsTemp,
+        string $orderDir = 'DESC'
+    ): void {
+        [$limit, $offset] = $this->historyPagination();
+        $orderDir = strtoupper($orderDir) === 'ASC' ? 'ASC' : 'DESC';
+        $unionSql = '((' . $sqlMain . ') UNION ALL (' . $sqlTemp . '))';
+        $params = array_merge($paramsMain, $paramsTemp);
+
+        $countStmt = $this->pdo->prepare('SELECT COUNT(*) FROM ' . $unionSql . ' AS combined');
+        $countStmt->execute($params);
+        $total = (int) $countStmt->fetchColumn();
+
+        $dataSql = 'SELECT * FROM ' . $unionSql . ' AS combined ORDER BY date_entry ' . $orderDir
+            . ' LIMIT ' . $limit . ' OFFSET ' . $offset;
+        $stmt = $this->pdo->prepare($dataSql);
+        $stmt->execute($params);
+        $rows = $this->resolveHistoryMediaUrls($stmt->fetchAll(\PDO::FETCH_OBJ));
+
+        Response::json([
+            'data' => $rows,
+            'total' => $total,
+            'limit' => $limit,
+            'offset' => $offset,
+        ]);
     }
 
     /**
@@ -931,7 +979,7 @@ class AccessLogController
             LEFT JOIN persons p ON p.id = al.person_id
             LEFT JOIN vehicles v ON v.vehicle_id = al.vehicle_id
             LEFT JOIN persons vo ON vo.id = v.owner_id
-            LEFT JOIN houses h ON h.house_id = COALESCE(p.house_id, v.house_id)
+            LEFT JOIN houses h ON h.house_id = COALESCE(al.house_id, p.house_id, v.house_id)
             LEFT JOIN users u ON u.user_id = al.created_by_user_id
             {$incidentJoin}
         ";
@@ -1090,7 +1138,7 @@ class AccessLogController
             return;
         }
         $ph = implode(',', array_fill(0, count($ids), '?'));
-        $where[] = "COALESCE(p.house_id, v.house_id) IN ({$ph})";
+        $where[] = "COALESCE(al.house_id, p.house_id, v.house_id) IN ({$ph})";
         foreach ($ids as $hid) {
             $params[] = $hid;
         }
@@ -1123,7 +1171,7 @@ class AccessLogController
             return;
         }
         $ph = implode(',', array_fill(0, count($ids), '?'));
-        $whereMain[] = "COALESCE(p.house_id, v.house_id) IN ({$ph})";
+        $whereMain[] = "COALESCE(al.house_id, p.house_id, v.house_id) IN ({$ph})";
         foreach ($ids as $hid) {
             $paramsMain[] = $hid;
         }

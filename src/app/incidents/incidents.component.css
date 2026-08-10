@@ -118,7 +118,19 @@
   transition: transform 0.12s ease-out;
 }
 
-/* Foto en detalle: ancho completo del modal, marco rectangular 4:3 */
+/* Fotos en detalle: grid si hay varias */
+.incident-detail-photos {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 480px) {
+  .incident-detail-photos {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
 .incident-detail-photo {
   width: 100%;
   aspect-ratio: 4 / 3;

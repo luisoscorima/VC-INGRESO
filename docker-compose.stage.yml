@@ -41,7 +41,7 @@ services:
       - DB_PASS=${DB_PASS:-change_me}
       - DB_CHARSET=${DB_CHARSET:-utf8mb4}
       - CORS_ALLOW_ORIGIN=${CORS_ALLOW_ORIGIN:-*}
-      - PHP_OPCACHE_ENABLE=0
+      - PHP_OPCACHE_ENABLE=1
       - PHP_OPCACHE_VALIDATE_TIMESTAMPS=1
     ports:
       - "8089:80"
