@@ -145,7 +145,7 @@ compress_one() {
     -v "$WORKDIR:/work" \
     alpine:3.20 \
     sh -c 'apk add --no-cache imagemagick imagemagick-jpeg >/dev/null && \
-      (command -v magick >/dev/null && IM=magick || IM=convert) && \
+      if command -v magick >/dev/null 2>&1; then IM=magick; else IM=convert; fi && \
       "$IM" /work/in.jpg -auto-orient -resize "'"${MAX_EDGE}x${MAX_EDGE}>"'" -strip -quality "'"$QUALITY"'" /work/out.jpg'; then
     echo "[fail]  $name  (imagemagick)"
     FAILED=$((FAILED + 1))
