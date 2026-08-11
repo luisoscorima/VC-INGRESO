@@ -237,7 +237,7 @@ class AccessLogController
 
     /**
      * Cierra el último INGRESO abierto (misma persona/vehículo/doc/placa y punto de acceso).
-     * No crea fila EGRESO suelta: actualiza updated_at del ingreso como hora de salida.
+     * Si no hay ingreso abierto, crea un EGRESO observado (orphan_exit) para auditoría e incidencias.
      */
     private function closeOpenAccessLog(array $auth, array $data, int $accessPointId, ?int $createdByUserId): void
     {
@@ -255,7 +255,8 @@ class AccessLogController
 
         $open = $this->findOpenAccessLogIngress($accessPointId, $personId, $vehicleId, $docNumber, $licensePlate);
         if (!$open) {
-            Response::json(['success' => false, 'error' => 'No hay entrada abierta para este registro'], 422);
+            // Placa/persona denegada u observada sin ingreso previo: dejar constancia EGRESO (no 422).
+            $this->createStandaloneEgressLog($auth, $data, $accessPointId, $createdByUserId);
             return;
         }
 
@@ -282,7 +283,7 @@ class AccessLogController
             $stmt->execute([$now, $newObservation, $logId]);
 
             if ($stmt->rowCount() === 0) {
-                Response::json(['success' => false, 'error' => 'No hay entrada abierta para este registro'], 422);
+                $this->createStandaloneEgressLog($auth, $data, $accessPointId, $createdByUserId);
                 return;
             }
 
@@ -313,6 +314,83 @@ class AccessLogController
             ], 200);
         } catch (\PDOException $e) {
             Response::json(['success' => false, 'error' => 'Error al registrar salida: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * EGRESO sin ingreso abierto (p. ej. placa no registrada / denegado en salida).
+     * Crea fila de auditoría para historial e incidencias de escaneo.
+     */
+    private function createStandaloneEgressLog(
+        array $auth,
+        array $data,
+        int $accessPointId,
+        ?int $createdByUserId
+    ): void {
+        try {
+            $identity = $this->resolveIdentitySnapshot($data);
+            $entrySourceRaw = strtolower(trim((string) ($data['entry_source'] ?? 'manual')));
+            $entrySource = in_array($entrySourceRaw, ['manual', 'qr', 'camera'], true) ? $entrySourceRaw : 'manual';
+
+            $observation = trim((string) ($data['observation'] ?? ''));
+            if ($observation === '') {
+                $observation = 'EGRESO | SIN ENTRADA ABIERTA';
+            } elseif (stripos($observation, 'SIN ENTRADA ABIERTA') === false) {
+                $observation .= ' | SIN ENTRADA ABIERTA';
+            }
+
+            $stmt = $this->pdo->prepare("
+                INSERT INTO {$this->table}
+                (access_point_id, person_id, doc_number, vehicle_id, entity_kind,
+                 display_name_snapshot, document_snapshot, document_type_snapshot, license_plate_snapshot,
+                 identity_source, identity_resolved_at, type, observation, entry_source,
+                 created_by_user_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'EGRESO', ?, ?, ?, NOW())
+            ");
+
+            $stmt->execute([
+                $accessPointId,
+                $data['person_id'] ?? null,
+                $data['doc_number'] ?? null,
+                $data['vehicle_id'] ?? null,
+                $identity['entity_kind'],
+                $identity['display_name_snapshot'],
+                $identity['document_snapshot'],
+                $identity['document_type_snapshot'],
+                $identity['license_plate_snapshot'],
+                $identity['identity_source'],
+                $identity['identity_resolved_at'],
+                $observation,
+                $entrySource,
+                $createdByUserId,
+            ]);
+
+            $id = (int) $this->pdo->lastInsertId();
+
+            recordEventLog($this->pdo, $auth, 'access_log.orphan_exit', [
+                'summary' => 'Salida observada sin ingreso previo #' . $id,
+                'entity_type' => 'access_logs',
+                'entity_id' => $id,
+                'details' => [
+                    'access_point_id' => $accessPointId,
+                    'orphan_exit' => true,
+                ],
+            ]);
+
+            Response::json([
+                'success' => true,
+                'data' => [
+                    'id' => $id,
+                    'closed' => false,
+                    'orphan_exit' => true,
+                    'permanence_minutes' => 0,
+                    'message' => 'Salida observada sin ingreso previo',
+                ],
+            ], 201);
+        } catch (\InvalidArgumentException $e) {
+            Response::json(['success' => false, 'error' => $e->getMessage()], 422);
+        } catch (\PDOException $e) {
+            Response::json(['success' => false, 'error' => 'Error al registrar salida observada: ' . $e->getMessage()], 500);
         }
     }
 

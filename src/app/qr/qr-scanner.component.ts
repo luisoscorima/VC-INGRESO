@@ -1120,8 +1120,8 @@ export class QrScannerComponent implements OnInit, OnDestroy {
                 ...this.buildScanContext(data),
                 temp_access_log_id: tempId,
               };
-              this.incidentLogReady = true;
             }
+            this.markIncidentReady();
             let msg = `Salida registrada — permaneció ${mins} min`;
             if (exceeded) {
               msg += ' (excedió tiempo autorizado)';
@@ -1135,12 +1135,15 @@ export class QrScannerComponent implements OnInit, OnDestroy {
             const msg =
               err?.error?.error || 'No hay entrada abierta para esta visita';
             this.toastr.error(msg);
+            this.markIncidentReady();
           },
         });
         return;
       }
 
       if (!data.allow_entry) {
+        // Visita externa denegada: aún permitir incidencia con el contexto del escaneo.
+        this.markIncidentReady();
         return;
       }
 
@@ -1161,12 +1164,13 @@ export class QrScannerComponent implements OnInit, OnDestroy {
               ...this.buildScanContext(data),
               temp_access_log_id: tempId,
             };
-            this.incidentLogReady = true;
           }
+          this.markIncidentReady();
         },
         error: (err) => {
           const msg = err?.error?.error || 'No se pudo guardar el ingreso de visita externa';
           this.toastr.error(msg);
+          this.markIncidentReady();
         },
       });
       return;
@@ -1206,6 +1210,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       next: (res) => {
         const logId = Number(res?.data?.id ?? 0) || 0;
         const closed = !!res?.data?.closed;
+        const orphanExit = !!res?.data?.orphan_exit;
         const permanenceMinutes = Number(res?.data?.permanence_minutes ?? 0);
 
         if (logId > 0) {
@@ -1213,10 +1218,14 @@ export class QrScannerComponent implements OnInit, OnDestroy {
             ...this.buildScanContext(data),
             access_log_id: logId,
           };
-          this.incidentLogReady = true;
         }
+        this.markIncidentReady();
 
-        if (closed && this.isExitMode()) {
+        if (orphanExit && this.isExitMode()) {
+          const msg = 'Salida observada — no había ingreso abierto';
+          this.toastr.warning(msg);
+          this.lastScanSummary = `${data.status_validated} — ${msg}`;
+        } else if (closed && this.isExitMode()) {
           const msg = `Salida registrada — permaneció ${permanenceMinutes} min`;
           this.toastr.success(msg);
           this.lastScanSummary = `${data.status_validated} — ${msg}`;
@@ -1230,8 +1239,14 @@ export class QrScannerComponent implements OnInit, OnDestroy {
             ? 'No hay entrada abierta para este registro'
             : 'No se pudo guardar el registro de acceso');
         this.toastr.error(msg);
+        this.markIncidentReady();
       },
     });
+  }
+
+  /** Evita dejar el botón de incidencia en «Registrando acceso…». */
+  private markIncidentReady(): void {
+    this.incidentLogReady = true;
   }
 
   private beginCooldown(): void {

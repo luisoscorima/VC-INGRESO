@@ -253,6 +253,14 @@ class AccessIncidentController
         $accessLogId = (int) ($_POST['access_log_id'] ?? 0) ?: null;
         $tempAccessLogId = (int) ($_POST['temp_access_log_id'] ?? 0) ?: null;
 
+        $houseId = $this->nullableInt($_POST['house_id'] ?? null);
+        $personId = $this->nullableInt($_POST['person_id'] ?? null);
+        $vehicleId = $this->nullableInt($_POST['vehicle_id'] ?? null);
+        $tempVisitId = $this->nullableInt($_POST['temp_visit_id'] ?? null);
+        $docNumber = $this->nullableStr($_POST['doc_number'] ?? null, 20);
+        $licensePlate = $this->nullableStr($_POST['license_plate'] ?? null, 20);
+        $statusValidated = $this->nullableStr($_POST['status_validated'] ?? null, 50);
+
         if ($source === 'manual') {
             $accessLogId = null;
             $tempAccessLogId = null;
@@ -263,8 +271,14 @@ class AccessIncidentController
             if ($tempAccessLogId !== null && $tempAccessLogId <= 0) {
                 $tempAccessLogId = null;
             }
-            if ($accessLogId === null && $tempAccessLogId === null) {
-                Response::error('Incidencia de escaneo requiere access_log_id o temp_access_log_id', 422);
+            // Sin log de acceso (p. ej. fallo al guardar): permitir si hay identidad del escaneo.
+            $hasScanIdentity = $personId !== null
+                || $vehicleId !== null
+                || $tempVisitId !== null
+                || ($docNumber !== null && $docNumber !== '')
+                || ($licensePlate !== null && $licensePlate !== '');
+            if ($accessLogId === null && $tempAccessLogId === null && !$hasScanIdentity) {
+                Response::error('Incidencia de escaneo requiere access_log_id, temp_access_log_id o identidad (placa/doc)', 422);
                 return;
             }
         }
@@ -293,13 +307,6 @@ class AccessIncidentController
             }
         }
 
-        $houseId = $this->nullableInt($_POST['house_id'] ?? null);
-        $personId = $this->nullableInt($_POST['person_id'] ?? null);
-        $vehicleId = $this->nullableInt($_POST['vehicle_id'] ?? null);
-        $tempVisitId = $this->nullableInt($_POST['temp_visit_id'] ?? null);
-        $docNumber = $this->nullableStr($_POST['doc_number'] ?? null, 20);
-        $licensePlate = $this->nullableStr($_POST['license_plate'] ?? null, 20);
-        $statusValidated = $this->nullableStr($_POST['status_validated'] ?? null, 50);
         $createdBy = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
         if ($docNumber !== null) {
             $docNumber = normalize_untyped_identity_document($docNumber);
