@@ -31,10 +31,10 @@ import {
   IncidentScanContext,
 } from '../incidents/access-incident.service';
 
-/** Preferencia opcional: último punto elegido (sin bloqueo). */
+/** Preferencia: último punto elegido (persiste al actualizar la página). */
 const ACCESS_POINT_STORAGE_KEY = 'vc_scanner_access_point_id';
 const MOVEMENT_MODE_STORAGE_KEY = 'vc_scanner_movement_mode';
-const COOLDOWN_MS = 3000;
+const COOLDOWN_MS = 1000;
 
 type MovementMode = 'INGRESO' | 'EGRESO';
 
@@ -56,12 +56,13 @@ interface AccessPointOption {
         role="dialog"
         aria-modal="true"
         aria-live="polite"
-        aria-label="Resultado del escaneo">
+        aria-label="Resultado del escaneo"
+        (click)="skipCooldown()">
         <img
           [src]="statusImageUrl"
           alt=""
           class="h-auto max-h-[min(34vh,220px)] w-auto max-w-[min(72vw,240px)] object-contain drop-shadow-xl sm:max-h-[min(38vh,260px)] sm:max-w-[min(70vw,280px)]" />
-        <p class="text-center text-sm text-white/80">Podrá escanear de nuevo en unos segundos…</p>
+        <p class="text-center text-sm text-white/80">Toque para continuar</p>
       </div>
 
     <div class="w-full px-0 py-2 sm:py-3">
@@ -95,7 +96,7 @@ interface AccessPointOption {
                 [disabled]="loadingPoints"
                 class="scanner-controls__select">
                 <option [ngValue]="null">— Seleccione —</option>
-                <option *ngFor="let p of accessPoints" [ngValue]="p.id">{{ p.name }}</option>
+                <option *ngFor="let p of accessPoints; trackBy: trackAccessPoint" [ngValue]="p.id">{{ p.name }}</option>
               </select>
             </div>
             <div class="scanner-controls__movement">
@@ -125,6 +126,20 @@ interface AccessPointOption {
               </div>
             </div>
           </div>
+
+          <p
+            *ngIf="selectedAccessPointName"
+            class="mb-3 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-medium text-teal-900 dark:border-teal-800 dark:bg-teal-950/40 dark:text-teal-100"
+            role="status">
+            Registrando en: <strong>{{ selectedAccessPointName }}</strong>
+            · {{ movementLabel() }}
+          </p>
+          <p
+            *ngIf="accessPoints.length && !selectedAccessPointId && !loadingPoints"
+            class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+            role="status">
+            Seleccione el punto de acceso antes de registrar.
+          </p>
           <p *ngIf="!accessPoints.length && !loadingPoints" class="mb-3 text-sm text-amber-700 dark:text-amber-400">
             No hay puntos de acceso configurados.
           </p>
@@ -513,6 +528,25 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   private zxingControls: IScannerControls | null = null;
   private destroy$ = new Subject<void>();
   private cooldownTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Evita detectar en cada frame (RAM alta en Android). */
+  private lastDetectAt = 0;
+  private readonly detectIntervalMs = 200;
+  /** Tras un escaneo, mantener cámara y reanudar sin pulsar «Iniciar». */
+  private continuousScan = false;
+  private detectionPaused = false;
+  private readonly onVisibilityChange = (): void => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden' && this.isScanning) {
+      this.stopScanning();
+    }
+  };
+
+  /** Resolución baja: suficiente para QR y evita OOM en móviles. */
+  private readonly cameraConstraints: MediaTrackConstraints = {
+    facingMode: { ideal: 'environment' },
+    width: { ideal: 640, max: 1280 },
+    height: { ideal: 480, max: 720 },
+    frameRate: { ideal: 15, max: 24 },
+  };
 
   constructor(
     private toastr: ToastrService,
@@ -526,11 +560,26 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     return this.navPerm.canView('incidents');
   }
 
+  get selectedAccessPointName(): string | null {
+    if (this.selectedAccessPointId == null) {
+      return null;
+    }
+    const found = this.accessPoints.find((p) => p.id === this.selectedAccessPointId);
+    return found?.name ?? null;
+  }
+
+  trackAccessPoint(_index: number, p: AccessPointOption): number {
+    return p.id;
+  }
+
   ngOnInit(): void {
     this.checkBarcodeSupport();
     this.loadMovementMode();
     this.loadAccessPoints();
     this.navPerm.load().subscribe();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
   }
 
   setMovementMode(mode: MovementMode): void {
@@ -549,11 +598,15 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     return this.movementMode === 'EGRESO';
   }
 
-  private movementLabel(): string {
+  /** Visible en la nota de “Registrando en…”. */
+  movementLabel(): string {
     return this.isExitMode() ? 'Salida' : 'Entrada';
   }
 
   ngOnDestroy(): void {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
     this.stopScanning();
     this.clearCooldownTimer();
     this.destroy$.next();
@@ -561,11 +614,38 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   }
 
   onAccessPointChange(id: number | null): void {
+    this.persistAccessPointId(id);
+  }
+
+  private persistAccessPointId(id: number | null): void {
     if (id != null && !isNaN(Number(id)) && Number(id) > 0) {
-      sessionStorage.setItem(ACCESS_POINT_STORAGE_KEY, String(id));
+      const value = String(Number(id));
+      localStorage.setItem(ACCESS_POINT_STORAGE_KEY, value);
+      // Limpia la clave antigua en sessionStorage si existía.
+      sessionStorage.removeItem(ACCESS_POINT_STORAGE_KEY);
     } else {
+      localStorage.removeItem(ACCESS_POINT_STORAGE_KEY);
       sessionStorage.removeItem(ACCESS_POINT_STORAGE_KEY);
     }
+  }
+
+  /** localStorage primero; migra valor viejo de sessionStorage si hace falta. */
+  private readSavedAccessPointId(): number | null {
+    const fromLocal = localStorage.getItem(ACCESS_POINT_STORAGE_KEY);
+    const fromSession = sessionStorage.getItem(ACCESS_POINT_STORAGE_KEY);
+    const raw = fromLocal || fromSession;
+    if (!raw) {
+      return null;
+    }
+    const id = parseInt(raw, 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      return null;
+    }
+    if (!fromLocal && fromSession) {
+      localStorage.setItem(ACCESS_POINT_STORAGE_KEY, String(id));
+      sessionStorage.removeItem(ACCESS_POINT_STORAGE_KEY);
+    }
+    return id;
   }
 
   private loadAccessPoints(): void {
@@ -583,13 +663,13 @@ export class QrScannerComponent implements OnInit, OnDestroy {
               id: Number(r.id),
               name: String(r.name ?? 'Punto'),
             }));
-          const saved = sessionStorage.getItem(ACCESS_POINT_STORAGE_KEY);
-          const savedId = saved ? parseInt(saved, 10) : NaN;
-          if (this.accessPoints.some((p) => p.id === savedId)) {
+          const savedId = this.readSavedAccessPointId();
+          if (savedId != null && this.accessPoints.some((p) => p.id === savedId)) {
             this.selectedAccessPointId = savedId;
+            this.persistAccessPointId(savedId);
           } else if (this.accessPoints.length === 1) {
             this.selectedAccessPointId = this.accessPoints[0].id;
-            sessionStorage.setItem(ACCESS_POINT_STORAGE_KEY, String(this.selectedAccessPointId));
+            this.persistAccessPointId(this.selectedAccessPointId);
           } else {
             this.selectedAccessPointId = null;
           }
@@ -647,24 +727,30 @@ export class QrScannerComponent implements OnInit, OnDestroy {
 
     try {
       if (useNative) {
-        this.mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-        });
+        this.mediaStream = await this.openCameraStream();
         videoEl.srcObject = this.mediaStream;
         this.isScanning = true;
+        this.continuousScan = true;
+        this.detectionPaused = false;
+        this.lastDetectAt = 0;
         const track = this.mediaStream.getVideoTracks()[0];
         const capabilities = track.getCapabilities() as any;
         this.hasFlash = !!capabilities?.torch;
         void this.detectBarcode();
       } else {
         this.isScanning = true;
+        this.continuousScan = true;
+        this.detectionPaused = false;
         this.hasFlash = false;
         await this.startZxingScan(videoEl);
       }
     } catch (error: any) {
       console.error('Error starting scanner:', error);
-      this.errorMessage = 'No se pudo acceder a la cámara. Verifique los permisos o use entrada manual.';
+      this.errorMessage = this.cameraErrorMessage(error);
+      this.toastr.error(this.errorMessage);
       this.isScanning = false;
+      this.continuousScan = false;
+      this.detectionPaused = false;
       this.stopZxing();
       if (this.mediaStream) {
         this.mediaStream.getTracks().forEach((t) => t.stop());
@@ -673,26 +759,87 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Abre la cámara con resolución limitada; reintenta sin constraints si el dispositivo no las soporta. */
+  private async openCameraStream(): Promise<MediaStream> {
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: this.cameraConstraints,
+      });
+    } catch (first: any) {
+      if (first?.name === 'OverconstrainedError' || first?.name === 'ConstraintNotSatisfiedError') {
+        return navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: 'environment' } },
+        });
+      }
+      throw first;
+    }
+  }
+
+  private cameraErrorMessage(error: unknown): string {
+    const err = error as { name?: string; message?: string } | null;
+    const rawMsg = String(err?.message || '');
+    const msg = rawMsg.toLowerCase();
+    const name = String(err?.name || '');
+    if (
+      msg.includes('memoria') ||
+      msg.includes('memory') ||
+      msg.includes('out of memory') ||
+      (name === 'AbortError' && (msg.includes('memoria') || msg.includes('memory')))
+    ) {
+      return 'Memoria insuficiente en el dispositivo para abrir la cámara. Cierre otras apps, reinicie el navegador e intente de nuevo, o use la entrada manual.';
+    }
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+      return 'Permiso de cámara denegado. Habilítelo en el navegador o use la entrada manual.';
+    }
+    if (name === 'NotReadableError' || name === 'TrackStartError') {
+      return 'La cámara está ocupada por otra app. Ciérrela e intente de nuevo, o use la entrada manual.';
+    }
+    // Android a veces muestra este texto del sistema sin un name estándar.
+    if (rawMsg.includes('Memoria insuficiente') || rawMsg.includes('operación anterior')) {
+      return 'Memoria insuficiente en el dispositivo para abrir la cámara. Cierre otras apps, reinicie el navegador e intente de nuevo, o use la entrada manual.';
+    }
+    return 'No se pudo acceder a la cámara. Verifique los permisos o use entrada manual.';
+  }
+
   private async startZxingScan(videoEl: HTMLVideoElement): Promise<void> {
     this.stopZxing();
     const reader = new BrowserMultiFormatReader();
     this.zxingReader = reader;
     try {
-      const controls = await reader.decodeFromVideoDevice(undefined, videoEl, (result, _, __) => {
+      const decodeCb = (result: { getText(): string } | undefined): void => {
+        if (this.cooldownActive || this.detectionPaused) {
+          return;
+        }
         const text = result?.getText();
         if (text) {
           this.onCodeDetected(text);
         }
-      });
+      };
+      let controls: IScannerControls;
+      if (typeof (reader as any).decodeFromConstraints === 'function') {
+        controls = await (reader as any).decodeFromConstraints(
+          { audio: false, video: this.cameraConstraints },
+          videoEl,
+          decodeCb
+        );
+      } else {
+        this.mediaStream = await this.openCameraStream();
+        controls = await (reader as any).decodeFromStream(this.mediaStream, videoEl, decodeCb);
+      }
       this.zxingControls = controls;
-      const stream = videoEl.srcObject as MediaStream | null;
+      const stream = (videoEl.srcObject as MediaStream | null) ?? this.mediaStream;
       if (stream && BrowserCodeReader.mediaStreamIsTorchCompatible(stream)) {
         this.hasFlash = true;
       }
     } catch (e) {
       console.error('ZXing scan failed:', e);
       this.isScanning = false;
-      this.errorMessage = 'No se pudo iniciar el lector de códigos. Use la entrada manual.';
+      this.continuousScan = false;
+      this.detectionPaused = false;
+      this.errorMessage = this.cameraErrorMessage(e);
+      this.toastr.error(this.errorMessage);
     }
   }
 
@@ -715,6 +862,8 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   }
 
   stopScanning(): void {
+    this.continuousScan = false;
+    this.detectionPaused = false;
     this.stopZxing();
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach((track) => track.stop());
@@ -732,31 +881,74 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     this.hasFlashOn = false;
   }
 
+  /** Pausa la detección sin soltar la cámara (más rápido entre lecturas). */
+  private pauseDetection(): void {
+    this.detectionPaused = true;
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+  }
+
+  private resumeDetection(): void {
+    if (!this.continuousScan || this.cooldownActive) {
+      return;
+    }
+    this.detectionPaused = false;
+    this.lastDetectAt = 0;
+    const useNative = this.useNativeBarcode && this.barcodeDetector && this.mediaStream;
+    if (useNative) {
+      this.isScanning = true;
+      void this.detectBarcode();
+      return;
+    }
+    if (this.zxingControls || this.zxingReader) {
+      this.isScanning = true;
+      return;
+    }
+    // Stream perdido: reabrir cámara.
+    void this.startScanning();
+  }
+
   private async detectBarcode(): Promise<void> {
-    if (!this.isScanning || !this.videoElement?.nativeElement) {
+    if (!this.isScanning || this.detectionPaused || this.cooldownActive || !this.videoElement?.nativeElement) {
       return;
     }
 
-    try {
-      if (this.barcodeDetector) {
-        const barcodes = await this.barcodeDetector.detect(this.videoElement.nativeElement);
-        if (barcodes.length > 0) {
-          const result = barcodes[0].rawValue;
-          this.onCodeDetected(result);
+    const now = performance.now();
+    if (now - this.lastDetectAt >= this.detectIntervalMs) {
+      this.lastDetectAt = now;
+      try {
+        if (this.barcodeDetector) {
+          const barcodes = await this.barcodeDetector.detect(this.videoElement.nativeElement);
+          if (barcodes.length > 0) {
+            const result = barcodes[0].rawValue;
+            this.onCodeDetected(result);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Barcode detection error:', error);
+        const msg = String((error as any)?.message || '').toLowerCase();
+        if (msg.includes('memoria') || msg.includes('memory')) {
+          this.stopScanning();
+          this.errorMessage = this.cameraErrorMessage(error);
+          this.toastr.error(this.errorMessage);
           return;
         }
       }
-    } catch (error) {
-      console.warn('Barcode detection error:', error);
     }
 
     this.animationFrameId = requestAnimationFrame(() => this.detectBarcode());
   }
 
   private onCodeDetected(code: string): void {
+    if (this.cooldownActive || this.detectionPaused) {
+      return;
+    }
     this.scannedResult = code;
     this.codeScanned.emit(code);
-    this.stopScanning();
+    this.pauseDetection();
     this.processInput(code);
   }
 
@@ -802,6 +994,11 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     }
     if (this.cooldownActive) {
       return;
+    }
+
+    // Evita lecturas duplicadas mientras responde la API.
+    if (this.isScanning || this.continuousScan) {
+      this.pauseDetection();
     }
 
     this.errorMessage = null;
@@ -1252,10 +1449,23 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   private beginCooldown(): void {
     this.clearCooldownTimer();
     this.cooldownActive = true;
-    this.cooldownTimer = setTimeout(() => {
-      this.cooldownActive = false;
-      this.cooldownTimer = null;
-    }, COOLDOWN_MS);
+    this.cooldownTimer = setTimeout(() => this.finishCooldown(), COOLDOWN_MS);
+  }
+
+  /** Cierra el modal antes y vuelve a escanear (toque en pantalla). */
+  skipCooldown(): void {
+    if (!this.cooldownActive) {
+      return;
+    }
+    this.finishCooldown();
+  }
+
+  private finishCooldown(): void {
+    this.clearCooldownTimer();
+    this.cooldownActive = false;
+    if (this.continuousScan) {
+      this.resumeDetection();
+    }
   }
 
   private clearCooldownTimer(): void {
