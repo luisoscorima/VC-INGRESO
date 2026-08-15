@@ -1,4 +1,5 @@
 import { AfterViewInit, Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Vehicle } from '../vehicle';
 import { House } from '../house';
 import { initFlowbite } from 'flowbite';
@@ -6,7 +7,6 @@ import { EntranceService } from '../entrance.service';
 import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS } from '../externalVehicle';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../api.service';
-import { AuthService } from '../auth.service';
 import { NavPermissionService } from '../nav-permission.service';
 import { ExpandableRowId, isExpandableRowOpen, toggleExpandableRow } from '../shared/expandable-row';
 import { PublicRegistrationService } from '../public-registration/public-registration.service';
@@ -26,6 +26,8 @@ import {
   isValidIdentityDocument,
   normalizeIdentityDocument,
 } from '../shared/identity-document';
+
+type VehiclesPageTab = 'residents' | 'external';
 
 @Component({
   selector: 'app-vehicles',
@@ -96,37 +98,56 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   showViewPhotoDialog = false;
   viewPhotoUrl: string | null = null;
   viewPhotoTitle = '';
+  activeTab: VehiclesPageTab = 'residents';
 
   constructor(
     private entranceService: EntranceService,
     private toastr: ToastrService,
     private api: ApiService,
-    private auth: AuthService,
     private publicReg: PublicRegistrationService,
     private navPerm: NavPermissionService,
+    private route: ActivatedRoute,
+    private router: Router,
   ){}
 
-  get showStaffExternalVehiclesTab(): boolean {
-    const r = (this.auth.getUser()?.role_system ?? '').toString().trim().toUpperCase();
+  get showResidentVehiclesTab(): boolean {
+    return this.navPerm.canView('vehicles');
+  }
 
-    return ['ADMINISTRADOR', 'OPERARIO'].includes(r);
+  get showStaffExternalVehiclesTab(): boolean {
+    return this.navPerm.canView('external_visits');
   }
 
   get canEditExternalVisits(): boolean {
-    return this.showStaffExternalVehiclesTab;
+    return this.navPerm.canManage('external_visits');
   }
 
   get canManageVehiclesCrud(): boolean {
     return this.navPerm.canManage('vehicles');
   }
 
+  get pageTitle(): string {
+    if (this.showResidentVehiclesTab && this.showStaffExternalVehiclesTab) {
+      return 'Vehiculos';
+    }
+    if (this.showStaffExternalVehiclesTab) {
+      return 'Visitas externas';
+    }
+    return 'Vehiculos';
+  }
+
   ngOnInit(): void {
-    this.entranceService.getAllVehicles().subscribe({
-      next: (res: any) => {
-        this.vehicles = Array.isArray(res) ? res : (res?.data ?? []);
-      },
-      error: (err) => { console.error('Error obteniendo vehículos:', err); }
+    this.route.data.subscribe((data) => {
+      this.resolveActiveTab((data['defaultTab'] as VehiclesPageTab | undefined) ?? 'residents');
     });
+    if (this.showResidentVehiclesTab) {
+      this.entranceService.getAllVehicles().subscribe({
+        next: (res: any) => {
+          this.vehicles = Array.isArray(res) ? res : (res?.data ?? []);
+        },
+        error: (err) => { console.error('Error obteniendo vehículos:', err); }
+      });
+    }
     this.entranceService.getAllHouses().subscribe({
       next: (res: any) => {
         this.houses = Array.isArray(res) ? res : (res?.data ?? []);
@@ -134,6 +155,36 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
       error: (err) => { console.error('Error obteniendo casas:', err); }
     });
     this.reloadExternalVehicles();
+  }
+
+  selectTab(tab: VehiclesPageTab): void {
+    if (tab === 'residents' && !this.showResidentVehiclesTab) {
+      return;
+    }
+    if (tab === 'external' && !this.showStaffExternalVehiclesTab) {
+      return;
+    }
+    this.activeTab = tab;
+    const target = tab === 'external' ? '/external-visits' : '/vehicles';
+    if (this.router.url.split('?')[0] !== target) {
+      void this.router.navigateByUrl(target);
+    }
+  }
+
+  private resolveActiveTab(routeDefault: VehiclesPageTab = 'residents'): void {
+    if (routeDefault === 'external' && this.showStaffExternalVehiclesTab) {
+      this.activeTab = 'external';
+      return;
+    }
+    if (routeDefault === 'residents' && this.showResidentVehiclesTab) {
+      this.activeTab = 'residents';
+      return;
+    }
+    if (this.showStaffExternalVehiclesTab) {
+      this.activeTab = 'external';
+      return;
+    }
+    this.activeTab = 'residents';
   }
 
   private reloadExternalVehicles(): void {

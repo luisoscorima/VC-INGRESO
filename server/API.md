@@ -50,7 +50,7 @@ Solo tres familias; **todo lo demás se rechaza** (no es caso de uso):
 | **Reservaciones** | Calendario admin: `ADMINISTRADOR`. Vecino: `USUARIO`/`OPERARIO` + PROP/RES/INQ con casa. **OPERARIO + NULL** excluido de ambos flujos. |
 | **Users / persons** | CRUD cuentas: típicamente solo **ADMINISTRADOR**. Listado `persons?without_user=1`: staff (`isStaffRole`). Operario: lectura sin datos de documento en UI según README. |
 | **Houses** | CRUD: admin. Listado: también operario (lectura). |
-| **Vehicles / pets (módulos gestión)** | Listado global staff: admin y operario. CRUD: admin (operario solo lectura en producto). |
+| **Vehicles / pets (módulos gestión)** | Listado/CRUD según matriz `nav_modules`: `vehicles` y `pets`. Por defecto OPERARIO no tiene `vehicles`; sí tiene `external_visits` (ver+gestionar). |
 | **Access points** | Solo **ADMINISTRADOR** + combinación admin válida. |
 | **Configuración** | Todas las combinaciones válidas; permisos finos por pantalla. |
 
@@ -174,14 +174,16 @@ Solo tres familias; **todo lo demás se rechaza** (no es caso de uso):
 
 ## Vehicles
 
+Módulo nav `vehicles`. Listado global staff: permiso **Ver**. Crear/editar/eliminar: **Gestionar**.
+
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/v1/vehicles` | Listar. |
+| GET | `/api/v1/vehicles` | Listar (staff con `vehicles.view`). |
 | GET | `/api/v1/vehicles/:id` | Uno. |
 | GET | `/api/v1/vehicles/by-house?house_id=` | Por casa. |
-| POST | `/api/v1/vehicles` | Crear. |
-| PUT | `/api/v1/vehicles/:id` | Actualizar. |
-| DELETE | `/api/v1/vehicles/:id` | Eliminar. |
+| POST | `/api/v1/vehicles` | Crear (`vehicles.manage` si staff). |
+| PUT | `/api/v1/vehicles/:id` | Actualizar (`vehicles.manage` si staff). |
+| DELETE | `/api/v1/vehicles/:id` | Eliminar (`vehicles.manage` si staff). |
 
 ---
 
@@ -209,15 +211,17 @@ Solo tres familias; **todo lo demás se rechaza** (no es caso de uso):
 
 Catálogo global reutilizable (placa **o** DNI) + asignaciones por casa con temporizador.
 
+Módulo nav `external_visits` (separado de `vehicles`). Catálogo global staff: **Ver**. Crear/editar/eliminar catálogo: **Gestionar**. Flujos de vecino (`active`/`mine` + casa) no usan esa matriz.
+
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/v1/external-visits` | Staff: catálogo global. Vecino: usar query `house_id` + `active=1`. |
+| GET | `/api/v1/external-visits` | Staff con `external_visits.view`: catálogo global. Vecino: usar query `house_id` + `active=1`. |
 | GET | `/api/v1/external-visits?house_id=X&active=1` | Asignaciones vigentes en Mi casa (JOIN perfil + timer). |
 | GET | `/api/v1/external-visits/lookup?plate=&doc=` | Autocompletar perfil global (coincidencia placa o DNI). |
-| GET | `/api/v1/external-visits/:id` | Un perfil global. |
-| POST | `/api/v1/external-visits` | Lookup-or-create perfil + nueva asignación. Body: `house_id`, `duration_minutes` (30\|60\|120\|240), datos del visitante. |
-| PUT | `/api/v1/external-visits/:id` | Actualizar perfil. Staff puede `photo_url`, `operator_notes`. |
-| DELETE | `/api/v1/external-visits/:id` | Staff: elimina perfil. Vecino: `?assignment_id=` cancela asignación activa. |
+| GET | `/api/v1/external-visits/:id` | Un perfil global (`external_visits.view` o asignación de la casa). |
+| POST | `/api/v1/external-visits` | Lookup-or-create perfil + nueva asignación. Staff: `external_visits.manage`. Vecino: casa accesible. Body: `house_id`, `duration_minutes` (30\|60\|120\|240), datos del visitante. |
+| PUT | `/api/v1/external-visits/:id` | Actualizar perfil. Staff con manage puede `photo_url`, `operator_notes`. |
+| DELETE | `/api/v1/external-visits/:id` | Staff con manage: elimina perfil. Vecino: `?assignment_id=` cancela asignación activa. |
 
 ### Escaneo portería
 

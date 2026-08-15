@@ -218,13 +218,23 @@ Sobre la **misma casa asociada** al solicitante:
 
 ---
 
-### 8. Vehículos (residentes + visitas externas)
+### 8. Vehículos residentes y Visitas externas
 
-| Acción | role_system | person_type |
-|--------|----------------|-------------|
-| **8.1** Listar (ambas pestañas / vistas staff) | `ADMINISTRADOR` | `PROPIETARIO` / `RESIDENTE` / `NULL` |
-| | `OPERARIO` | `PROPIETARIO` / `RESIDENTE` / `INQUILINO` / `NULL` |
-| **8.2** Crear/editar | Solo `ADMINISTRADOR` | `PROPIETARIO` / `RESIDENTE` / `NULL` |
+Módulos nav separados (`vehicles` y `external_visits`). Defaults en Ajustes → Permisos / migración `016_external_visits_nav_module.sql`:
+
+| Módulo | ADMINISTRADOR | OPERARIO | USUARIO |
+|--------|---------------|----------|---------|
+| `vehicles` (Vehículos residentes) | Ver + Gestionar | Sin acceso | Sin acceso |
+| `external_visits` (Visitas externas) | Ver + Gestionar | Ver + Gestionar | Sin acceso |
+
+| Acción | Quién (según matriz nav) |
+|--------|---------------------------|
+| **8.1** Listar vehículos residentes | Roles con **Ver** en `vehicles` |
+| **8.2** Crear/editar vehículos residentes | Roles con **Gestionar** en `vehicles` |
+| **8.3** Listar catálogo global visitas externas | Roles con **Ver** en `external_visits` |
+| **8.4** Crear/editar/eliminar catálogo visitas externas | Roles con **Gestionar** en `external_visits` |
+
+Rutas: `/vehicles` y `/external-visits` (mismo componente; pestañas según permiso). **Mi casa** no usa esta matriz para visitas/vehículos del hogar.
 
 ---
 

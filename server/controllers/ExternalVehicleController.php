@@ -7,6 +7,7 @@ namespace Controllers;
 
 require_once __DIR__ . '/../auth_middleware.php';
 require_once __DIR__ . '/../helpers/house_permissions.php';
+require_once __DIR__ . '/../helpers/nav_permissions.php';
 require_once __DIR__ . '/../helpers/license_plate.php';
 require_once __DIR__ . '/../helpers/temporary_visit.php';
 
@@ -24,7 +25,7 @@ class ExternalVehicleController extends Controller {
     }
 
     private function canAccessTemporaryVisit(array $auth, $visit): bool {
-        if (isStaffRole($auth)) {
+        if (canViewModule($this->db, $auth, 'external_visits')) {
             return true;
         }
         $tempVisitId = is_object($visit)
@@ -103,7 +104,7 @@ class ExternalVehicleController extends Controller {
             return;
         }
 
-        if (!isStaffRole($auth)) {
+        if (!canViewModule($this->db, $auth, 'external_visits')) {
             Response::error('Sin permiso para ver el catálogo global', 403);
             return;
         }
@@ -195,7 +196,12 @@ class ExternalVehicleController extends Controller {
             Response::error('house_id requerido', 400);
             return;
         }
-        if (!isStaffRole($auth) && !canAccessHouse($this->db, $auth, $houseId)) {
+        if (isStaffRole($auth)) {
+            if (!canManageModule($this->db, $auth, 'external_visits')) {
+                Response::error('Sin permiso para registrar visitas externas', 403);
+                return;
+            }
+        } elseif (!canAccessHouse($this->db, $auth, $houseId)) {
             Response::error('Sin permiso para registrar visitas en esta casa', 403);
             return;
         }
@@ -325,16 +331,23 @@ class ExternalVehicleController extends Controller {
             return;
         }
 
-        $isStaff = isStaffRole($auth);
-        if (!$isStaff && !$this->canAccessTemporaryVisit($auth, $visit)) {
-            Response::error('Sin permiso para editar este registro', 403);
-            return;
+        $canManageStaff = canManageModule($this->db, $auth, 'external_visits');
+        if (!$canManageStaff) {
+            if (isStaffRole($auth)) {
+                Response::error('Sin permiso para gestionar visitas externas', 403);
+                return;
+            }
+            $tempVisitId = (int) ($visit->temp_visit_id ?? 0);
+            if ($tempVisitId <= 0 || !$this->neighborHasAssignmentOnProfile($auth, $tempVisitId)) {
+                Response::error('Sin permiso para editar este registro', 403);
+                return;
+            }
         }
 
         $data = $this->getInput();
         $allowed = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_doc_type', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
 
-        if ($isStaff) {
+        if ($canManageStaff) {
             $allowed[] = 'operator_notes';
         }
 
@@ -412,7 +425,7 @@ class ExternalVehicleController extends Controller {
             return;
         }
 
-        if (isStaffRole($auth)) {
+        if (canManageModule($this->db, $auth, 'external_visits')) {
             $this->delete($id, 'temp_visit_id');
             Response::success(null, 'Visita externa eliminada del catálogo');
             return;

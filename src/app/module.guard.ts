@@ -20,8 +20,9 @@ export class ModuleGuard implements CanActivate {
     if (!this.auth.isAuthenticated()) {
       return of(this.router.parseUrl('/login'));
     }
-    const moduleKey = route.data['module'] as string;
-    if (!moduleKey) {
+    const moduleKey = route.data['module'] as string | undefined;
+    const moduleAny = route.data['moduleAny'] as string[] | undefined;
+    if (!moduleKey && (!moduleAny || moduleAny.length === 0)) {
       return of(true);
     }
     return this.navPerm.load().pipe(
@@ -31,7 +32,11 @@ export class ModuleGuard implements CanActivate {
           this.toastr.warning('Tu sesión no tiene una combinación de rol válida.');
           return this.router.parseUrl('/');
         }
-        if (!this.navPerm.canView(moduleKey)) {
+        const allowed =
+          (moduleAny && moduleAny.length > 0)
+            ? moduleAny.some((key) => this.navPerm.canView(key))
+            : this.navPerm.canView(moduleKey as string);
+        if (!allowed) {
           this.toastr.warning('No tienes permiso para acceder a esta sección.');
           return this.router.parseUrl('/');
         }

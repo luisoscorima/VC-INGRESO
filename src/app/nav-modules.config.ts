@@ -12,6 +12,7 @@ export const NAV_MODULE_DEFS: NavModuleDef[] = [
   { key: 'users', label: 'Usuarios', route: '/users', section: 'gestion', icon: 'person', sortOrder: 10 },
   { key: 'houses', label: 'Viviendas', route: '/houses', section: 'gestion', icon: 'apartment', sortOrder: 20 },
   { key: 'vehicles', label: 'Vehículos', route: '/vehicles', section: 'gestion', icon: 'directions_car', sortOrder: 30 },
+  { key: 'external_visits', label: 'Visitas externas', route: '/external-visits', section: 'gestion', icon: 'local_shipping', sortOrder: 35 },
   { key: 'pets', label: 'Mascotas', route: '/pets', section: 'gestion', icon: 'pets', sortOrder: 40 },
   { key: 'announcements', label: 'Comunicados', route: '/announcements', section: 'gestion', icon: 'campaign', sortOrder: 50 },
   { key: 'surveys', label: 'Encuestas', route: '/surveys', section: 'gestion', icon: 'fact_check', sortOrder: 60 },

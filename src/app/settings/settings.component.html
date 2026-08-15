@@ -97,6 +97,10 @@
               <h2 class="mb-2 text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Vehículos</h2>
               <p class="text-sm text-gray-600 dark:text-gray-400">Gestionar vehículos registrados.</p>
             </a>
+            <a *ngIf="canViewModuleLink('external_visits')" routerLink="/external-visits" class="block rounded-xl border-2 border-dashed border-gray-200 bg-white p-4 sm:p-6 shadow-lg hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700/80">
+              <h2 class="mb-2 text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Visitas externas</h2>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Catálogo global de visitas temporales (taxi, delivery, etc.).</p>
+            </a>
             <a *ngIf="canViewModuleLink('pets')" routerLink="/pets" class="block rounded-xl border-2 border-dashed border-gray-200 bg-white p-4 sm:p-6 shadow-lg hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700/80">
               <h2 class="mb-2 text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Mascotas</h2>
               <p class="text-sm text-gray-600 dark:text-gray-400">Gestionar mascotas registradas.</p>

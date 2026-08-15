@@ -13,6 +13,7 @@ function npModuleKeys(): array
         'users',
         'houses',
         'vehicles',
+        'external_visits',
         'pets',
         'announcements',
         'surveys',
@@ -44,9 +45,11 @@ function npTablesExist(\PDO $pdo): bool
 
 function npEnsureSchema(\PDO $pdo): void
 {
-    if (npTablesExist($pdo)) {
+    $tablesReady = npTablesExist($pdo);
+    if ($tablesReady) {
         $stmt = $pdo->query('SELECT COUNT(*) FROM nav_modules');
         if ($stmt && (int) $stmt->fetchColumn() > 0) {
+            npEnsureKnownModules($pdo);
             return;
         }
     }
@@ -73,10 +76,19 @@ function npEnsureSchema(\PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
+    npEnsureKnownModules($pdo);
+}
+
+/**
+ * Inserta módulos/permisos por defecto faltantes sin pisar filas ya configuradas.
+ */
+function npEnsureKnownModules(\PDO $pdo): void
+{
     $modules = [
         ['users', 'Usuarios', '/users', 'gestion', 10],
         ['houses', 'Viviendas', '/houses', 'gestion', 20],
         ['vehicles', 'Vehículos', '/vehicles', 'gestion', 30],
+        ['external_visits', 'Visitas externas', '/external-visits', 'gestion', 35],
         ['pets', 'Mascotas', '/pets', 'gestion', 40],
         ['announcements', 'Comunicados', '/announcements', 'gestion', 50],
         ['surveys', 'Encuestas', '/surveys', 'gestion', 60],
@@ -97,6 +109,7 @@ function npEnsureSchema(\PDO $pdo): void
         ['ADMINISTRADOR', 'users', 1, 1],
         ['ADMINISTRADOR', 'houses', 1, 1],
         ['ADMINISTRADOR', 'vehicles', 1, 1],
+        ['ADMINISTRADOR', 'external_visits', 1, 1],
         ['ADMINISTRADOR', 'pets', 1, 1],
         ['ADMINISTRADOR', 'announcements', 1, 1],
         ['ADMINISTRADOR', 'surveys', 1, 1],
@@ -105,7 +118,8 @@ function npEnsureSchema(\PDO $pdo): void
         ['ADMINISTRADOR', 'cameras', 1, 1],
         ['OPERARIO', 'users', 1, 0],
         ['OPERARIO', 'houses', 1, 0],
-        ['OPERARIO', 'vehicles', 1, 0],
+        ['OPERARIO', 'vehicles', 0, 0],
+        ['OPERARIO', 'external_visits', 1, 1],
         ['OPERARIO', 'pets', 1, 0],
         ['OPERARIO', 'incidents', 1, 0],
         ['OPERARIO', 'cameras', 1, 0],
@@ -113,7 +127,7 @@ function npEnsureSchema(\PDO $pdo): void
     $insPerm = $pdo->prepare(
         'INSERT INTO role_nav_permissions (role_system, module_key, can_view, can_manage)
          VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE can_view = VALUES(can_view), can_manage = VALUES(can_manage)'
+         ON DUPLICATE KEY UPDATE role_system = role_system'
     );
     foreach ($perms as $p) {
         $insPerm->execute($p);
@@ -137,9 +151,10 @@ function npDefaultResolvedForRole(string $roleSystem): array
             $out[$key] = ['view' => true, 'manage' => true];
         }
     } elseif ($role === 'OPERARIO') {
-        foreach (['users', 'houses', 'vehicles', 'pets', 'incidents', 'cameras'] as $key) {
+        foreach (['users', 'houses', 'pets', 'incidents', 'cameras'] as $key) {
             $out[$key] = ['view' => true, 'manage' => false];
         }
+        $out['external_visits'] = ['view' => true, 'manage' => true];
     }
 
     return $out;
