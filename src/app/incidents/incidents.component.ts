@@ -159,7 +159,13 @@ export class IncidentsComponent implements OnInit {
   }
 
   sourceLabel(source: string): string {
-    return source === 'scan' ? 'Escaneo' : 'Manual';
+    if (source === 'scan') {
+      return 'Escaneo / historial';
+    }
+    if (source === 'manual') {
+      return 'Histórico';
+    }
+    return source;
   }
 
   private loadAccessPoints(): void {

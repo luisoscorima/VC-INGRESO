@@ -63,6 +63,44 @@ export interface IncidentFormDialogData {
   scanContext?: IncidentScanContext;
 }
 
+const HISTORY_RESULT_STATUSES = ['PERMITIDO', 'DENEGADO', 'RESTRINGIDO', 'OBSERVADO'] as const;
+
+function parseStatusFromHistoryRow(row: Record<string, unknown>): string | null {
+  const observation = String(row['observation_raw'] ?? row['obs'] ?? '').toUpperCase();
+  const found = HISTORY_RESULT_STATUSES.find((candidate) =>
+    new RegExp(`(^|\\|)\\s*${candidate}\\b`).test(observation)
+  );
+  if (found) {
+    return found;
+  }
+  const obs = String(row['obs'] ?? '').trim();
+  if (obs && obs !== '—') {
+    return obs.split('|')[0]?.trim() || null;
+  }
+  return null;
+}
+
+/** Construye contexto de incidencia desde una fila del historial unificado. */
+export function buildScanContextFromHistoryRow(row: Record<string, unknown>): IncidentScanContext {
+  const logRef = Number(row['id'] ?? 0);
+  const plate = String(row['license_plate_snapshot'] ?? row['vehicle_plate'] ?? '').trim();
+  const ctx: IncidentScanContext = {
+    doc_number: String(row['doc_number'] ?? row['document_snapshot'] ?? '').trim() || null,
+    license_plate: plate && plate !== '—' ? plate.toUpperCase() : null,
+    status_validated: parseStatusFromHistoryRow(row),
+    house_id: Number(row['house_id'] ?? 0) > 0 ? Number(row['house_id']) : null,
+    person_id: Number(row['person_id'] ?? 0) > 0 ? Number(row['person_id']) : null,
+    vehicle_id: Number(row['vehicle_id'] ?? 0) > 0 ? Number(row['vehicle_id']) : null,
+    temp_visit_id: Number(row['temp_visit_id'] ?? 0) > 0 ? Number(row['temp_visit_id']) : null,
+  };
+  if (logRef > 0) {
+    ctx.access_log_id = logRef;
+  } else if (logRef < 0) {
+    ctx.temp_access_log_id = Math.abs(logRef);
+  }
+  return ctx;
+}
+
 export interface IncidentPagination {
   page: number;
   page_size: number;

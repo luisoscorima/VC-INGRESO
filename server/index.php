@@ -723,6 +723,12 @@ if (str_starts_with($uri, '/api/v1/')) {
             if (str_contains($path, 'history-by-client')) { $controller->historyByClient(); exit; }
         }
         
+        // Registro intento denegado visita externa
+        if ($path === 'access-logs/temporary/denied' && $method === 'POST') {
+            $controller->storeTemporaryDenied();
+            exit;
+        }
+
         // Registro ingreso visita externa (temporary_access_logs)
         if ($path === 'access-logs/temporary/exit' && $method === 'POST') {
             $controller->exitTemporary();
@@ -732,6 +738,16 @@ if (str_starts_with($uri, '/api/v1/')) {
         // Registro ingreso visita externa (temporary_access_logs)
         if ($path === 'access-logs/temporary' && $method === 'POST') {
             $controller->storeTemporary();
+            exit;
+        }
+
+        if ($path === 'access-logs/authorize-from-attempt' && $method === 'POST') {
+            $controller->authorizeFromAttempt();
+            exit;
+        }
+
+        if (preg_match('#^access-logs/details/(-?\d+)$#', $path, $detailMatches) && $method === 'PATCH') {
+            $controller->patchDetails((int) $detailMatches[1]);
             exit;
         }
 
@@ -913,7 +929,10 @@ echo json_encode([
             'DELETE /api/v1/external-visits/:id' => 'Eliminar perfil o cancelar asignación',
             'POST /api/v1/access-qr/scan-confirm' => 'Confirmar casa en escaneo multi-casa',
             'POST /api/v1/access-logs/temporary' => 'Registrar ingreso visita externa',
+            'POST /api/v1/access-logs/temporary/denied' => 'Registrar intento denegado visita externa',
             'POST /api/v1/access-logs/temporary/exit' => 'Registrar salida visita externa',
+            'PATCH /api/v1/access-logs/details/:logRef' => 'Completar detalles post-scan',
+            'POST /api/v1/access-logs/authorize-from-attempt' => 'Ingreso autorizado desde intento denegado',
             
             // Pets (Mascotas)
             'GET /api/v1/pets' => 'Listar todas las mascotas',

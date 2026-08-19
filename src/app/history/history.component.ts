@@ -8,9 +8,11 @@ import { ToastrService } from 'ngx-toastr';
 import { EntranceService } from '../entrance.service';
 import { AuthService } from '../auth.service';
 import { NavPermissionService } from '../nav-permission.service';
-import { AccessIncident, AccessIncidentService } from '../incidents/access-incident.service';
+import { AccessIncident, AccessIncidentService, buildScanContextFromHistoryRow } from '../incidents/access-incident.service';
+import { IncidentFormDialogComponent, INCIDENT_DIALOG_PANEL_CLASS } from '../incidents/incident-form-dialog.component';
 import { ApiService } from '../api.service';
 import { todayYmdInAppTimeZone } from '../app-date.util';
+import { operatorDecisionLabel } from '../shared/operator-decision';
 import * as XLSX from 'xlsx';
 import {
   ExpandableRowId,
@@ -163,6 +165,9 @@ export class HistoryComponent implements OnInit {
 
   showIncidentsColumn = false;
 
+  /** Staff con permiso manage: puede registrar incidencias desde historial o escáner. */
+  canCreateIncident = false;
+
   expandedHistoryRowId: ExpandableRowId = null;
   historyPhotoOpen = false;
   selectedHistoryPhotoUrl: string | null = null;
@@ -172,7 +177,7 @@ export class HistoryComponent implements OnInit {
     if (this.hasExternalRows) {
       cols += 1;
     }
-    if (this.showIncidentsColumn) {
+    if (this.showIncidentsColumn || this.canCreateIncident) {
       cols += 1;
     }
     if (this.showDayColumn) {
@@ -405,11 +410,14 @@ export class HistoryComponent implements OnInit {
       ORIGEN: this.entrySourceLabel(r),
       INGRESO: r['date_entry'],
       SALIDA: r['date_exit'] ?? '',
-      ...(this.hasExternalRows ? { PERMANENCIA_MIN: this.formatPermanence(r) } : {}),
+      PERMANENCIA_MIN: this.permanenceMinutes(r) ?? '',
+      EXCEDIO_ESTADIA: Number(r['stay_exceeded']) === 1 ? 'Sí' : 'No',
       RESULTADO: this.resultStatus(r),
-      NOTAS: this.resultNotes(r).join(' · '),
+      NOTAS_SISTEMA: this.resultNotes(r).join(' · '),
+      NOTAS_OPERARIO: String(r['operator_notes'] ?? '').trim(),
+      DECISION_OPERARIO: operatorDecisionLabel(String(r['operator_decision'] ?? '')),
       OPERARIO: r['operator'],
-      CAPTURA_LPR: r['access_photo_url'] ? 'Sí' : '—',
+      CAPTURA: r['access_photo_url'] ? 'Sí' : '—',
       ...(this.showIncidentsColumn
         ? {
             INCIDENCIAS: this.rowIncidentCount(r),
@@ -572,6 +580,7 @@ export class HistoryComponent implements OnInit {
     this.showDocColumn = this.auth.isStaff();
     this.navPerm.load().subscribe(() => {
       this.showIncidentsColumn = this.auth.isStaff() && this.navPerm.canView('incidents');
+      this.canCreateIncident = this.auth.isStaff() && this.navPerm.canManage('incidents');
     });
     const ymd = todayYmdInAppTimeZone();
     const [y, m, d] = ymd.split('-').map((n) => Number(n));
@@ -684,8 +693,36 @@ export class HistoryComponent implements OnInit {
     this.dialog.open(DialogHistoryIncidents, {
       width: 'min(560px, 96vw)',
       maxHeight: '90vh',
-      data: { logRef },
+      data: { logRef, historyRow: row, canCreate: this.canCreateIncident },
     });
+  }
+
+  reportIncident(row: HistoryRow, event?: Event): void {
+    event?.stopPropagation();
+    const logRef = Number(row['id'] ?? 0);
+    const accessPointId = Number(row['access_point_id'] ?? 0);
+    if (!logRef || accessPointId <= 0) {
+      this.toastr.warning('No se puede reportar incidencia: falta referencia del acceso.');
+      return;
+    }
+    this.dialog
+      .open(IncidentFormDialogComponent, {
+        width: 'min(480px, 96vw)',
+        panelClass: INCIDENT_DIALOG_PANEL_CLASS,
+        disableClose: true,
+        data: {
+          mode: 'scan',
+          accessPointId,
+          lockAccessPoint: true,
+          scanContext: buildScanContextFromHistoryRow(row),
+        },
+      })
+      .afterClosed()
+      .subscribe((saved) => {
+        if (saved) {
+          this.fetchHistory();
+        }
+      });
   }
 
   canOpenDayDetail(row: HistoryRow): boolean {
@@ -901,6 +938,14 @@ export class HistoryComponent implements OnInit {
     if (notes.length) {
       lines.push(`Notas: ${notes.join(' · ')}`);
     }
+    const operatorNotes = String(row['operator_notes'] ?? '').trim();
+    if (operatorNotes) {
+      lines.push(`Notas operario: ${operatorNotes}`);
+    }
+    const decision = operatorDecisionLabel(String(row['operator_decision'] ?? ''));
+    if (decision !== '—') {
+      lines.push(`Decisión operario: ${decision}`);
+    }
     const raw = String(row['observation_raw'] ?? row['obs'] ?? '').trim();
     if (raw && raw !== '—') {
       lines.push(`Observación completa: ${raw}`);
@@ -927,9 +972,9 @@ export class HistoryComponent implements OnInit {
 
   tooltipCapture(row: HistoryRow): string {
     if (!row['access_photo_url']) {
-      return 'Sin captura LPR / cámara en este registro';
+      return 'Sin captura en este registro';
     }
-    return 'Captura LPR / cámara del acceso\nClic para ampliar';
+    return 'Captura del acceso (LPR o garita)\nClic para ampliar';
   }
 
   tooltipIncident(row: HistoryRow): string {
@@ -977,7 +1022,15 @@ export class HistoryComponent implements OnInit {
         </div>
       </div>
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
+    <mat-dialog-actions align="end" class="!gap-2">
+      <button
+        *ngIf="data.canCreate"
+        type="button"
+        mat-stroked-button
+        color="warn"
+        (click)="openReportDialog()">
+        Reportar incidencia
+      </button>
       <button type="button" mat-button (click)="dialogRef.close()">Cerrar</button>
     </mat-dialog-actions>
   `,
@@ -988,11 +1041,36 @@ export class DialogHistoryIncidents implements OnInit {
 
   constructor(
     public dialogRef: MatDialogRef<DialogHistoryIncidents>,
-    @Inject(MAT_DIALOG_DATA) public data: { logRef: number },
+    @Inject(MAT_DIALOG_DATA) public data: { logRef: number; historyRow?: HistoryRow; canCreate?: boolean },
     private incidentService: AccessIncidentService,
     private api: ApiService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private dialog: MatDialog
   ) {}
+
+  openReportDialog(): void {
+    const row = this.data.historyRow;
+    const accessPointId = Number(row?.['access_point_id'] ?? 0);
+    if (!row || accessPointId <= 0) {
+      this.toastr.warning('No se puede reportar incidencia sobre este registro.');
+      return;
+    }
+    this.dialogRef.close();
+    this.dialog
+      .open(IncidentFormDialogComponent, {
+        width: 'min(480px, 96vw)',
+        panelClass: INCIDENT_DIALOG_PANEL_CLASS,
+        disableClose: true,
+        data: {
+          mode: 'scan',
+          accessPointId,
+          lockAccessPoint: true,
+          scanContext: buildScanContextFromHistoryRow(row),
+        },
+      })
+      .afterClosed()
+      .subscribe();
+  }
 
   ngOnInit(): void {
     this.loading = true;

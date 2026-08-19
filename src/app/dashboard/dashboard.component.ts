@@ -41,6 +41,12 @@ export class DashboardComponent implements OnInit {
   loadingNeighborBirthdays = false;
   /** Dashboard: ingresos (movement INGRESO) hoy — mismo origen que Historial, todos los puntos */
   accessLogsCountToday = 0;
+  /** Salidas registradas hoy (EGRESO + visitas externas con temp_exit_time). */
+  exitsTodayCount = 0;
+  /** Visitas externas que excedieron tiempo autorizado hoy. */
+  stayExceededTodayCount = 0;
+  /** Promedio de permanencia (min) de salidas cerradas hoy. */
+  avgPermanenceMinutesToday: number | null = null;
   loadingLogs = false;
   /** Dashboard: últimos ingresos del día (INGRESO) */
   lastAccessLogs: any[] = [];
@@ -231,6 +237,11 @@ export class DashboardComponent implements OnInit {
         const list = this.unwrapHistoryRows(raw);
         const ingreso = list.filter((r: any) => this.rowIsIngressMovement(r));
         this.accessLogsCountToday = ingreso.length;
+        this.exitsTodayCount = this.countExitsToday(list);
+        this.stayExceededTodayCount = list.filter(
+          (r: any) => Number(r?.stay_exceeded) === 1 && this.isRowFromToday(r, todayStr)
+        ).length;
+        this.avgPermanenceMinutesToday = this.computeAvgPermanenceClosedToday(list, todayStr);
         this.personsTodayCount = ingreso.filter(
           (r: any) => String(r?.type ?? '').toUpperCase() === 'PERSONA'
         ).length;
@@ -573,6 +584,49 @@ export class DashboardComponent implements OnInit {
   private rowIsIngressMovement(r: any): boolean {
     const m = String(r?.movement_type ?? r?.MOVEMENT_TYPE ?? '').trim().toUpperCase();
     return m === 'INGRESO';
+  }
+
+  private isRowFromToday(row: any, todayStr: string): boolean {
+    const ds = String(row?.date_entry ?? row?.created_at ?? '').slice(0, 10);
+    return ds === todayStr;
+  }
+
+  private countExitsToday(rows: any[]): number {
+    let count = 0;
+    for (const r of rows) {
+      if (String(r?.movement_type ?? '').toUpperCase() === 'EGRESO') {
+        count++;
+        continue;
+      }
+      const exit = r?.date_exit;
+      if (exit != null && exit !== '') {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  private computeAvgPermanenceClosedToday(rows: any[], todayStr: string): number | null {
+    const mins: number[] = [];
+    for (const r of rows) {
+      if (!this.isRowFromToday(r, todayStr)) {
+        continue;
+      }
+      const exit = r?.date_exit;
+      if (exit == null || exit === '') {
+        continue;
+      }
+      const entry = new Date(String(r?.date_entry ?? ''));
+      const exitDt = new Date(String(exit));
+      if (Number.isNaN(entry.getTime()) || Number.isNaN(exitDt.getTime())) {
+        continue;
+      }
+      mins.push(Math.max(0, Math.round((exitDt.getTime() - entry.getTime()) / 60000)));
+    }
+    if (!mins.length) {
+      return null;
+    }
+    return Math.round(mins.reduce((a, b) => a + b, 0) / mins.length);
   }
 
   private isNeighborVisitRow(r: any): boolean {

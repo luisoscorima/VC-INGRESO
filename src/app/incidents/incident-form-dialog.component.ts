@@ -77,7 +77,7 @@ interface PendingPhoto {
           </div>
         </div>
         <p *ngIf="data.mode === 'scan'" class="text-xs text-gray-500 dark:text-gray-400">
-          Queda ligada a este acceso. En denegados o visitas sin casa puede indicar Mz/Lote.
+          Queda ligada a este acceso (escáner o historial). En denegados o visitas sin casa puede indicar Mz/Lote.
         </p>
 
         <div *ngIf="apartmentOptions.length > 1">

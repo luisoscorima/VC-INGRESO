@@ -82,7 +82,7 @@ El modelo de datos evolucionó hacia un enfoque **house-centric** (`house_member
 ### Fase 2 — Pulir, datos y operación
 
 6. **Subida de fotos**: módulo coherente (vehículos, mascotas, perfil, incidencias, visitas externas); endpoints y `photo_url` en BD. *Parcial.*
-7. **Incidencias de acceso**: listado, alta manual y desde escáner, foto adjunta, vínculo con logs. *Implementado; ver §10.13.*
+7. **Incidencias de acceso**: listado, alta desde escáner e historial, foto adjunta, vínculo con logs. *Implementado; ver §10.13 y §10.17.*
 8. **Auditoría de eventos**: registro automático en acciones CRUD sensibles; consulta admin (30 días, paginado). *Implementado; ver §10.14.*
 9. **Sustituir stubs del Catalog** cuando existan tablas/datos reales.
 10. **Licencias / pagos (Crearttech)**: API y UI sobre `crearttech_clientes` (clients, payment). *Pendiente.*
@@ -108,7 +108,7 @@ El modelo de datos evolucionó hacia un enfoque **house-centric** (`house_member
 ### Prioridad media
 
 - [x] **Escáner / Código QR en garita** — validación, INGRESO/EGRESO, visitas externas multi-casa, cooldown visual, incidencias post-escaneo *(jun 2026)*.
-- [x] **Incidencias de acceso** — CRUD admin, modal desde escáner, foto, contexto de log *(jun 2026)*.
+- [x] **Incidencias de acceso** — listado, modal desde escáner e historial, foto, contexto de log *(ago 2026)*.
 - [x] **Permisos configurables** de pestañas de gestión por rol *(jun 2026)*.
 - [x] **Auditoría de eventos** — backend + pestaña admin en Configuración *(jun 2026)*.
 - [ ] **Módulo de gestión de imágenes** unificado (upload, filesystem; S3 opcional después). *Subidas dispersas ya funcionan en mascotas, vehículos, incidencias y visitas externas.*
@@ -296,10 +296,11 @@ stateDiagram-v2
   - Validación vía `access-qr/scan`; cooldown con imagen de estado; registro automático según modo.
   - Flujo visitas externas: pending house selection → confirmación → log temporal.
   - Botón de incidencia post-escaneo (permiso `incidents.manage`).
+  - Mini-historial: últimos 10 accesos del día en el punto seleccionado, con «Reportar» tardío e enlace a Historial.
 - **Incidencias de acceso**:
   - Migración `005_access_incidents.sql`; `AccessIncidentController` (listado, detalle, alta multipart).
-  - UI `/incidents` + `IncidentFormDialogComponent` (desde escáner o manual).
-  - Fuentes `scan` | `manual`; vínculo opcional a `access_log_id` o `temp_access_log_id`.
+  - UI `/incidents` (consulta) + `IncidentFormDialogComponent` desde **escáner** o **Historial** (sobre log existente).
+  - Solo `source=scan`; vínculo a `access_log_id` o `temp_access_log_id`. Registro requiere permiso `incidents.manage`.
 - **Dashboard**:
   - Eliminados diálogos legacy (`dialog-revalidar`, `dialog-select-sala`); componente reducido (~1400 líneas menos).
   - Gráficos corregidos: barras por hora y donut de distribución de visitantes.
@@ -333,6 +334,25 @@ stateDiagram-v2
 - **Dependencias Angular**: actualización menor en `package.json`; limpieza de modelos/servicios legacy no usados (`clientes.service`, `collaborator.ts`, `payment.ts`, `area.ts`).
 - **Componentes pulidos**: Birthday, Houses, Settings, Access Points con layout responsive coherente.
 
+### 10.17 Actualización 2026-08 — Cierre flujo accesos e incidencias
+
+- **Incidencias desde Historial**: botón «Reportar» en fila + modal de incidencias existentes; validación backend de `access_point_id` vs log ligado.
+- **Permisos**: registrar incidencia requiere `incidents.manage` (escáner e historial).
+- **Notas operario**: migración `017_operator_notes.sql`; campo `operator_notes` en `access_logs` y `temporary_access_logs`; textarea opcional en escáner; export historial.
+- **Validación dedup**: POST `access-logs` INGRESO rechaza duplicado reciente (409).
+- **Dashboard staff**: widgets salidas hoy, excesos de estadía y permanencia promedio.
+- **Servicios**: `AccessLogService` consolidado (`createResidentAccessLog`, `createTemporaryEntry/Exit`).
+- **LPR EGRESO**: especificación en [plans/LPR_EGRESS_SPEC.md](plans/LPR_EGRESS_SPEC.md) (fase posterior).
+
+### 10.18 Actualización 2026-08 — Detalles de acceso e ingreso autorizado
+
+- **Auditoría DENEGADO externo**: `POST /access-logs/temporary/denied` crea fila en historial sin sesión abierta.
+- **Decisión operario**: migración `018_operator_decision.sql`; campo `operator_decision` en ambas tablas de logs.
+- **Panel garita**: «Detalles del acceso» post-escaneo (nota, foto, casa, decisión); incidencia relegada a «Escalar problema».
+- **Ingreso autorizado**: `POST /access-logs/authorize-from-attempt` — un clic tras WhatsApp/llamada del propietario.
+- **PATCH detalles**: `PATCH /access-logs/details/:logRef` con foto opcional (`access-captures` en S3).
+- **Historial/export**: columnas `operator_decision` y captura (LPR o garita).
+
 ---
 
 ## 11. Documentación del repositorio
@@ -343,6 +363,7 @@ stateDiagram-v2
 | [server/API.md](server/API.md) | Contrato REST v1 (rutas y cuerpos; alineado a `index.php`) |
 | Este archivo | Estado, roadmap, pendientes, mejoras implementadas |
 | [plans/REFERENCIA_TECNICA.md](plans/REFERENCIA_TECNICA.md) | Bases de datos, flujos, deploy, modelos, contexto ampliado |
+| [plans/LPR_EGRESS_SPEC.md](plans/LPR_EGRESS_SPEC.md) | Diseño fase posterior: EGRESO automático LPR |
 
 ## 12. Próximas etapas sugeridas (post jun 2026)
 

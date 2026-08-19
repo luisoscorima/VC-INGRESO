@@ -25,9 +25,119 @@ class AccessLogController
     private $pdo;
     private $table = 'access_logs';
 
+    /** @var list<string> */
+    private const OPERATOR_DECISIONS = [
+        'CONSULTADO_PROPIETARIO',
+        'AUTORIZADO_POR_PROPIETARIO',
+        'RECHAZO_CONFIRMADO',
+        'SIN_DOMICILIO',
+    ];
+
+    private const MAX_ACCESS_CAPTURE_PHOTOS = 5;
+
     public function __construct($pdo)
     {
         $this->pdo = $pdo;
+        self::ensureOperatorNotesColumns($this->pdo);
+        self::ensureOperatorDecisionColumns($this->pdo);
+        self::ensurePhotoUrlsColumns($this->pdo);
+    }
+
+    private static function ensureOperatorNotesColumns(\PDO $pdo): void
+    {
+        foreach (['access_logs', 'temporary_access_logs'] as $table) {
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+            );
+            $stmt->execute([$table, 'operator_notes']);
+            if ((int) $stmt->fetchColumn() === 0) {
+                $pdo->exec("ALTER TABLE {$table} ADD COLUMN operator_notes TEXT DEFAULT NULL");
+            }
+        }
+    }
+
+    private static function ensureOperatorDecisionColumns(\PDO $pdo): void
+    {
+        $enumSql = "ENUM('CONSULTADO_PROPIETARIO','AUTORIZADO_POR_PROPIETARIO','RECHAZO_CONFIRMADO','SIN_DOMICILIO') DEFAULT NULL";
+        foreach (['access_logs', 'temporary_access_logs'] as $table) {
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+            );
+            $stmt->execute([$table, 'operator_decision']);
+            if ((int) $stmt->fetchColumn() === 0) {
+                $pdo->exec("ALTER TABLE {$table} ADD COLUMN operator_decision {$enumSql}");
+            }
+        }
+    }
+
+    private static function ensurePhotoUrlsColumns(\PDO $pdo): void
+    {
+        foreach (['access_logs', 'temporary_access_logs'] as $table) {
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+            );
+            $stmt->execute([$table, 'photo_urls']);
+            if ((int) $stmt->fetchColumn() === 0) {
+                $pdo->exec("ALTER TABLE {$table} ADD COLUMN photo_urls JSON DEFAULT NULL COMMENT 'Array de rutas/URLs de fotos garita'");
+            }
+        }
+    }
+
+    private function sanitizeOperatorNotes($raw): ?string
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        $text = trim(strip_tags((string) $raw));
+        if ($text === '') {
+            return null;
+        }
+
+        return mb_substr($text, 0, 2000);
+    }
+
+    /**
+     * Evita doble registro accidental en ventana corta (misma identidad + punto + tipo).
+     */
+    private function rejectDuplicateRecentEntry(int $accessPointId, string $type, array $data): void
+    {
+        if ($type !== 'INGRESO') {
+            return;
+        }
+        $windowSeconds = 8;
+        $since = date('Y-m-d H:i:s', time() - $windowSeconds);
+        $clauses = ['access_point_id = ?', 'type = ?', 'created_at >= ?'];
+        $params = [$accessPointId, 'INGRESO', $since];
+
+        if (!empty($data['person_id'])) {
+            $clauses[] = 'person_id = ?';
+            $params[] = (int) $data['person_id'];
+        } elseif (!empty($data['vehicle_id'])) {
+            $clauses[] = 'vehicle_id = ?';
+            $params[] = (int) $data['vehicle_id'];
+        } elseif (!empty($data['doc_number'])) {
+            $clauses[] = 'doc_number = ?';
+            $params[] = trim((string) $data['doc_number']);
+        } elseif (!empty($data['license_plate'])) {
+            $clauses[] = 'license_plate_snapshot = ?';
+            $params[] = normalize_license_plate((string) $data['license_plate']);
+        } else {
+            return;
+        }
+
+        $sql = 'SELECT id FROM access_logs WHERE ' . implode(' AND ', $clauses) . ' LIMIT 1';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        if ($stmt->fetchColumn()) {
+            Response::json([
+                'success' => false,
+                'error' => 'Registro duplicado reciente; espere unos segundos.',
+            ], 409);
+            exit;
+        }
     }
 
     /**
@@ -184,14 +294,19 @@ class AccessLogController
                 return;
             }
 
+            if (empty($data['authorized_from_attempt'])) {
+                $this->rejectDuplicateRecentEntry($accessPointId, $data['type'], $data);
+            }
+
             $identity = $this->resolveIdentitySnapshot($data);
+            $operatorNotes = $this->sanitizeOperatorNotes($data['operator_notes'] ?? null);
             $stmt = $this->pdo->prepare("
                 INSERT INTO {$this->table} 
                 (access_point_id, person_id, doc_number, vehicle_id, entity_kind,
                  display_name_snapshot, document_snapshot, document_type_snapshot, license_plate_snapshot,
-                 identity_source, identity_resolved_at, type, observation, entry_source,
+                 identity_source, identity_resolved_at, type, observation, operator_notes, entry_source,
                  created_by_user_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
 
             $stmt->execute([
@@ -208,6 +323,7 @@ class AccessLogController
                 $identity['identity_resolved_at'],
                 $data['type'],
                 $data['observation'] ?? null,
+                $operatorNotes,
                 $entrySource,
                 $createdByUserId
             ]);
@@ -631,13 +747,14 @@ class AccessLogController
             $snapshotDocType = normalize_identity_document_type($profile['temp_visit_doc_type'] ?? '') ?: null;
             $snapshotName = trim((string) ($profile['temp_visit_name'] ?? ''));
             $entityKind = $snapshotPlate !== '' ? 'VEHICLE' : 'PERSON';
+            $operatorNotes = $this->sanitizeOperatorNotes($data['operator_notes'] ?? null);
             $stmt = $this->pdo->prepare(
                 "INSERT INTO temporary_access_logs
                  (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot, document_type_snapshot,
                   license_plate_snapshot, identity_source, identity_resolved_at,
                   assignment_id, assignment_valid_until, authorized_duration_minutes, stay_deadline,
-                  temp_entry_time, access_point_id, status_validated, entry_source, house_id, created_by_user_id)
-                 VALUES (?, ?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                  temp_entry_time, access_point_id, status_validated, entry_source, house_id, operator_notes, created_by_user_id)
+                 VALUES (?, ?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $stmt->execute([
                 $tempVisitId,
@@ -656,6 +773,7 @@ class AccessLogController
                 $statusValidated !== '' ? $statusValidated : 'PERMITIDO',
                 $entrySource,
                 $houseId,
+                $operatorNotes,
                 $createdByUserId,
             ]);
 
@@ -1106,6 +1224,7 @@ class AccessLogController
                 al.id,
                 al.access_point_id,
                 al.person_id,
+                al.house_id,
                 {$s("COALESCE(NULLIF(TRIM(al.document_snapshot), ''), NULLIF(TRIM(al.doc_number), ''), NULLIF(TRIM(p.doc_number), ''), '')")} AS doc_number,
                 al.vehicle_id,
                 {$s("COALESCE(al.entity_kind, CASE WHEN al.vehicle_id IS NOT NULL OR NULLIF(TRIM(al.license_plate_snapshot), '') IS NOT NULL OR al.observation REGEXP 'placa[[:space:]]+[[:alnum:]-]+' THEN 'VEHICLE' ELSE 'PERSON' END)")} AS entity_kind,
@@ -1116,6 +1235,8 @@ class AccessLogController
                 al.identity_resolved_at,
                 {$s('al.type')} AS movement_type,
                 {$s('al.observation')} AS observation_raw,
+                {$s('al.operator_notes')} AS operator_notes,
+                {$s('al.operator_decision')} AS operator_decision,
                 {$s('al.entry_source')} AS entry_source,
                 {$s('al.photo_url')} AS access_photo_url,
                 al.created_by_user_id,
@@ -1196,7 +1317,9 @@ class AccessLogController
             SELECT
                 -(tal.temp_access_log_id) AS id,
                 tal.access_point_id,
+                tal.temp_visit_id,
                 NULL AS person_id,
+                tal.house_id,
                 {$s("COALESCE(NULLIF(TRIM(tal.document_snapshot), ''), NULLIF(TRIM(tv.temp_visit_doc), ''), '')")} AS doc_number,
                 NULL AS vehicle_id,
                 {$s("COALESCE(tal.entity_kind, CASE WHEN NULLIF(TRIM(COALESCE(tal.license_plate_snapshot, tv.temp_visit_plate)), '') IS NOT NULL THEN 'VEHICLE' ELSE 'PERSON' END)")} AS entity_kind,
@@ -1207,6 +1330,8 @@ class AccessLogController
                 tal.identity_resolved_at,
                 {$s("'INGRESO'")} AS movement_type,
                 {$s('CAST(NULL AS CHAR(1))')} AS observation_raw,
+                {$s('tal.operator_notes')} AS operator_notes,
+                {$s('tal.operator_decision')} AS operator_decision,
                 {$s('tal.entry_source')} AS entry_source,
                 {$s('tal.photo_url')} AS access_photo_url,
                 tal.created_by_user_id,
@@ -1396,5 +1521,722 @@ class AccessLogController
     private function accessPointQueryValue(): string
     {
         return trim((string) ($_GET['access_point'] ?? ''));
+    }
+
+    private function sanitizeOperatorDecision($raw): ?string
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        $value = strtoupper(trim((string) $raw));
+
+        return in_array($value, self::OPERATOR_DECISIONS, true) ? $value : null;
+    }
+
+    private function isDeniedAccessLogAttempt(array $row): bool
+    {
+        $obs = strtoupper(trim((string) ($row['observation'] ?? '')));
+
+        return str_starts_with($obs, 'DENEGADO')
+            || str_contains($obs, '| DENEGADO')
+            || str_contains($obs, 'DENEGADO |');
+    }
+
+    private function isDeniedTemporaryAttempt(array $row): bool
+    {
+        $status = strtoupper(trim((string) ($row['status_validated'] ?? '')));
+        if ($status !== 'DENEGADO') {
+            return false;
+        }
+        $entry = strtotime((string) ($row['temp_entry_time'] ?? ''));
+        $exit = strtotime((string) ($row['temp_exit_time'] ?? ''));
+        if ($entry === false || $exit === false) {
+            return true;
+        }
+
+        return abs($exit - $entry) <= 1;
+    }
+
+    private function validateHouseIdOrNull($houseIdRaw): ?int
+    {
+        if ($houseIdRaw === null || $houseIdRaw === '' || (int) $houseIdRaw === 0) {
+            return null;
+        }
+        $houseId = (int) $houseIdRaw;
+        if ($houseId <= 0) {
+            return null;
+        }
+        $stmt = $this->pdo->prepare('SELECT house_id FROM houses WHERE house_id = ? LIMIT 1');
+        $stmt->execute([$houseId]);
+        if (!$stmt->fetchColumn()) {
+            Response::json(['success' => false, 'error' => 'Domicilio no encontrado'], 422);
+            exit;
+        }
+
+        return $houseId;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function decodeAccessLogPhotoUrls(array $row): array
+    {
+        $raw = $row['photo_urls'] ?? null;
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $paths = [];
+                foreach ($decoded as $item) {
+                    $path = trim((string) $item);
+                    if ($path !== '') {
+                        $paths[] = $path;
+                    }
+                }
+                if ($paths !== []) {
+                    return $paths;
+                }
+            }
+        }
+        $single = trim((string) ($row['photo_url'] ?? ''));
+        if ($single !== '') {
+            return [$single];
+        }
+
+        return [];
+    }
+
+    /**
+     * @param array<string,mixed> $row
+     * @return array<string,mixed>
+     */
+    private function normalizeAccessLogPhotoFields(array $row): array
+    {
+        $paths = $this->decodeAccessLogPhotoUrls($row);
+        $resolved = [];
+        foreach ($paths as $path) {
+            $url = resolveMediaUrl($path);
+            if ($url !== null && $url !== '') {
+                $resolved[] = $url;
+            }
+        }
+        $row['photo_urls'] = $resolved;
+        $row['photo_url'] = $resolved[0] ?? null;
+
+        return $row;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function uploadAccessCapturePhotos(int $logId): array
+    {
+        $files = $this->collectUploadedPhotoFiles();
+        if ($files === []) {
+            return [];
+        }
+        if (count($files) > self::MAX_ACCESS_CAPTURE_PHOTOS) {
+            throw new \RuntimeException('Máximo ' . self::MAX_ACCESS_CAPTURE_PHOTOS . ' fotos por acceso.');
+        }
+
+        $paths = [];
+        $i = 0;
+        foreach ($files as $file) {
+            $error = (int) ($file['error'] ?? UPLOAD_ERR_OK);
+            if ($error === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+            if ($error !== UPLOAD_ERR_OK) {
+                throw new \RuntimeException($this->uploadAccessCaptureErrorMessage($error));
+            }
+
+            $ext = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
+            $filename = 'access_' . $logId . '_' . time() . '_' . $i . '.' . ($ext !== '' ? $ext : 'jpg');
+            $result = storePublicPhoto($file, 'access-captures', [
+                'allowed_exts' => ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+                'max_bytes' => 5 * 1024 * 1024,
+                'filename' => $filename,
+                'field_required' => true,
+            ]);
+            if (!$result['success']) {
+                throw new \RuntimeException($result['error'] ?? 'Error al guardar la imagen.');
+            }
+            $paths[] = (string) $result['photo_url'];
+            $i++;
+        }
+
+        return $paths;
+    }
+
+    /**
+     * @return list<array{name:string,type:string,tmp_name:string,error:int,size:int}>
+     */
+    private function collectUploadedPhotoFiles(): array
+    {
+        $out = [];
+
+        foreach (['photos', 'photos[]'] as $key) {
+            if (!isset($_FILES[$key]) || !is_array($_FILES[$key])) {
+                continue;
+            }
+            $bag = $_FILES[$key];
+            if (isset($bag['name']) && is_array($bag['name'])) {
+                $n = count($bag['name']);
+                for ($i = 0; $i < $n; $i++) {
+                    $out[] = [
+                        'name' => (string) ($bag['name'][$i] ?? ''),
+                        'type' => (string) ($bag['type'][$i] ?? ''),
+                        'tmp_name' => (string) ($bag['tmp_name'][$i] ?? ''),
+                        'error' => (int) ($bag['error'][$i] ?? UPLOAD_ERR_NO_FILE),
+                        'size' => (int) ($bag['size'][$i] ?? 0),
+                    ];
+                }
+            } elseif (isset($bag['tmp_name']) && is_string($bag['tmp_name'])) {
+                $out[] = [
+                    'name' => (string) ($bag['name'] ?? ''),
+                    'type' => (string) ($bag['type'] ?? ''),
+                    'tmp_name' => (string) $bag['tmp_name'],
+                    'error' => (int) ($bag['error'] ?? UPLOAD_ERR_NO_FILE),
+                    'size' => (int) ($bag['size'] ?? 0),
+                ];
+            }
+        }
+
+        if (isset($_FILES['photo']) && is_array($_FILES['photo']) && isset($_FILES['photo']['tmp_name']) && !is_array($_FILES['photo']['tmp_name'])) {
+            $out[] = [
+                'name' => (string) ($_FILES['photo']['name'] ?? ''),
+                'type' => (string) ($_FILES['photo']['type'] ?? ''),
+                'tmp_name' => (string) $_FILES['photo']['tmp_name'],
+                'error' => (int) ($_FILES['photo']['error'] ?? UPLOAD_ERR_NO_FILE),
+                'size' => (int) ($_FILES['photo']['size'] ?? 0),
+            ];
+        }
+
+        return $out;
+    }
+
+    private function uploadAccessCaptureErrorMessage(int $code): string
+    {
+        return match ($code) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'La imagen supera el tamaño máximo permitido (5 MB).',
+            UPLOAD_ERR_PARTIAL => 'La imagen se subió solo parcialmente. Intente de nuevo.',
+            UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE, UPLOAD_ERR_EXTENSION => 'Error del servidor al recibir la imagen.',
+            default => 'Error al subir la imagen (código ' . $code . ').',
+        };
+    }
+
+    /**
+     * POST /api/v1/access-logs/temporary/denied
+     * Registra intento denegado de visita externa (auditoría, sin sesión abierta).
+     */
+    public function storeTemporaryDenied(): void
+    {
+        $auth = requireAuth();
+        if (!isStaffRole($auth)) {
+            Response::json(['success' => false, 'error' => 'Solo personal autorizado'], 403);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data) {
+            Response::json(['success' => false, 'error' => 'Datos inválidos'], 400);
+            return;
+        }
+
+        $accessPointId = (int) ($data['access_point_id'] ?? 0);
+        $tempVisitId = (int) ($data['temp_visit_id'] ?? 0);
+        if ($accessPointId <= 0 || $tempVisitId <= 0) {
+            Response::json(['success' => false, 'error' => 'access_point_id y temp_visit_id requeridos'], 400);
+            return;
+        }
+
+        if (!$this->findActiveAccessPoint($accessPointId)) {
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
+            return;
+        }
+
+        $createdByUserId = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
+        $entrySourceRaw = strtolower(trim((string) ($data['entry_source'] ?? 'manual')));
+        $entrySource = in_array($entrySourceRaw, ['manual', 'qr', 'camera'], true) ? $entrySourceRaw : 'manual';
+        $now = date('Y-m-d H:i:s');
+        $houseId = $this->nullablePositiveInt($data['house_id'] ?? null);
+        $assignmentId = $this->nullablePositiveInt($data['assignment_id'] ?? null);
+        $operatorNotes = $this->sanitizeOperatorNotes($data['operator_notes'] ?? null);
+
+        try {
+            $profileStmt = $this->pdo->prepare(
+                'SELECT temp_visit_name, temp_visit_doc, temp_visit_doc_type, temp_visit_plate
+                 FROM temporary_visits WHERE temp_visit_id = ? LIMIT 1'
+            );
+            $profileStmt->execute([$tempVisitId]);
+            $profile = $profileStmt->fetch(\PDO::FETCH_ASSOC);
+            if (!$profile) {
+                Response::json(['success' => false, 'error' => 'Visita temporal no encontrada'], 404);
+                return;
+            }
+
+            $snapshotName = trim((string) ($data['display_name_snapshot'] ?? $profile['temp_visit_name'] ?? ''));
+            $snapshotDoc = trim((string) ($data['document_snapshot'] ?? $profile['temp_visit_doc'] ?? ''));
+            $snapshotDocType = normalize_identity_document_type(
+                $data['document_type_snapshot'] ?? $profile['temp_visit_doc_type'] ?? ''
+            ) ?: null;
+            $snapshotPlate = normalize_license_plate(
+                (string) ($data['license_plate_snapshot'] ?? $profile['temp_visit_plate'] ?? '')
+            );
+            $entityKindRaw = strtoupper(trim((string) ($data['entity_kind'] ?? '')));
+            $entityKind = in_array($entityKindRaw, ['PERSON', 'VEHICLE'], true)
+                ? $entityKindRaw
+                : ($snapshotPlate !== '' ? 'VEHICLE' : 'PERSON');
+
+            $stmt = $this->pdo->prepare(
+                "INSERT INTO temporary_access_logs
+                 (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot, document_type_snapshot,
+                  license_plate_snapshot, identity_source, identity_resolved_at,
+                  assignment_id, temp_entry_time, temp_exit_time, access_point_id, status_validated,
+                  entry_source, house_id, operator_notes, created_by_user_id)
+                 VALUES (?, ?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, 'DENEGADO', ?, ?, ?, ?)"
+            );
+            $stmt->execute([
+                $tempVisitId,
+                $entityKind,
+                $snapshotName !== '' ? $snapshotName : null,
+                $snapshotDoc !== '' ? $snapshotDoc : null,
+                $snapshotDocType,
+                $snapshotPlate !== '' ? $snapshotPlate : null,
+                $now,
+                $assignmentId,
+                $now,
+                $now,
+                $accessPointId,
+                $entrySource,
+                $houseId,
+                $operatorNotes,
+                $createdByUserId,
+            ]);
+
+            $id = (int) $this->pdo->lastInsertId();
+
+            recordEventLog($this->pdo, $auth, 'access_log.denied_attempt', [
+                'summary' => 'Intento denegado visita externa #' . $tempVisitId,
+                'entity_type' => 'temporary_access_logs',
+                'entity_id' => $id,
+                'details' => [
+                    'temp_visit_id' => $tempVisitId,
+                    'access_point_id' => $accessPointId,
+                    'house_id' => $houseId,
+                ],
+            ]);
+
+            Response::json([
+                'success' => true,
+                'data' => [
+                    'temp_access_log_id' => $id,
+                    'log_ref' => -$id,
+                    'message' => 'Intento denegado registrado',
+                ],
+            ], 201);
+        } catch (\PDOException $e) {
+            Response::json(['success' => false, 'error' => 'Error al registrar intento: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * PATCH /api/v1/access-logs/details/:logRef
+     * Completa detalles post-scan (nota, decisión, casa, foto).
+     */
+    public function patchDetails(int $logRef): void
+    {
+        $auth = requireAuth();
+        if (!isStaffRole($auth)) {
+            Response::json(['success' => false, 'error' => 'Solo personal autorizado'], 403);
+            return;
+        }
+
+        if ($logRef === 0) {
+            Response::json(['success' => false, 'error' => 'log_ref inválido'], 400);
+            return;
+        }
+
+        $isTemp = $logRef < 0;
+        $rowId = abs($logRef);
+        $table = $isTemp ? 'temporary_access_logs' : 'access_logs';
+        $idCol = $isTemp ? 'temp_access_log_id' : 'id';
+
+        $stmt = $this->pdo->prepare("SELECT * FROM {$table} WHERE {$idCol} = ? LIMIT 1");
+        $stmt->execute([$rowId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$row) {
+            Response::json(['success' => false, 'error' => 'Registro no encontrado'], 404);
+            return;
+        }
+
+        $contentType = strtolower(trim((string) ($_SERVER['CONTENT_TYPE'] ?? '')));
+        $isMultipart = str_contains($contentType, 'multipart/form-data');
+        $input = $isMultipart ? $_POST : (json_decode(file_get_contents('php://input'), true) ?: []);
+
+        $updates = [];
+        $params = [];
+
+        if (array_key_exists('operator_notes', $input)) {
+            $updates[] = 'operator_notes = ?';
+            $params[] = $this->sanitizeOperatorNotes($input['operator_notes']);
+        }
+
+        if (array_key_exists('operator_decision', $input)) {
+            $decision = $this->sanitizeOperatorDecision($input['operator_decision']);
+            if ($input['operator_decision'] !== '' && $input['operator_decision'] !== null && $decision === null) {
+                Response::json(['success' => false, 'error' => 'operator_decision inválida'], 422);
+                return;
+            }
+            $updates[] = 'operator_decision = ?';
+            $params[] = $decision;
+        }
+
+        if (array_key_exists('house_id', $input)) {
+            $houseId = $this->validateHouseIdOrNull($input['house_id']);
+            $updates[] = 'house_id = ?';
+            $params[] = $houseId;
+        }
+
+        $newPhotoPaths = [];
+        if ($isMultipart) {
+            try {
+                $uploaded = $this->uploadAccessCapturePhotos($rowId);
+                if ($uploaded !== []) {
+                    $existing = $this->decodeAccessLogPhotoUrls($row);
+                    $merged = array_values(array_unique(array_merge($existing, $uploaded)));
+                    if (count($merged) > self::MAX_ACCESS_CAPTURE_PHOTOS) {
+                        foreach ($uploaded as $path) {
+                            deleteStoredMedia($path);
+                        }
+                        Response::json([
+                            'success' => false,
+                            'error' => 'Máximo ' . self::MAX_ACCESS_CAPTURE_PHOTOS . ' fotos por acceso.',
+                        ], 422);
+                        return;
+                    }
+                    $newPhotoPaths = $merged;
+                    $updates[] = 'photo_url = ?';
+                    $params[] = $merged[0] ?? null;
+                    $updates[] = 'photo_urls = ?';
+                    $params[] = json_encode($merged, JSON_UNESCAPED_SLASHES);
+                }
+            } catch (\RuntimeException $e) {
+                Response::json(['success' => false, 'error' => $e->getMessage()], 422);
+                return;
+            }
+        }
+
+        if ($updates === []) {
+            Response::json(['success' => false, 'error' => 'Nada que actualizar'], 400);
+            return;
+        }
+
+        try {
+            $params[] = $rowId;
+            $sql = "UPDATE {$table} SET " . implode(', ', $updates) . " WHERE {$idCol} = ?";
+            $upd = $this->pdo->prepare($sql);
+            $upd->execute($params);
+
+            $stmt->execute([$rowId]);
+            $updated = $stmt->fetch(\PDO::FETCH_ASSOC) ?: $row;
+            $updated = $this->normalizeAccessLogPhotoFields($updated);
+
+            recordEventLog($this->pdo, $auth, 'access_log.details_update', [
+                'summary' => 'Detalles actualizados en log ' . $logRef,
+                'entity_type' => $table,
+                'entity_id' => $rowId,
+                'details' => [
+                    'log_ref' => $logRef,
+                    'fields' => array_keys(array_filter([
+                        'operator_notes' => array_key_exists('operator_notes', $input),
+                        'operator_decision' => array_key_exists('operator_decision', $input),
+                        'house_id' => array_key_exists('house_id', $input),
+                        'photo_url' => $newPhotoPaths !== [],
+                        'photo_urls' => $newPhotoPaths !== [],
+                    ])),
+                ],
+            ]);
+
+            Response::json([
+                'success' => true,
+                'data' => [
+                    'log_ref' => $logRef,
+                    'row' => $updated,
+                    'message' => 'Detalles guardados',
+                ],
+            ], 200);
+        } catch (\PDOException $e) {
+            Response::json(['success' => false, 'error' => 'Error al actualizar: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /api/v1/access-logs/authorize-from-attempt
+     * Crea INGRESO PERMITIDO en un clic tras autorización del propietario.
+     */
+    public function authorizeFromAttempt(): void
+    {
+        $auth = requireAuth();
+        if (!isStaffRole($auth)) {
+            Response::json(['success' => false, 'error' => 'Solo personal autorizado'], 403);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (!$data) {
+            Response::json(['success' => false, 'error' => 'Datos inválidos'], 400);
+            return;
+        }
+
+        $logRef = (int) ($data['log_ref'] ?? 0);
+        if ($logRef === 0) {
+            Response::json(['success' => false, 'error' => 'log_ref requerido'], 400);
+            return;
+        }
+
+        $overrideHouseId = array_key_exists('house_id', $data)
+            ? $this->validateHouseIdOrNull($data['house_id'])
+            : null;
+
+        if ($logRef > 0) {
+            $this->authorizeFromResidentAttempt($auth, $logRef, $overrideHouseId);
+            return;
+        }
+
+        $this->authorizeFromTemporaryAttempt($auth, abs($logRef), $overrideHouseId);
+    }
+
+    private function authorizeFromResidentAttempt(array $auth, int $attemptId, ?int $overrideHouseId): void
+    {
+        $stmt = $this->pdo->prepare("SELECT * FROM {$this->table} WHERE id = ? LIMIT 1");
+        $stmt->execute([$attemptId]);
+        $attempt = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$attempt) {
+            Response::json(['success' => false, 'error' => 'Registro no encontrado'], 404);
+            return;
+        }
+        if ((string) ($attempt['type'] ?? '') !== 'INGRESO') {
+            Response::json(['success' => false, 'error' => 'Solo aplica a intentos de ingreso'], 422);
+            return;
+        }
+        if (!$this->isDeniedAccessLogAttempt($attempt)) {
+            Response::json(['success' => false, 'error' => 'El registro no es un intento denegado'], 422);
+            return;
+        }
+        if (($attempt['operator_decision'] ?? '') !== 'AUTORIZADO_POR_PROPIETARIO') {
+            Response::json([
+                'success' => false,
+                'error' => 'Registre la decisión «Autorizado por propietario» antes de autorizar el ingreso',
+            ], 422);
+            return;
+        }
+
+        $houseId = $overrideHouseId ?? $this->nullablePositiveInt($attempt['house_id'] ?? null);
+        $createdByUserId = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
+        $entrySource = in_array($attempt['entry_source'] ?? '', ['manual', 'qr', 'camera'], true)
+            ? $attempt['entry_source']
+            : 'manual';
+
+        try {
+            $payload = [
+                'access_point_id' => (int) $attempt['access_point_id'],
+                'type' => 'INGRESO',
+                'observation' => 'PERMITIDO | AUTORIZADO_OPERARIO',
+                'entry_source' => $entrySource,
+                'person_id' => $attempt['person_id'] ?? null,
+                'doc_number' => $attempt['doc_number'] ?? null,
+                'vehicle_id' => $attempt['vehicle_id'] ?? null,
+                'license_plate' => $attempt['license_plate_snapshot'] ?? null,
+                'entity_kind' => $attempt['entity_kind'] ?? null,
+                'display_name_snapshot' => $attempt['display_name_snapshot'] ?? null,
+                'document_snapshot' => $attempt['document_snapshot'] ?? null,
+                'document_type_snapshot' => $attempt['document_type_snapshot'] ?? null,
+                'license_plate_snapshot' => $attempt['license_plate_snapshot'] ?? null,
+                'identity_source' => $attempt['identity_source'] ?? null,
+                'identity_resolved_at' => $attempt['identity_resolved_at'] ?? null,
+                'authorized_from_attempt' => true,
+            ];
+
+            $identity = $this->resolveIdentitySnapshot($payload);
+            $insert = $this->pdo->prepare(
+                "INSERT INTO {$this->table}
+                 (access_point_id, person_id, doc_number, vehicle_id, house_id, entity_kind,
+                  display_name_snapshot, document_snapshot, document_type_snapshot, license_plate_snapshot,
+                  identity_source, identity_resolved_at, type, observation, entry_source,
+                  created_by_user_id, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INGRESO', ?, ?, ?, NOW())"
+            );
+            $insert->execute([
+                (int) $attempt['access_point_id'],
+                $attempt['person_id'] ?? null,
+                $attempt['doc_number'] ?? null,
+                $attempt['vehicle_id'] ?? null,
+                $houseId,
+                $identity['entity_kind'],
+                $identity['display_name_snapshot'],
+                $identity['document_snapshot'],
+                $identity['document_type_snapshot'],
+                $identity['license_plate_snapshot'],
+                $identity['identity_source'],
+                $identity['identity_resolved_at'],
+                'PERMITIDO | AUTORIZADO_OPERARIO',
+                $entrySource,
+                $createdByUserId,
+            ]);
+
+            $newId = (int) $this->pdo->lastInsertId();
+
+            recordEventLog($this->pdo, $auth, 'access_log.authorize_from_attempt', [
+                'summary' => 'Ingreso autorizado desde intento #' . $attemptId,
+                'entity_type' => 'access_logs',
+                'entity_id' => $newId,
+                'details' => [
+                    'attempt_log_id' => $attemptId,
+                    'house_id' => $houseId,
+                ],
+            ]);
+
+            Response::json([
+                'success' => true,
+                'data' => [
+                    'authorized_log_id' => $newId,
+                    'log_ref' => $newId,
+                    'message' => 'Ingreso autorizado registrado',
+                ],
+            ], 201);
+        } catch (\PDOException $e) {
+            Response::json(['success' => false, 'error' => 'Error al autorizar ingreso: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function authorizeFromTemporaryAttempt(array $auth, int $attemptId, ?int $overrideHouseId): void
+    {
+        $stmt = $this->pdo->prepare('SELECT * FROM temporary_access_logs WHERE temp_access_log_id = ? LIMIT 1');
+        $stmt->execute([$attemptId]);
+        $attempt = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$attempt) {
+            Response::json(['success' => false, 'error' => 'Registro no encontrado'], 404);
+            return;
+        }
+        if (!$this->isDeniedTemporaryAttempt($attempt)) {
+            Response::json(['success' => false, 'error' => 'El registro no es un intento denegado'], 422);
+            return;
+        }
+        if (($attempt['operator_decision'] ?? '') !== 'AUTORIZADO_POR_PROPIETARIO') {
+            Response::json([
+                'success' => false,
+                'error' => 'Registre la decisión «Autorizado por propietario» antes de autorizar el ingreso',
+            ], 422);
+            return;
+        }
+
+        $tempVisitId = (int) ($attempt['temp_visit_id'] ?? 0);
+        $accessPointId = (int) ($attempt['access_point_id'] ?? 0);
+        $houseId = $overrideHouseId ?? $this->nullablePositiveInt($attempt['house_id'] ?? null);
+        $assignmentId = $this->nullablePositiveInt($attempt['assignment_id'] ?? null);
+
+        if ($tempVisitId <= 0 || $accessPointId <= 0) {
+            Response::json(['success' => false, 'error' => 'Intento incompleto'], 422);
+            return;
+        }
+
+        if (!$this->findActiveAccessPoint($accessPointId)) {
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
+            return;
+        }
+
+        $openStmt = $this->pdo->prepare(
+            'SELECT temp_access_log_id FROM temporary_access_logs
+             WHERE temp_visit_id = ? AND temp_exit_time IS NULL
+             LIMIT 1'
+        );
+        $openStmt->execute([$tempVisitId]);
+        if ($openStmt->fetchColumn()) {
+            Response::json(['success' => false, 'error' => 'Ya hay una entrada abierta para esta visita'], 409);
+            return;
+        }
+
+        $assignment = resolve_temp_visit_assignment_for_entry($this->pdo, $tempVisitId, (int) ($houseId ?? 0), (int) ($assignmentId ?? 0));
+        $assignmentOverride = false;
+        if (!$assignment) {
+            if ($houseId === null || $houseId <= 0) {
+                Response::json(['success' => false, 'error' => 'Indique domicilio para autorizar el ingreso'], 422);
+                return;
+            }
+            $assignmentOverride = true;
+            $authorizedMinutes = 120;
+            $assignmentValidUntil = date('Y-m-d H:i:s', strtotime('+2 hours'));
+            $assignmentIdResolved = $assignmentId;
+        } else {
+            $assignmentIdResolved = (int) $assignment['assignment_id'];
+            $houseId = (int) $assignment['house_id'];
+            $authorizedMinutes = assignment_authorized_duration_minutes($assignment);
+            $assignmentValidUntil = (string) ($assignment['valid_until'] ?? '');
+        }
+
+        $createdByUserId = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
+        $entrySource = in_array($attempt['entry_source'] ?? '', ['manual', 'qr', 'camera'], true)
+            ? $attempt['entry_source']
+            : 'manual';
+        $now = date('Y-m-d H:i:s');
+        $stayDeadline = date('Y-m-d H:i:s', strtotime($now) + ($authorizedMinutes * 60));
+
+        try {
+            $insert = $this->pdo->prepare(
+                "INSERT INTO temporary_access_logs
+                 (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot, document_type_snapshot,
+                  license_plate_snapshot, identity_source, identity_resolved_at,
+                  assignment_id, assignment_valid_until, authorized_duration_minutes, stay_deadline,
+                  temp_entry_time, access_point_id, status_validated, entry_source, house_id, created_by_user_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PERMITIDO', ?, ?, ?)"
+            );
+            $insert->execute([
+                $tempVisitId,
+                $attempt['entity_kind'] ?? null,
+                $attempt['display_name_snapshot'] ?? null,
+                $attempt['document_snapshot'] ?? null,
+                $attempt['document_type_snapshot'] ?? null,
+                $attempt['license_plate_snapshot'] ?? null,
+                $attempt['identity_source'] ?? 'LOCAL',
+                $attempt['identity_resolved_at'] ?? $now,
+                $assignmentIdResolved,
+                $assignmentValidUntil !== '' ? $assignmentValidUntil : null,
+                $authorizedMinutes,
+                $stayDeadline,
+                $now,
+                $accessPointId,
+                $entrySource,
+                $houseId,
+                $createdByUserId,
+            ]);
+
+            $newId = (int) $this->pdo->lastInsertId();
+
+            recordEventLog($this->pdo, $auth, 'access_log.authorize_from_attempt', [
+                'summary' => 'Ingreso externo autorizado desde intento #' . $attemptId,
+                'entity_type' => 'temporary_access_logs',
+                'entity_id' => $newId,
+                'details' => [
+                    'attempt_log_id' => $attemptId,
+                    'temp_visit_id' => $tempVisitId,
+                    'house_id' => $houseId,
+                    'assignment_override' => $assignmentOverride,
+                ],
+            ]);
+
+            Response::json([
+                'success' => true,
+                'data' => [
+                    'authorized_log_id' => $newId,
+                    'log_ref' => -$newId,
+                    'authorized_duration_minutes' => $authorizedMinutes,
+                    'stay_deadline' => $stayDeadline,
+                    'assignment_override' => $assignmentOverride,
+                    'message' => 'Ingreso autorizado registrado',
+                ],
+            ], 201);
+        } catch (\PDOException $e) {
+            Response::json(['success' => false, 'error' => 'Error al autorizar ingreso: ' . $e->getMessage()], 500);
+        }
     }
 }

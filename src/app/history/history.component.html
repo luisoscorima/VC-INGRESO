@@ -124,7 +124,7 @@
               Operario {{ sortIndicator('operator') }}
             </th>
             <th scope="col" class="vc-th history-col-capture" title="Captura LPR / cámara del acceso">Captura</th>
-            <th scope="col" class="vc-th history-col-incident" *ngIf="showIncidentsColumn" title="Reportes de incidencia ligados al registro">Incid.</th>
+            <th scope="col" class="vc-th history-col-incident" *ngIf="showIncidentsColumn || canCreateIncident" title="Reportes de incidencia ligados al registro">Incid.</th>
             <th scope="col" class="vc-th history-col-day" *ngIf="showDayColumn">Día</th>
           </tr>
         </thead>
@@ -264,38 +264,50 @@
                   matTooltipPosition="above">—</span>
               </ng-template>
             </td>
-            <td class="vc-td history-col-incident" *ngIf="showIncidentsColumn">
-              <button
-                *ngIf="rowIncidentCount(a) > 0; else noIncident"
-                type="button"
-                class="history-incident-preview"
-                [matTooltip]="tooltipIncident(a)"
-                matTooltipClass="history-cell-tooltip"
-                matTooltipPosition="above"
-                (click)="viewIncidents(a)">
-                <span *ngIf="incidentPreviewDescription(a) as incDesc" class="history-incident-desc">
-                  {{ incDesc }}
-                </span>
-                <span class="history-incident-media">
-                  <img
-                    *ngIf="incidentPreviewPhotoUrl(a) as incPhoto"
-                    [src]="incPhoto"
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    class="history-thumb history-thumb--incident"
-                    (click)="showPhotoUrl(incPhoto, $event)" />
-                  <span *ngIf="rowIncidentCount(a) > 1" class="history-incident-more">+{{ rowIncidentCount(a) - 1 }}</span>
-                  <mat-icon *ngIf="!incidentPreviewPhotoUrl(a)" class="history-incident-icon">report_problem</mat-icon>
-                </span>
-              </button>
-              <ng-template #noIncident>
+            <td class="vc-td history-col-incident" *ngIf="showIncidentsColumn || canCreateIncident">
+              <div class="flex flex-col items-start gap-1">
+                <button
+                  *ngIf="rowIncidentCount(a) > 0"
+                  type="button"
+                  class="history-incident-preview"
+                  [matTooltip]="tooltipIncident(a)"
+                  matTooltipClass="history-cell-tooltip"
+                  matTooltipPosition="above"
+                  (click)="viewIncidents(a)">
+                  <span *ngIf="incidentPreviewDescription(a) as incDesc" class="history-incident-desc">
+                    {{ incDesc }}
+                  </span>
+                  <span class="history-incident-media">
+                    <img
+                      *ngIf="incidentPreviewPhotoUrl(a) as incPhoto"
+                      [src]="incPhoto"
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      class="history-thumb history-thumb--incident"
+                      (click)="showPhotoUrl(incPhoto, $event)" />
+                    <span *ngIf="rowIncidentCount(a) > 1" class="history-incident-more">+{{ rowIncidentCount(a) - 1 }}</span>
+                    <mat-icon *ngIf="!incidentPreviewPhotoUrl(a)" class="history-incident-icon">report_problem</mat-icon>
+                  </span>
+                </button>
+                <button
+                  *ngIf="canCreateIncident"
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-50 dark:text-amber-200 dark:hover:bg-amber-950/40"
+                  [matTooltip]="rowIncidentCount(a) > 0 ? 'Añadir otra incidencia' : 'Reportar incidencia sobre este acceso'"
+                  matTooltipClass="history-cell-tooltip"
+                  matTooltipPosition="above"
+                  (click)="reportIncident(a, $event)">
+                  <mat-icon class="!h-4 !w-4">add_alert</mat-icon>
+                  Reportar
+                </button>
                 <span
+                  *ngIf="!canCreateIncident && rowIncidentCount(a) <= 0"
                   class="text-gray-400"
                   [matTooltip]="tooltipIncident(a)"
                   matTooltipClass="history-cell-tooltip"
                   matTooltipPosition="above">—</span>
-              </ng-template>
+              </div>
             </td>
             <td class="vc-td text-right history-col-day" *ngIf="showDayColumn">
               <button

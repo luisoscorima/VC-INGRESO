@@ -101,6 +101,15 @@ export class ApiService {
   }
 
   /**
+   * PATCH multipart/form-data para actualizar recursos con archivos.
+   */
+  patchFormData<T = unknown>(endpoint: string, form: FormData): Observable<ApiResponse<T>> {
+    return this.http.patch<ApiResponse<T>>(`${this.baseUrl}/${endpoint}`, form).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  /**
    * Subir foto de perfil del usuario autenticado (POST multipart).
    * Requiere token. Devuelve { success, data: usuario actualizado }.
    * Comprime la imagen en cliente antes de enviar.

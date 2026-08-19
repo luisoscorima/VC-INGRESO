@@ -280,8 +280,16 @@ CREATE TABLE `access_logs` (
     `identity_resolved_at` DATETIME DEFAULT NULL,
     `type` ENUM('INGRESO', 'EGRESO') NOT NULL DEFAULT 'INGRESO',
     `observation` TEXT DEFAULT NULL,
+    `operator_notes` TEXT DEFAULT NULL,
+    `operator_decision` ENUM(
+        'CONSULTADO_PROPIETARIO',
+        'AUTORIZADO_POR_PROPIETARIO',
+        'RECHAZO_CONFIRMADO',
+        'SIN_DOMICILIO'
+    ) DEFAULT NULL,
     `entry_source` ENUM('manual', 'qr', 'camera') NOT NULL DEFAULT 'manual',
     `photo_url` VARCHAR(255) DEFAULT NULL,
+    `photo_urls` JSON DEFAULT NULL COMMENT 'Array de rutas/URLs de fotos garita',
     `created_by_user_id` INT UNSIGNED DEFAULT NULL COMMENT 'user_id del guardia/operario que registró',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -322,8 +330,16 @@ CREATE TABLE `temporary_access_logs` (
     `temp_exit_time` DATETIME DEFAULT NULL,
     `access_point_id` INT UNSIGNED NOT NULL,
     `status_validated` VARCHAR(50) DEFAULT NULL,
+    `operator_notes` TEXT DEFAULT NULL,
+    `operator_decision` ENUM(
+        'CONSULTADO_PROPIETARIO',
+        'AUTORIZADO_POR_PROPIETARIO',
+        'RECHAZO_CONFIRMADO',
+        'SIN_DOMICILIO'
+    ) DEFAULT NULL,
     `entry_source` ENUM('manual', 'qr', 'camera') NOT NULL DEFAULT 'manual',
     `photo_url` VARCHAR(255) DEFAULT NULL,
+    `photo_urls` JSON DEFAULT NULL COMMENT 'Array de rutas/URLs de fotos garita',
     `house_id` INT UNSIGNED DEFAULT NULL,
     `operario_id` INT UNSIGNED DEFAULT NULL,
     `created_by_user_id` INT UNSIGNED DEFAULT NULL COMMENT 'user_id quien registró (reemplazo conceptual de operario_id)',

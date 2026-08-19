@@ -12,7 +12,7 @@
     <div class="mb-4">
       <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Incidencias</h2>
       <p class="text-sm text-gray-600 dark:text-gray-400">
-        Reportes ligados a un acceso. Se crean desde Escáner / QR, después de registrar entrada o salida.
+        Reportes ligados a un acceso. Se crean desde Escáner / QR o desde Historial, después de registrar entrada o salida.
       </p>
     </div>
 
@@ -36,8 +36,8 @@
         <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Origen</label>
         <select [(ngModel)]="sourceFilter" (ngModelChange)="applyFilters()" class="vc-select-sm w-full">
           <option value="">Todos</option>
-          <option value="scan">Escaneo</option>
-          <option value="manual">Manual</option>
+          <option value="scan">Escaneo / historial</option>
+          <option value="manual">Histórico (manual)</option>
         </select>
       </div>
     </div>

@@ -82,6 +82,56 @@ class AccessIncidentController
         }
     }
 
+    private function requireIncidentManage(array $auth): void
+    {
+        $this->requireIncidentAccess($auth);
+        if (!canManageModule($this->pdo, $auth, 'incidents')) {
+            Response::error('Sin permiso para registrar incidencias', 403);
+            exit;
+        }
+    }
+
+    /**
+     * Valida que el log vinculado exista y coincida con el punto de acceso indicado.
+     */
+    private function assertLinkedLogMatchesAccessPoint(
+        ?int $accessLogId,
+        ?int $tempAccessLogId,
+        int $accessPointId
+    ): void {
+        if ($accessLogId !== null) {
+            $stmt = $this->pdo->prepare(
+                'SELECT id, access_point_id FROM access_logs WHERE id = ? LIMIT 1'
+            );
+            $stmt->execute([$accessLogId]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if (!$row) {
+                Response::error('Registro de acceso no encontrado', 404);
+                return;
+            }
+            if ((int) ($row['access_point_id'] ?? 0) !== $accessPointId) {
+                Response::error('El punto de acceso no coincide con el registro ligado', 422);
+                return;
+            }
+            return;
+        }
+        if ($tempAccessLogId !== null) {
+            $stmt = $this->pdo->prepare(
+                'SELECT temp_access_log_id, access_point_id FROM temporary_access_logs WHERE temp_access_log_id = ? LIMIT 1'
+            );
+            $stmt->execute([$tempAccessLogId]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if (!$row) {
+                Response::error('Registro de visita externa no encontrado', 404);
+                return;
+            }
+            if ((int) ($row['access_point_id'] ?? 0) !== $accessPointId) {
+                Response::error('El punto de acceso no coincide con el registro ligado', 422);
+                return;
+            }
+        }
+    }
+
     /**
      * GET /api/v1/access-incidents
      */
@@ -230,7 +280,7 @@ class AccessIncidentController
     public function store(): void
     {
         $auth = requireAuth();
-        $this->requireIncidentAccess($auth);
+        $this->requireIncidentManage($auth);
         self::ensureTable($this->pdo);
 
         $description = trim((string) ($_POST['description'] ?? ''));
@@ -288,21 +338,8 @@ class AccessIncidentController
             return;
         }
 
-        if ($accessLogId !== null) {
-            $stmt = $this->pdo->prepare('SELECT id FROM access_logs WHERE id = ?');
-            $stmt->execute([$accessLogId]);
-            if (!$stmt->fetch()) {
-                Response::error('Registro de acceso no encontrado', 404);
-                return;
-            }
-        }
-        if ($tempAccessLogId !== null) {
-            $stmt = $this->pdo->prepare('SELECT temp_access_log_id FROM temporary_access_logs WHERE temp_access_log_id = ?');
-            $stmt->execute([$tempAccessLogId]);
-            if (!$stmt->fetch()) {
-                Response::error('Registro de visita externa no encontrado', 404);
-                return;
-            }
+        if ($accessLogId !== null || $tempAccessLogId !== null) {
+            $this->assertLinkedLogMatchesAccessPoint($accessLogId, $tempAccessLogId, $accessPointId);
         }
 
         $createdBy = isset($auth['user_id']) ? (int) $auth['user_id'] : null;

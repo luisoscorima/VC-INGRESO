@@ -3,6 +3,60 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../environments/environment';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
+import { OperatorDecision } from './shared/operator-decision';
+
+export interface CreateResidentAccessLogBody {
+  access_point_id: number;
+  type: 'INGRESO' | 'EGRESO';
+  observation?: string | null;
+  operator_notes?: string | null;
+  entry_source?: 'manual' | 'qr' | 'camera';
+  entity_kind?: 'PERSON' | 'VEHICLE';
+  identity_claim?: string | null;
+  person_id?: number | null;
+  doc_number?: string | null;
+  document_type?: string | null;
+  vehicle_id?: number | null;
+  license_plate?: string | null;
+}
+
+export interface CreateTemporaryAccessLogBody {
+  access_point_id: number;
+  temp_visit_id: number;
+  house_id?: number | null;
+  assignment_id?: number | null;
+  status_validated?: string;
+  entry_source?: 'manual' | 'qr' | 'camera';
+  entity_kind?: 'PERSON' | 'VEHICLE';
+  operator_notes?: string | null;
+}
+
+export interface CreateTemporaryDeniedBody {
+  access_point_id: number;
+  temp_visit_id: number;
+  house_id?: number | null;
+  assignment_id?: number | null;
+  entry_source?: 'manual' | 'qr' | 'camera';
+  entity_kind?: 'PERSON' | 'VEHICLE';
+  display_name_snapshot?: string | null;
+  document_snapshot?: string | null;
+  document_type_snapshot?: string | null;
+  license_plate_snapshot?: string | null;
+  operator_notes?: string | null;
+}
+
+export interface CreateTemporaryExitBody {
+  access_point_id: number;
+  temp_visit_id: number;
+  house_id?: number | null;
+  operator_notes?: string | null;
+}
+
+export interface PatchAccessDetailsBody {
+  operator_notes?: string | null;
+  operator_decision?: OperatorDecision | '' | null;
+  house_id?: number | null;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -18,48 +72,70 @@ export class AccessLogService {
 
   // ==================== ACCESS LOGS (API V1) ====================
 
-  /**
-   * Lista logs de acceso con filtros opcionales
-   */
   getAccessLogs(params?: {
+    date?: string;
     fecha?: string;
     fecha_inicial?: string;
     fecha_final?: string;
     start_date?: string;
     end_date?: string;
     access_point?: string;
+    access_point_id?: number;
     user_id?: number;
     doc_number?: string;
+    page?: number;
+    limit?: number;
   }): Observable<any> {
-    return this.api.getRaw('api/v1/access-logs', params);
+    const query: Record<string, string | number> = { ...params } as Record<string, string | number>;
+    if (params?.fecha && !params.date) {
+      query['date'] = params.fecha;
+      delete query['fecha'];
+    }
+    return this.api.getRaw('api/v1/access-logs', query);
   }
 
-  /**
-   * Obtiene log por ID
-   */
-  getAccessLogById(access_log_id: number): Observable<any> {
-    return this.api.getRaw('api/v1/access-logs', { access_log_id });
+  getAccessLogById(accessLogId: number): Observable<any> {
+    return this.api.getRaw(`api/v1/access-logs/${accessLogId}`);
   }
 
-  /**
-   * Crea un nuevo log de acceso
-   */
-  createAccessLog(log: any): Observable<any> {
-    return this.api.post('api/v1/access-logs', log);
+  createResidentAccessLog(body: CreateResidentAccessLogBody): Observable<any> {
+    return this.api.post('api/v1/access-logs', body);
   }
 
-  /**
-   * Actualiza un log de acceso (ej. registrar salida)
-   */
-  updateAccessLog(access_log_id: number, data: any): Observable<any> {
-    return this.api.put(`api/v1/access-logs/${access_log_id}`, data);
+  /** @deprecated Use createResidentAccessLog */
+  createAccessLog(log: CreateResidentAccessLogBody): Observable<any> {
+    return this.createResidentAccessLog(log);
+  }
+
+  createTemporaryEntry(body: CreateTemporaryAccessLogBody): Observable<any> {
+    return this.api.post('api/v1/access-logs/temporary', body);
+  }
+
+  createTemporaryDeniedAttempt(body: CreateTemporaryDeniedBody): Observable<any> {
+    return this.api.post('api/v1/access-logs/temporary/denied', body);
+  }
+
+  createTemporaryExit(body: CreateTemporaryExitBody): Observable<any> {
+    return this.api.post('api/v1/access-logs/temporary/exit', body);
+  }
+
+  patchAccessDetails(logRef: number, body: PatchAccessDetailsBody | FormData): Observable<any> {
+    if (body instanceof FormData) {
+      return this.api.patchFormData(`api/v1/access-logs/details/${logRef}`, body);
+    }
+    return this.http.patch(`${this.baseUrl}/api/v1/access-logs/details/${logRef}`, body);
+  }
+
+  authorizeFromAttempt(logRef: number, houseId?: number | null): Observable<any> {
+    const payload: Record<string, unknown> = { log_ref: logRef };
+    if (houseId != null && houseId > 0) {
+      payload['house_id'] = houseId;
+    }
+    return this.api.post('api/v1/access-logs/authorize-from-attempt', payload);
   }
 
   // ==================== ACCESS POINTS ====================
 
-  /**
-   * Puntos de acceso. Por defecto solo activos; historial puede pedir `includeInactive: true`.
-   */
   getAllAccessPoints(options?: { includeInactive?: boolean }): Observable<any> {
     const params: Record<string, string> = {};
     if (options?.includeInactive) {
@@ -68,16 +144,8 @@ export class AccessLogService {
     return this.api.getRaw('api/v1/access-logs/access-points', params);
   }
 
-  /**
-   * Obtiene punto de acceso por ID
-   */
-  getAccessPointById(ap_id: number): Observable<any> {
-    return this.api.getRaw('api/v1/access-points', { ap_id });
-  }
-
   // ==================== HISTORIAL UNIFICADO ====================
 
-  /** access_point vacío u omitido = todos los puntos (access_logs + temporary_access_logs). */
   getHistoryByRange(
     fecha_inicial: string,
     fecha_final: string,
@@ -97,7 +165,6 @@ export class AccessLogService {
     return this.api.getRaw('api/v1/access-logs/history-by-range', params);
   }
 
-  /** Movimientos del mismo documento en un día; accessPoint opcional (todos si vacío). */
   getHistoryByDocumentDay(
     fecha: string,
     docNumber: string,
