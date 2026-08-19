@@ -1223,6 +1223,7 @@ class AccessLogController
             SELECT
                 al.id,
                 al.access_point_id,
+                NULL AS temp_visit_id,
                 al.person_id,
                 al.house_id,
                 {$s("COALESCE(NULLIF(TRIM(al.document_snapshot), ''), NULLIF(TRIM(al.doc_number), ''), NULLIF(TRIM(p.doc_number), ''), '')")} AS doc_number,
