@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { Vehicle } from '../vehicle';
 import { House } from '../house';
 import { initFlowbite } from 'flowbite';
@@ -26,8 +26,9 @@ import {
   isValidIdentityDocument,
   normalizeIdentityDocument,
 } from '../shared/identity-document';
+import { compressImageFile, MOBILE_PHOTO_COMPRESS } from '../shared/compress-image';
 
-type VehiclesPageTab = 'residents' | 'external';
+type VehiclesPageSection = 'residents' | 'external';
 
 @Component({
   selector: 'app-vehicles',
@@ -60,6 +61,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   uploadingNewVehiclePhoto = false;
   uploadingNewExternalVehiclePhoto = false;
   uploadingEditExternalVehiclePhoto = false;
+  compressingNewExternalVehiclePhoto = false;
+  compressingEditExternalVehiclePhoto = false;
   
   houses: House[] = [];
   
@@ -72,6 +75,9 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   externalVehicles: ExternalVehicle[] = [];
   externalVehicleToAdd: ExternalVehicle = new ExternalVehicle('','','','','','','','');
   externalVehicleToEdit: ExternalVehicle = new ExternalVehicle('','','','','','','','');
+  // Fuente de la foto para visitas externas
+  externalPhotoSource: 'take' | 'select' = 'take';
+  externalPhotoSourceEdit: 'take' | 'select' = 'take';
   temp_visit_type:string[]=['DELIVERY','COLECTIVO','TAXI'];
   readonly externalDocumentTypes = IDENTITY_DOCUMENT_TYPES;
   readonly externalDurationOptions = EXTERNAL_VISIT_DURATION_OPTIONS;
@@ -93,12 +99,12 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   expandedResidentRowId: ExpandableRowId = null;
   expandedExternalRowId: ExpandableRowId = null;
   readonly residentTableColspan = 7;
-  readonly externalTableColspan = 8;
+  readonly externalTableColspan = 9;
 
   showViewPhotoDialog = false;
   viewPhotoUrl: string | null = null;
   viewPhotoTitle = '';
-  activeTab: VehiclesPageTab = 'residents';
+  currentSection: VehiclesPageSection = 'residents';
 
   constructor(
     private entranceService: EntranceService,
@@ -107,7 +113,6 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     private publicReg: PublicRegistrationService,
     private navPerm: NavPermissionService,
     private route: ActivatedRoute,
-    private router: Router,
   ){}
 
   get showResidentVehiclesTab(): boolean {
@@ -127,18 +132,30 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   }
 
   get pageTitle(): string {
-    if (this.showResidentVehiclesTab && this.showStaffExternalVehiclesTab) {
-      return 'Vehiculos';
-    }
-    if (this.showStaffExternalVehiclesTab) {
+    if (this.currentSection === 'external') {
       return 'Visitas externas';
     }
     return 'Vehiculos';
   }
 
+  get pageDescription(): string {
+    if (this.currentSection === 'external') {
+      return 'Vista global: todos los registros de visitas temporales de todas las casas.';
+    }
+    return 'Gestiona los vehículos residentes registrados en el condominio.';
+  }
+
+  get showResidentVehiclesView(): boolean {
+    return this.currentSection === 'residents' && this.showResidentVehiclesTab;
+  }
+
+  get showExternalVehiclesView(): boolean {
+    return this.currentSection === 'external' && this.showStaffExternalVehiclesTab;
+  }
+
   ngOnInit(): void {
     this.route.data.subscribe((data) => {
-      this.resolveActiveTab((data['defaultTab'] as VehiclesPageTab | undefined) ?? 'residents');
+      this.resolveCurrentSection((data['defaultTab'] as VehiclesPageSection | undefined) ?? 'residents');
     });
     if (this.showResidentVehiclesTab) {
       this.entranceService.getAllVehicles().subscribe({
@@ -157,34 +174,20 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     this.reloadExternalVehicles();
   }
 
-  selectTab(tab: VehiclesPageTab): void {
-    if (tab === 'residents' && !this.showResidentVehiclesTab) {
-      return;
-    }
-    if (tab === 'external' && !this.showStaffExternalVehiclesTab) {
-      return;
-    }
-    this.activeTab = tab;
-    const target = tab === 'external' ? '/external-visits' : '/vehicles';
-    if (this.router.url.split('?')[0] !== target) {
-      void this.router.navigateByUrl(target);
-    }
-  }
-
-  private resolveActiveTab(routeDefault: VehiclesPageTab = 'residents'): void {
+  private resolveCurrentSection(routeDefault: VehiclesPageSection = 'residents'): void {
     if (routeDefault === 'external' && this.showStaffExternalVehiclesTab) {
-      this.activeTab = 'external';
+      this.currentSection = 'external';
       return;
     }
     if (routeDefault === 'residents' && this.showResidentVehiclesTab) {
-      this.activeTab = 'residents';
+      this.currentSection = 'residents';
       return;
     }
     if (this.showStaffExternalVehiclesTab) {
-      this.activeTab = 'external';
+      this.currentSection = 'external';
       return;
     }
-    this.activeTab = 'residents';
+    this.currentSection = 'residents';
   }
 
   private reloadExternalVehicles(): void {
@@ -203,10 +206,15 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   private isFlowbiteInitialized = false;
 
   ngAfterViewInit(): void {
-    if (!this.isFlowbiteInitialized) {
-      initFlowbite();
-      this.isFlowbiteInitialized = true;
-    }
+    if (this.isFlowbiteInitialized) return;
+    // Flowbite vincula eventos en base al DOM disponible. Como los permisos
+    // se resuelven async, inicializamos después de cargar permisos y con un tick extra.
+    this.navPerm.load().subscribe(() => {
+      setTimeout(() => {
+        initFlowbite();
+        this.isFlowbiteInitialized = true;
+      }, 0);
+    });
   }
 //VEHÍCULOS DE RESIDENTES
 
@@ -260,14 +268,14 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   }
 
   onNewExternalVehiclePhotoPick(event: Event): void {
-    this.onExternalVehiclePhotoPick(event, 'add');
+    void this.onExternalVehiclePhotoPick(event, 'add');
   }
 
   onEditExternalVehiclePhotoPick(event: Event): void {
-    this.onExternalVehiclePhotoPick(event, 'edit');
+    void this.onExternalVehiclePhotoPick(event, 'edit');
   }
 
-  private onExternalVehiclePhotoPick(event: Event, mode: 'add' | 'edit'): void {
+  private async onExternalVehiclePhotoPick(event: Event, mode: 'add' | 'edit'): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input?.files?.[0];
     if (!file || !file.type.startsWith('image/')) {
@@ -276,11 +284,27 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     }
     const target = mode === 'add' ? this.externalVehicleToAdd : this.externalVehicleToEdit;
     if (mode === 'add') {
+      this.compressingNewExternalVehiclePhoto = true;
+    } else {
+      this.compressingEditExternalVehiclePhoto = true;
+    }
+
+    let ready = file;
+    try {
+      ready = await compressImageFile(file, MOBILE_PHOTO_COMPRESS);
+    } catch {
+      this.toastr.warning('No se pudo optimizar la foto; se usará el original.');
+    }
+
+    if (mode === 'add') {
+      this.compressingNewExternalVehiclePhoto = false;
       this.uploadingNewExternalVehiclePhoto = true;
     } else {
+      this.compressingEditExternalVehiclePhoto = false;
       this.uploadingEditExternalVehiclePhoto = true;
     }
-    this.publicReg.uploadVehiclePhoto(file).subscribe({
+
+    this.publicReg.uploadVehiclePhoto(ready, { skipCompress: true }).subscribe({
       next: (res) => {
         if (mode === 'add') {
           this.uploadingNewExternalVehiclePhoto = false;
@@ -352,7 +376,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
         ev.temp_visit_type.toLowerCase().includes(search) ||
         ev.temp_visit_plate.toLowerCase().includes(search) ||
         (ev.temp_visit_name && ev.temp_visit_name.toLowerCase().includes(search)) ||
-        (ev.temp_visit_company && ev.temp_visit_company.toLowerCase().includes(search));
+        (ev.temp_visit_company && ev.temp_visit_company.toLowerCase().includes(search)) ||
+        (ev.temp_visit_doc && ev.temp_visit_doc.toLowerCase().includes(search));
       // Visitas temporales no van ligadas a un lote; filtros Mz/Lt no aplican salvo que añadas otro modelo.
       return matchesSearch;
     });
@@ -591,6 +616,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   newExternalVehicle(){
     this.externalDurationMinutes = 120;
     this.externalStaffHouseId = 0;
+    this.externalPhotoSource = 'take';
     this.externalVehicleToAdd = new ExternalVehicle('','','','','DELIVERY','PERMITIDO','','ACTIVO');
     document.getElementById('vehicles-new-external-vehicle-button')?.click();
   }
@@ -633,6 +659,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     if (tid) {
       (this.externalVehicleToEdit as any).id = tid;
     }
+    this.externalPhotoSourceEdit = 'take';
     document.getElementById('vehicles-edit-external-vehicle-button')?.click();
   }
 
@@ -735,6 +762,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     this.vehicleToEdit = new Vehicle('', 'AUTOMOVIL', 0, 'PERMITIDO', '', '', 'PROPIETARIO', '', '', '');
     this.externalVehicleToAdd = new ExternalVehicle('','','','','','','','',);
     this.externalVehicleToEdit = new ExternalVehicle('','','','','','','','',);
+    this.externalPhotoSource = 'take';
+    this.externalPhotoSourceEdit = 'take';
   }
  
   /* SIWTCH ON/OFF

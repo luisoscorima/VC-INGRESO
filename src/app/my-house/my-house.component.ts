@@ -38,6 +38,7 @@ import {
   normalizeIdentityDocument,
   normalizeIdentityDocumentType,
 } from '../shared/identity-document';
+import { compressImageFile, MOBILE_PHOTO_COMPRESS } from '../shared/compress-image';
 
 type MyHouseTableKey = 'residents' | 'tenants' | 'pets' | 'vehicles' | 'visits' | 'external';
 
@@ -131,8 +132,12 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
   uploadingNewPetPhoto = false;
   /** Foto del modal «nueva visita externa» */
   uploadingNewExternalVehiclePhoto = false;
+  compressingNewExternalVehiclePhoto = false;
   /** Foto del modal «editar visita externa» */
   uploadingEditExternalVehiclePhoto = false;
+  compressingEditExternalVehiclePhoto = false;
+  externalPhotoSource: 'take' | 'select' = 'take';
+  externalPhotoSourceEdit: 'take' | 'select' = 'take';
 
   expandedMyHouseRows: Record<MyHouseTableKey, ExpandableRowId> = {
     residents: null,
@@ -988,6 +993,8 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
     this.vehicleToEdit = new Vehicle('', 'AUTOMOVIL', 0, 'PERMITIDO', '', '', 'RESIDENTE', '', '', '');
     this.externalVehicleToAdd = new ExternalVehicle('','','','','','','','',);
     this.externalVehicleToEdit = new ExternalVehicle('','','','','','','','',);
+    this.externalPhotoSource = 'take';
+    this.externalPhotoSourceEdit = 'take';
     this.petToAdd = { name: '', species: 'PERRO', breed: '', color: '', house_id: 0, status_validated: 'PERMITIDO', photo_url: undefined };
     this.petToEdit = {};
   }
@@ -1515,11 +1522,11 @@ saveNewVehicle(): void {
 
   //EXTERNAL VEHICLE
   onNewExternalVisitPhotoPick(event: Event): void {
-    this.onExternalVisitPhotoPick(event, 'add');
+    void this.onExternalVisitPhotoPick(event, 'add');
   }
 
   onEditExternalVisitPhotoPick(event: Event): void {
-    this.onExternalVisitPhotoPick(event, 'edit');
+    void this.onExternalVisitPhotoPick(event, 'edit');
   }
 
   clearExternalVisitPhoto(mode: 'add' | 'edit'): void {
@@ -1527,7 +1534,7 @@ saveNewVehicle(): void {
     target.photo_url = undefined;
   }
 
-  private onExternalVisitPhotoPick(event: Event, mode: 'add' | 'edit'): void {
+  private async onExternalVisitPhotoPick(event: Event, mode: 'add' | 'edit'): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input?.files?.[0];
     if (!file || !file.type.startsWith('image/')) {
@@ -1536,11 +1543,27 @@ saveNewVehicle(): void {
     }
     const target = mode === 'add' ? this.externalVehicleToAdd : this.externalVehicleToEdit;
     if (mode === 'add') {
+      this.compressingNewExternalVehiclePhoto = true;
+    } else {
+      this.compressingEditExternalVehiclePhoto = true;
+    }
+
+    let ready = file;
+    try {
+      ready = await compressImageFile(file, MOBILE_PHOTO_COMPRESS);
+    } catch {
+      this.toastr.warning('No se pudo optimizar la foto; se usará el original.');
+    }
+
+    if (mode === 'add') {
+      this.compressingNewExternalVehiclePhoto = false;
       this.uploadingNewExternalVehiclePhoto = true;
     } else {
+      this.compressingEditExternalVehiclePhoto = false;
       this.uploadingEditExternalVehiclePhoto = true;
     }
-    this.publicReg.uploadVehiclePhoto(file).subscribe({
+
+    this.publicReg.uploadVehiclePhoto(ready, { skipCompress: true }).subscribe({
       next: (res) => {
         if (mode === 'add') {
           this.uploadingNewExternalVehiclePhoto = false;
@@ -1570,6 +1593,7 @@ saveNewVehicle(): void {
   newExternalVehicle(){
     this.externalDurationMinutes = 120;
     this.externalVehicleToAdd = new ExternalVehicle('','','','','DELIVERY','PERMITIDO','','ACTIVO');
+    this.externalPhotoSource = 'take';
     document.getElementById('myhouse-new-external-vehicle-button')?.click();
   }
 
@@ -1579,6 +1603,7 @@ saveNewVehicle(): void {
     if (tid) {
       (this.externalVehicleToEdit as any).id = tid;
     }
+    this.externalPhotoSourceEdit = 'take';
     document.getElementById('myhouse-edit-external-vehicle-button')?.click();
   }
 

@@ -1,6 +1,8 @@
 import { from, Observable } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
+export const MOBILE_PHOTO_COMPRESS = { maxEdge: 1280, quality: 0.72 } as const;
+
 /**
  * Reduce tamaño de imagen para subidas móviles (canvas → JPEG).
  * Si falla o el resultado no mejora, devuelve el archivo original.
@@ -13,8 +15,8 @@ export async function compressImageFile(
     return file;
   }
 
-  const maxEdge = options?.maxEdge ?? 1280;
-  const quality = options?.quality ?? 0.72;
+  const maxEdge = options?.maxEdge ?? MOBILE_PHOTO_COMPRESS.maxEdge;
+  const quality = options?.quality ?? MOBILE_PHOTO_COMPRESS.quality;
 
   let bitmap: ImageBitmap;
   try {
