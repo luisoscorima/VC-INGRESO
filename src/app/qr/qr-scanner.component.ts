@@ -2,6 +2,7 @@ import {
   Component,
   OnInit,
   OnDestroy,
+  AfterViewInit,
   ViewChild,
   ElementRef,
   Output,
@@ -152,6 +153,7 @@ interface AccessPointOption {
             </label>
             <div class="flex gap-2">
               <input
+                #manualInput
                 type="text"
                 [(ngModel)]="manualCode"
                 (keyup.enter)="submitManualCode()"
@@ -481,7 +483,8 @@ interface AccessPointOption {
     `,
   ],
 })
-export class QrScannerComponent implements OnInit, OnDestroy {
+export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('manualInput') manualInput?: ElementRef<HTMLInputElement>;
   @ViewChild('videoElement') videoElement?: ElementRef<HTMLVideoElement>;
   @ViewChild('scannerViewport') scannerViewport?: ElementRef;
   @Output() codeScanned = new EventEmitter<string>();
@@ -579,6 +582,17 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', this.onVisibilityChange);
     }
+  }
+
+  ngAfterViewInit(): void {
+    this.focusManualInput();
+  }
+
+  private focusManualInput(): void {
+    if (this.cooldownActive) {
+      return;
+    }
+    setTimeout(() => this.manualInput?.nativeElement?.focus(), 0);
   }
 
   setMovementMode(mode: MovementMode): void {
@@ -1074,7 +1088,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       panelClass: INCIDENT_DIALOG_PANEL_CLASS,
       disableClose: true,
       data,
-    });
+    }).afterClosed().subscribe(() => this.focusManualInput());
   }
 
   private buildScanContext(data: AccessQrScanResult): IncidentScanContext {
@@ -1462,6 +1476,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     if (this.continuousScan) {
       this.resumeDetection();
     }
+    this.focusManualInput();
   }
 
   private clearCooldownTimer(): void {
