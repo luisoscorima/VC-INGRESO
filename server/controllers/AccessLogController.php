@@ -1138,6 +1138,8 @@ class AccessLogController
                 END AS date_exit,
                 {$s("COALESCE(NULLIF(TRIM(al.observation), ''), NULLIF(p.status_validated, ''), '—')")} AS obs,
                 {$s("COALESCE(NULLIF(TRIM(u.username_system), ''), IF(al.created_by_user_id IS NOT NULL, CONCAT('#', al.created_by_user_id), NULL), '—')")} AS `operator`,
+                {$s("NULLIF(TRIM(CONCAT(COALESCE(oup.first_name,''), ' ', COALESCE(oup.paternal_surname,''))), '')")} AS operator_name,
+                {$s("COALESCE(NULLIF(TRIM(u.role_system), ''), '')")} AS operator_role,
                 {$s("DATE_FORMAT(al.created_at, '%H:%i:%s')")} AS hour_entrance,
                 1 AS visits,
                 {$s("COALESCE(
@@ -1170,6 +1172,7 @@ class AccessLogController
             LEFT JOIN persons vo ON vo.id = v.owner_id
             LEFT JOIN houses h ON h.house_id = COALESCE(al.house_id, p.house_id, v.house_id)
             LEFT JOIN users u ON u.user_id = al.created_by_user_id
+            LEFT JOIN persons oup ON oup.id = u.person_id
             {$incidentJoin}
         ";
     }
@@ -1221,6 +1224,8 @@ class AccessLogController
                     IF(COALESCE(tal.created_by_user_id, tal.operario_id) IS NOT NULL, CONCAT('#', COALESCE(tal.created_by_user_id, tal.operario_id)), NULL),
                     '—'
                 )")} AS `operator`,
+                {$s("NULLIF(TRIM(CONCAT(COALESCE(oup.first_name,''), ' ', COALESCE(oup.paternal_surname,''))), '')")} AS operator_name,
+                {$s("COALESCE(NULLIF(TRIM(u.role_system), ''), '')")} AS operator_role,
                 {$s("DATE_FORMAT(tal.temp_entry_time, '%H:%i:%s')")} AS hour_entrance,
                 1 AS visits,
                 {$s("COALESCE(
@@ -1256,6 +1261,7 @@ class AccessLogController
             LEFT JOIN access_points ap ON ap.id = tal.access_point_id
             LEFT JOIN houses h ON h.house_id = tal.house_id
             LEFT JOIN users u ON u.user_id = COALESCE(tal.created_by_user_id, tal.operario_id)
+            LEFT JOIN persons oup ON oup.id = u.person_id
             {$incidentJoin}
         ";
     }

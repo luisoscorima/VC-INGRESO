@@ -369,3 +369,10 @@
   font-weight: 800;
   line-height: 1.25;
 }
+
+::ng-deep .history-cell-tooltip {
+  white-space: pre-line;
+  max-width: min(22rem, 90vw);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}

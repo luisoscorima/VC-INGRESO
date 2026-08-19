@@ -698,6 +698,264 @@ export class HistoryComponent implements OnInit {
     }
     return this.sameDayCount(row) > 1;
   }
+
+  private formatTooltipDate(value: unknown): string {
+    if (value == null || value === '') {
+      return '—';
+    }
+    const d = value instanceof Date ? value : new Date(String(value));
+    if (Number.isNaN(d.getTime())) {
+      return String(value);
+    }
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  private formatDurationMinutes(mins: number): string {
+    if (!Number.isFinite(mins) || mins < 0) {
+      return '—';
+    }
+    if (mins < 60) {
+      return `${mins} min`;
+    }
+    const hours = Math.floor(mins / 60);
+    const rest = mins % 60;
+    return rest ? `${hours} h ${rest} min` : `${hours} h`;
+  }
+
+  permanenceMinutes(row: HistoryRow): number | null {
+    if (this.isExternalRow(row)) {
+      const mins = Number(row['permanence_minutes']);
+      return Number.isFinite(mins) ? mins : null;
+    }
+    if (this.isEgressOnlyRow(row)) {
+      return 0;
+    }
+    if (!this.hasRecordedExit(row)) {
+      if (this.isSessionOpen(row)) {
+        const entry = new Date(String(row['date_entry'] ?? ''));
+        if (Number.isNaN(entry.getTime())) {
+          return null;
+        }
+        return Math.max(0, Math.round((Date.now() - entry.getTime()) / 60000));
+      }
+      return null;
+    }
+    const entry = new Date(String(row['date_entry'] ?? ''));
+    const exit = new Date(String(row['date_exit'] ?? ''));
+    if (Number.isNaN(entry.getTime()) || Number.isNaN(exit.getTime())) {
+      return null;
+    }
+    return Math.max(0, Math.round((exit.getTime() - entry.getTime()) / 60000));
+  }
+
+  operatorDisplayName(row: HistoryRow): string {
+    const name = String(row['operator_name'] ?? '').trim();
+    if (name) {
+      return name;
+    }
+    return String(row['operator'] ?? '—');
+  }
+
+  tooltipType(row: HistoryRow): string {
+    const kind = this.isVehicleRow(row) ? 'Vehículo' : 'Persona';
+    const source = this.isExternalRow(row) ? 'Visita externa / temporal' : 'Registro residente';
+    const movement = String(row['movement_type'] ?? 'INGRESO').toUpperCase();
+    return `Tipo: ${kind}\nOrigen del registro: ${source}\nMovimiento en BD: ${movement}`;
+  }
+
+  tooltipDocument(row: HistoryRow): string {
+    const doc = String(row['doc_number'] ?? '').trim() || '—';
+    const snap = String(row['document_snapshot'] ?? '').trim();
+    const lines = [`Documento: ${doc}`];
+    if (snap && snap !== doc) {
+      lines.push(`Snapshot al acceso: ${snap}`);
+    }
+    const src = String(row['identity_source'] ?? '').trim();
+    if (src) {
+      lines.push(`Identidad: ${src}`);
+    }
+    return lines.join('\n');
+  }
+
+  tooltipDatos(row: HistoryRow): string {
+    const lines = [`Nombre: ${String(row['name'] ?? '—')}`];
+    const category = String(row['person_category'] ?? '').trim();
+    if (category) {
+      lines.push(`Categoría: ${category.replace(/_/g, ' ')}`);
+    }
+    if (row['display_name_snapshot']) {
+      lines.push(`Nombre registrado: ${String(row['display_name_snapshot'])}`);
+    }
+    return lines.join('\n');
+  }
+
+  tooltipPlate(row: HistoryRow): string {
+    const plate = this.displayPlate(row);
+    if (plate === '—') {
+      return 'Sin placa asociada';
+    }
+    const snap = String(row['license_plate_snapshot'] ?? '').trim();
+    const lines = [`Placa: ${plate}`];
+    if (snap && snap.toUpperCase() !== plate) {
+      lines.push(`Placa al acceso: ${snap}`);
+    }
+    return lines.join('\n');
+  }
+
+  tooltipHouse(row: HistoryRow): string {
+    const addr = String(row['house_address'] ?? '').trim();
+    return addr ? `Domicilio: ${addr}` : 'Sin domicilio asociado';
+  }
+
+  tooltipAccessPoint(row: HistoryRow): string {
+    const name = String(row['access_point_name'] ?? '').trim() || '—';
+    const id = row['access_point_id'];
+    return id ? `Punto: ${name}\nID: ${id}` : `Punto: ${name}`;
+  }
+
+  tooltipSource(row: HistoryRow): string {
+    const label = this.entrySourceLabel(row);
+    const raw = String(row['entry_source'] ?? 'manual').toLowerCase();
+    const detail =
+      raw === 'camera'
+        ? 'Lectura automática LPR / cámara'
+        : raw === 'qr'
+          ? 'Escaneo QR o búsqueda manual en escáner'
+          : 'Registro manual en garita';
+    return `Origen: ${label}\n${detail}`;
+  }
+
+  tooltipMovement(row: HistoryRow): string {
+    if (this.isEgressOnlyRow(row)) {
+      return [
+        `Salida observada (↑): ${this.formatTooltipDate(row['date_entry'])}`,
+        'No había ingreso abierto previo',
+        'Permanencia: no aplica',
+      ].join('\n');
+    }
+
+    const lines = [`Ingreso (↓): ${this.formatTooltipDate(row['date_entry'])}`];
+
+    if (this.hasRecordedExit(row)) {
+      lines.push(`Salida (↑): ${this.formatTooltipDate(row['date_exit'])}`);
+    } else if (this.isSessionOpen(row)) {
+      lines.push('Salida (↑): Aún dentro (sesión abierta)');
+    } else {
+      lines.push('Salida (↑): No registrada');
+    }
+
+    const mins = this.permanenceMinutes(row);
+    if (mins != null) {
+      const label = this.isSessionOpen(row) ? 'Permanencia parcial' : 'Permanencia';
+      lines.push(`${label}: ${this.formatDurationMinutes(mins)} (${mins} min)`);
+    }
+
+    if (this.isExternalRow(row)) {
+      const auth = row['authorized_duration_minutes'];
+      if (auth != null && auth !== '') {
+        lines.push(`Tiempo autorizado: ${auth} min`);
+      }
+      const deadline = row['stay_deadline'];
+      if (deadline) {
+        lines.push(`Límite de estadía: ${this.formatTooltipDate(deadline)}`);
+      }
+      if (Number(row['stay_exceeded']) === 1) {
+        lines.push('Estado: excedió tiempo autorizado');
+      }
+    }
+
+    const status = this.resultStatus(row);
+    if (status === 'DENEGADO') {
+      lines.push('Nota: acceso denegado — no ingresó al condominio');
+    }
+
+    return lines.join('\n');
+  }
+
+  tooltipPermanence(row: HistoryRow): string {
+    if (!this.isExternalRow(row)) {
+      return 'Permanencia detallada solo aplica a visitas externas';
+    }
+    const mins = this.permanenceMinutes(row);
+    const lines = [this.formatPermanence(row)];
+    if (mins != null) {
+      lines.push(`Cálculo: ${this.formatDurationMinutes(mins)} (${mins} min)`);
+    }
+    if (Number(row['session_open']) === 1) {
+      lines.push('Cuenta desde ingreso hasta ahora (aún dentro)');
+    } else if (row['date_exit']) {
+      lines.push(`Desde ${this.formatTooltipDate(row['date_entry'])} hasta ${this.formatTooltipDate(row['date_exit'])}`);
+    }
+    const auth = row['authorized_duration_minutes'];
+    if (auth != null && auth !== '') {
+      lines.push(`Autorizado: ${auth} min`);
+    }
+    return lines.join('\n');
+  }
+
+  tooltipResult(row: HistoryRow): string {
+    const status = this.resultStatus(row);
+    const lines = [`Estado: ${status}`];
+    const notes = this.resultNotes(row);
+    if (notes.length) {
+      lines.push(`Notas: ${notes.join(' · ')}`);
+    }
+    const raw = String(row['observation_raw'] ?? row['obs'] ?? '').trim();
+    if (raw && raw !== '—') {
+      lines.push(`Observación completa: ${raw}`);
+    }
+    return lines.join('\n');
+  }
+
+  tooltipOperator(row: HistoryRow): string {
+    const username = String(row['operator'] ?? '').trim() || '—';
+    const name = String(row['operator_name'] ?? '').trim();
+    const role = String(row['operator_role'] ?? '').trim();
+    const lines: string[] = [];
+    if (name) {
+      lines.push(`Operario: ${name}`);
+      lines.push(`Usuario: ${username}`);
+    } else {
+      lines.push(`Usuario: ${username}`);
+    }
+    if (role) {
+      lines.push(`Rol: ${role}`);
+    }
+    return lines.join('\n');
+  }
+
+  tooltipCapture(row: HistoryRow): string {
+    if (!row['access_photo_url']) {
+      return 'Sin captura LPR / cámara en este registro';
+    }
+    return 'Captura LPR / cámara del acceso\nClic para ampliar';
+  }
+
+  tooltipIncident(row: HistoryRow): string {
+    const count = this.rowIncidentCount(row);
+    if (count <= 0) {
+      return 'Sin incidencias ligadas';
+    }
+    const lines = [`Incidencias: ${count}`];
+    const desc = this.incidentPreviewDescription(row);
+    if (desc) {
+      lines.push(`Última: ${desc}`);
+    }
+    if (count > 1) {
+      lines.push(`+${count - 1} incidencia(s) más`);
+    }
+    lines.push('Clic para ver detalle');
+    return lines.join('\n');
+  }
+
+  tooltipDay(row: HistoryRow): string {
+    const count = this.sameDayCount(row);
+    if (count <= 1) {
+      return 'Un solo movimiento este día para este documento';
+    }
+    return `${count} movimientos el mismo día (mismo documento)\nClic para ver timeline del día`;
+  }
 }
 
 @Component({
