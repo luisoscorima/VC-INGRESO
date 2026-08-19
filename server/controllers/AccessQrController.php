@@ -207,15 +207,14 @@ class AccessQrController
         $inputKind = strtoupper(trim((string) ($body['input_kind'] ?? '')));
         $documentType = normalize_identity_document_type($body['document_type'] ?? '');
         $plateCandidate = normalize_license_plate($input);
+        if ($documentType === '') {
+            $documentType = infer_identity_document_type($input);
+        }
         if ($inputKind === '') {
             if (validate_license_plate($plateCandidate)) {
                 $inputKind = 'PLATE';
-            } elseif (preg_match('/^[0-9]{8}$/', trim($input))) {
-                Response::error('Seleccione si los 8 dígitos corresponden a DNI o CE.', 422);
-                return;
-            } elseif (validate_identity_document('CE', normalize_identity_document('CE', $input))) {
+            } elseif ($documentType !== '') {
                 $inputKind = 'DOCUMENT';
-                $documentType = 'CE';
             }
         }
         if ($inputKind === 'DOCUMENT') {
@@ -232,6 +231,10 @@ class AccessQrController
             );
             $stmt->execute([$documentType, $normalized]);
             $person = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if (!$person && $documentType === 'DNI') {
+                $stmt->execute(['CE', $normalized]);
+                $person = $stmt->fetch(\PDO::FETCH_ASSOC);
+            }
             if ($person) {
                 $data = $this->buildUnifiedFromPerson($person, 'manual');
                 Response::success($data, 'OK');
@@ -240,6 +243,9 @@ class AccessQrController
 
             // Doc. responsable de vehículo externo (temporary_visits)
             $tempByDoc = find_temp_visit_profile($this->pdo, null, $normalized, $documentType);
+            if (!$tempByDoc && $documentType === 'DNI') {
+                $tempByDoc = find_temp_visit_profile($this->pdo, null, $normalized, 'CE');
+            }
             if ($tempByDoc) {
                 $data = $this->buildUnifiedFromTemporaryVisit($tempByDoc, 'manual');
                 Response::success($data, 'OK');

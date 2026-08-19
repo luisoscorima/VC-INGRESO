@@ -25,5 +25,5 @@ def is_valid_document(document_type: str, value: str) -> bool:
     if document_type == "DNI":
         return re.fullmatch(r"[0-9]{8}", normalized) is not None
     if document_type == "CE":
-        return re.fullmatch(r"[A-Z0-9]{7,15}", normalized) is not None
+        return re.fullmatch(r"[A-Z0-9]{9,12}", normalized) is not None
     return False

@@ -16,7 +16,19 @@ export function normalizeIdentityDocument(type: IdentityDocumentType, value: unk
 
 export function isValidIdentityDocument(type: IdentityDocumentType, value: unknown): boolean {
   const normalized = normalizeIdentityDocument(type, value);
-  return type === 'DNI' ? /^[0-9]{8}$/.test(normalized) : /^[A-Z0-9]{7,15}$/.test(normalized);
+  return type === 'DNI' ? /^[0-9]{8}$/.test(normalized) : /^[A-Z0-9]{9,12}$/.test(normalized);
+}
+
+/** 8 dígitos = DNI; 9–12 alfanuméricos = CE. */
+export function inferIdentityDocumentType(value: unknown): IdentityDocumentType | null {
+  const raw = String(value ?? '').trim();
+  if (isValidIdentityDocument('DNI', raw)) {
+    return 'DNI';
+  }
+  if (isValidIdentityDocument('CE', raw)) {
+    return 'CE';
+  }
+  return null;
 }
 
 export function canLookupReniec(type: IdentityDocumentType | null, value: unknown): boolean {
@@ -36,5 +48,5 @@ export function identityDocumentValidator(typeControl: AbstractControl): Validat
 export function identityDocumentError(type: IdentityDocumentType | null): string {
   return type === 'DNI'
     ? 'El DNI debe contener exactamente 8 dígitos.'
-    : 'El CE debe contener entre 7 y 15 letras o números.';
+    : 'El CE debe contener entre 9 y 12 letras o números.';
 }

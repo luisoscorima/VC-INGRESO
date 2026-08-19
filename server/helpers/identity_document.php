@@ -20,9 +20,22 @@ function validate_identity_document(string $type, string $value): bool
         return preg_match('/^[0-9]{8}$/', $value) === 1;
     }
     if ($type === 'CE') {
-        return preg_match('/^[A-Z0-9]{7,15}$/', $value) === 1;
+        return preg_match('/^[A-Z0-9]{9,12}$/', $value) === 1;
     }
     return false;
+}
+
+function infer_identity_document_type($value): string
+{
+    $raw = trim((string) $value);
+    if (validate_identity_document('DNI', $raw)) {
+        return 'DNI';
+    }
+    $ce = normalize_identity_document('CE', $raw);
+    if (validate_identity_document('CE', $ce)) {
+        return 'CE';
+    }
+    return '';
 }
 
 /**
@@ -38,7 +51,7 @@ function require_valid_identity_document($type, $value): array
     if (!validate_identity_document($normalizedType, $normalizedValue)) {
         $message = $normalizedType === 'DNI'
             ? 'El DNI debe contener exactamente 8 dígitos.'
-            : 'El CE debe contener entre 7 y 15 letras o números.';
+            : 'El CE debe contener entre 9 y 12 letras o números.';
         throw new \InvalidArgumentException($message);
     }
     return ['type' => $normalizedType, 'value' => $normalizedValue];

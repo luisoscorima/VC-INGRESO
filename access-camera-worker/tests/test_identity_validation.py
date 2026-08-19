@@ -18,9 +18,12 @@ class IdentityValidationTests(unittest.TestCase):
     def test_documents(self):
         self.assertTrue(is_valid_document("DNI", "12345678"))
         self.assertFalse(is_valid_document("DNI", "1234567"))
-        self.assertEqual("AB12345", normalize_document("CE", " ab12345 "))
-        self.assertTrue(is_valid_document("CE", "ab12345"))
-        self.assertTrue(is_valid_document("CE", "12345678"))
+        self.assertEqual("AB1234567", normalize_document("CE", " ab1234567 "))
+        self.assertTrue(is_valid_document("CE", "ab1234567"))
+        self.assertTrue(is_valid_document("CE", "123456789"))
+        self.assertTrue(is_valid_document("CE", "N12345678"))
+        self.assertFalse(is_valid_document("CE", "ab12345"))
+        self.assertFalse(is_valid_document("CE", "12345678"))
         self.assertFalse(is_valid_document("CE", "ABC-123"))
 
 

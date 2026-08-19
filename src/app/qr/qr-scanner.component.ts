@@ -20,7 +20,7 @@ import { QrAccessService, AccessQrScanResult } from './qr-access.service';
 import { ExternalVisitAssignmentOption } from '../externalVehicle';
 import { MatDialog } from '@angular/material/dialog';
 import { NavPermissionService } from '../nav-permission.service';
-import { IdentityDocumentType, isValidIdentityDocument } from '../shared/identity-document';
+import { IdentityDocumentType, inferIdentityDocumentType, normalizeIdentityDocument } from '../shared/identity-document';
 import { parsePeruvianLicensePlate } from '../shared/license-plate';
 import {
   IncidentFormDialogComponent,
@@ -259,13 +259,6 @@ interface AccessPointOption {
                 <mat-icon class="!text-white">send</mat-icon>
               </button>
             </div>
-            <div *ngIf="pendingAmbiguousDocument" class="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-700 dark:bg-amber-950/40">
-              <p class="mb-2 font-medium">¿Los 8 dígitos corresponden a DNI o CE?</p>
-              <div class="flex gap-2">
-                <button type="button" class="rounded bg-teal-600 px-3 py-2 text-white" (click)="resolveAmbiguousDocument('DNI')">DNI</button>
-                <button type="button" class="rounded bg-slate-600 px-3 py-2 text-white" (click)="resolveAmbiguousDocument('CE')">CE</button>
-              </div>
-            </div>
           </div>
 
           <div
@@ -495,7 +488,6 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   scannedResult: string | null = null;
   errorMessage: string | null = null;
   manualCode = '';
-  pendingAmbiguousDocument: string | null = null;
 
   /** Texto informativo: BarcodeDetector vs ZXing. */
   scanEngineHint = '';
@@ -957,30 +949,19 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     if (!t || this.cooldownActive) {
       return;
     }
-    if (/^[0-9]{8}$/.test(t)) {
-      this.pendingAmbiguousDocument = t;
-      return;
-    }
     const plate = parsePeruvianLicensePlate(t);
     if (plate.valid) {
       this.manualCode = '';
       this.processInput(plate.canonical, 'PLATE');
       return;
     }
-    if (isValidIdentityDocument('CE', t)) {
+    const documentType = inferIdentityDocumentType(t);
+    if (documentType) {
       this.manualCode = '';
-      this.processInput(t.toUpperCase(), 'DOCUMENT', 'CE');
+      this.processInput(normalizeIdentityDocument(documentType, t), 'DOCUMENT', documentType);
       return;
     }
     this.toastr.warning('Entrada inválida. Use placa peruana, DNI o CE.');
-  }
-
-  resolveAmbiguousDocument(type: IdentityDocumentType): void {
-    const value = this.pendingAmbiguousDocument;
-    if (!value) return;
-    this.pendingAmbiguousDocument = null;
-    this.manualCode = '';
-    this.processInput(value, 'DOCUMENT', type);
   }
 
   private processInput(

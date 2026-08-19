@@ -370,6 +370,120 @@ button.vc-btn-primary,
 a.vc-btn-primary {
   background-color: #14b8a6;
   background-image: linear-gradient(to right, #2dd4bf, #14b8a6, #0d9488);
+  color: #ffffff;
+}
+
+button.vc-btn-outline,
+a.vc-btn-outline {
+  background-color: #ffffff;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+button.vc-btn-outline:hover:not(:disabled),
+a.vc-btn-outline:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+button.vc-btn-cancel,
+a.vc-btn-cancel {
+  background-color: #ffffff;
+  border-color: #e5e7eb;
+  color: #111827;
+}
+
+button.vc-btn-cancel:hover:not(:disabled),
+a.vc-btn-cancel:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  color: #1d4ed8;
+}
+
+/*
+ * Refuerzo photo-picker: mismo conflicto preflight/capas — “Tomar foto” quedaba texto blanco
+ * sobre fondo transparente/blanco en light mode.
+ */
+button.vc-photo-picker__btn--camera {
+  background-color: #0d9488;
+  border-color: #5eead4;
+  color: #ffffff;
+}
+
+button.vc-photo-picker__btn--camera:hover:not(:disabled) {
+  background-color: #0f766e;
+  color: #ffffff;
+}
+
+button.vc-photo-picker__btn--camera mat-icon,
+button.vc-photo-picker__btn--camera span {
+  color: currentColor;
+}
+
+button.vc-photo-picker__btn--gallery {
+  background-color: #ffffff;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+button.vc-photo-picker__btn--gallery:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+button.vc-photo-picker__btn--gallery mat-icon,
+button.vc-photo-picker__btn--gallery span {
+  color: currentColor;
+}
+
+.dark button.vc-photo-picker__btn--camera {
+  background-color: #0f766e;
+  border-color: #115e59;
+  color: #f9fafb;
+}
+
+.dark button.vc-photo-picker__btn--camera:hover:not(:disabled) {
+  background-color: #0d9488;
+}
+
+.dark button.vc-photo-picker__btn--gallery {
+  background-color: #1f2937;
+  border-color: #4b5563;
+  color: #f3f4f6;
+}
+
+.dark button.vc-photo-picker__btn--gallery:hover:not(:disabled) {
+  background-color: #374151;
+  color: #ffffff;
+}
+
+.dark button.vc-btn-outline,
+.dark a.vc-btn-outline {
+  background-color: #1f2937;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+.dark button.vc-btn-outline:hover:not(:disabled),
+.dark a.vc-btn-outline:hover:not(:disabled) {
+  background-color: #374151;
+  color: #ffffff;
+}
+
+.dark button.vc-btn-cancel,
+.dark a.vc-btn-cancel {
+  background-color: #1f2937;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
+.dark button.vc-btn-cancel:hover:not(:disabled),
+.dark a.vc-btn-cancel:hover:not(:disabled) {
+  background-color: #374151;
+  color: #ffffff;
+}
+
+button.vc-photo-picker__btn:disabled {
+  opacity: 0.55;
 }
 
 .dark .vc-field {
