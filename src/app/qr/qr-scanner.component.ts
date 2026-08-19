@@ -385,7 +385,7 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                   type="button"
                   (click)="saveAccessDetails()"
                   [disabled]="savingDetails || authorizingEntry || compressingDetailPhotos"
-                  class="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50">
+                  class="access-details__btn-save inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">
                   {{ savingDetails ? 'Guardando…' : 'Guardar detalles' }}
                 </button>
                 <button
@@ -812,6 +812,21 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
         border: none;
         cursor: pointer;
         padding: 0;
+      }
+      .access-details__btn-save {
+        background-color: #0d9488;
+        color: #ffffff;
+      }
+      .access-details__btn-save:hover:not(:disabled) {
+        background-color: #0f766e;
+        color: #ffffff;
+      }
+      :host-context(.dark) .access-details__btn-save {
+        background-color: #14b8a6;
+        color: #ffffff;
+      }
+      :host-context(.dark) .access-details__btn-save:hover:not(:disabled) {
+        background-color: #0d9488;
       }
       .recent-history__decision {
         display: block;

@@ -1841,8 +1841,9 @@ class AccessLogController
     }
 
     /**
-     * PATCH /api/v1/access-logs/details/:logRef
-     * Completa detalles post-scan (nota, decisión, casa, foto).
+     * PATCH / POST /api/v1/access-logs/details/:logRef
+     * Completa detalles post-scan (nota, decisión, casa, fotos).
+     * JSON → PATCH; multipart (fotos) → POST (PHP no parsea $_FILES en PATCH).
      */
     public function patchDetails(int $logRef): void
     {

@@ -257,7 +257,8 @@ Módulo nav `external_visits` (separado de `vehicles`). Catálogo global staff: 
 | GET | `/api/v1/access-logs` | Listar (filtros en query: `access_point_id`, `person_id`, `type`, fechas, `page`, `limit`, etc.). |
 | GET | `/api/v1/access-logs/:id` | Un registro. |
 | POST | `/api/v1/access-logs` | Crear ingreso (`type: INGRESO`) o cerrar sesión (`type: EGRESO`: actualiza el último ingreso abierto del mismo punto + persona/vehículo/doc/placa; responde `closed`, `permanence_minutes`). Si no hay ingreso abierto, crea un **EGRESO observado** (`orphan_exit: true`, HTTP 201) en lugar de 422. Body opcional: `operator_notes` (texto libre del operario, separado de `observation` automática). Rechaza 409 si hay INGRESO duplicado reciente (misma identidad + punto, ~8 s). |
-| PATCH | `/api/v1/access-logs/details/:logRef` | Completar detalles post-scan (staff). `logRef` positivo = `access_logs.id`; negativo = `temporary_access_logs`. Campos: `operator_notes`, `operator_decision`, `house_id` (`0` = sin domicilio), `photos[]` (multipart, máx. 5; también acepta `photo` legacy). No modifica `observation` / `status_validated`. |
+| PATCH | `/api/v1/access-logs/details/:logRef` | Completar detalles post-scan (staff), cuerpo JSON. |
+| POST | `/api/v1/access-logs/details/:logRef` | Igual con `multipart/form-data` (nota, decisión, casa, `photos[]` máx. 5). Preferido cuando hay fotos. |
 | POST | `/api/v1/access-logs/authorize-from-attempt` | Ingreso PERMITIDO en un clic tras autorización del propietario. Body: `{ "log_ref": ±id, "house_id"? }`. Requiere intento DENEGADO con `operator_decision=AUTORIZADO_POR_PROPIETARIO`. Override de asignación externa si la autorización venció. |
 | GET | `/api/v1/access-logs/access-points` | Puntos de acceso activos por defecto (escáner, dashboard). Query `include_inactive=1` para historial. |
 | GET | `/api/v1/access-logs/history-by-date` | Por fecha y `access_point` (unificado: `access_logs` + `temporary_access_logs`). |

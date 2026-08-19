@@ -746,7 +746,7 @@ if (str_starts_with($uri, '/api/v1/')) {
             exit;
         }
 
-        if (preg_match('#^access-logs/details/(-?\d+)$#', $path, $detailMatches) && $method === 'PATCH') {
+        if (preg_match('#^access-logs/details/(-?\d+)$#', $path, $detailMatches) && ($method === 'PATCH' || $method === 'POST')) {
             $controller->patchDetails((int) $detailMatches[1]);
             exit;
         }

@@ -121,7 +121,7 @@ export class AccessLogService {
 
   patchAccessDetails(logRef: number, body: PatchAccessDetailsBody | FormData): Observable<any> {
     if (body instanceof FormData) {
-      return this.api.patchFormData(`api/v1/access-logs/details/${logRef}`, body);
+      return this.api.postFormData(`api/v1/access-logs/details/${logRef}`, body);
     }
     return this.http.patch(`${this.baseUrl}/api/v1/access-logs/details/${logRef}`, body);
   }
