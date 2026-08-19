@@ -122,22 +122,27 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
   ];
   petStatusList = ['PERMITIDO', 'OBSERVADO', 'DENEGADO'];
 
+  showTablePhotoPicker = false;
+  tablePhotoPickerTarget: { kind: 'vehicle' | 'pet'; index: number } | null = null;
+  compressingTablePhotoKind: 'vehicle' | 'pet' | null = null;
+  compressingTablePhotoIndex = -1;
+
   /** Índice del vehículo cuya foto se está subiendo (-1 = ninguno) */
   uploadingVehicleIndex: number = -1;
   /** Foto del modal “nuevo vehículo” (antes de existir vehicle_id) */
   uploadingNewVehiclePhoto = false;
+  compressingNewVehiclePhoto = false;
   /** Índice de la mascota cuya foto se está subiendo (-1 = ninguna) */
   uploadingPetIndex: number = -1;
   /** Foto del modal «nueva mascota» (opcional, antes de crear el registro) */
   uploadingNewPetPhoto = false;
+  compressingNewPetPhoto = false;
   /** Foto del modal «nueva visita externa» */
   uploadingNewExternalVehiclePhoto = false;
   compressingNewExternalVehiclePhoto = false;
   /** Foto del modal «editar visita externa» */
   uploadingEditExternalVehiclePhoto = false;
   compressingEditExternalVehiclePhoto = false;
-  externalPhotoSource: 'take' | 'select' = 'take';
-  externalPhotoSourceEdit: 'take' | 'select' = 'take';
 
   expandedMyHouseRows: Record<MyHouseTableKey, ExpandableRowId> = {
     residents: null,
@@ -993,8 +998,6 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
     this.vehicleToEdit = new Vehicle('', 'AUTOMOVIL', 0, 'PERMITIDO', '', '', 'RESIDENTE', '', '', '');
     this.externalVehicleToAdd = new ExternalVehicle('','','','','','','','',);
     this.externalVehicleToEdit = new ExternalVehicle('','','','','','','','',);
-    this.externalPhotoSource = 'take';
-    this.externalPhotoSourceEdit = 'take';
     this.petToAdd = { name: '', species: 'PERRO', breed: '', color: '', house_id: 0, status_validated: 'PERMITIDO', photo_url: undefined };
     this.petToEdit = {};
   }
@@ -1012,15 +1015,25 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
     document.getElementById('myhouse-new-pet-button')?.click();
   }
 
-  onNewPetPhotoPick(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
+  onNewPetPhotoPick(file: File): void {
+    void this.uploadNewPetPhoto(file);
+  }
+
+  private async uploadNewPetPhoto(file: File): Promise<void> {
+    if (!file?.type.startsWith('image/')) {
       this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
       return;
     }
+    this.compressingNewPetPhoto = true;
+    let ready = file;
+    try {
+      ready = await compressImageFile(file, MOBILE_PHOTO_COMPRESS);
+    } catch {
+      this.toastr.warning('No se pudo optimizar la foto; se usará el original.');
+    }
+    this.compressingNewPetPhoto = false;
     this.uploadingNewPetPhoto = true;
-    this.publicReg.uploadPetPhoto(file).subscribe({
+    this.publicReg.uploadPetPhoto(ready, { skipCompress: true }).subscribe({
       next: (res) => {
         this.uploadingNewPetPhoto = false;
         if (res.success && res.photo_url) {
@@ -1029,12 +1042,10 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
         } else {
           this.toastr.error(res.error || 'Error al subir la foto.');
         }
-        input.value = '';
       },
       error: (err) => {
         this.uploadingNewPetPhoto = false;
         this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
-        input.value = '';
       }
     });
   }
@@ -1346,15 +1357,25 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
     this.vehicleToEdit.license_plate = '';
   }
 
-  onNewVehiclePhotoPick(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
+  onNewVehiclePhotoPick(file: File): void {
+    void this.uploadNewVehiclePhoto(file);
+  }
+
+  private async uploadNewVehiclePhoto(file: File): Promise<void> {
+    if (!file?.type.startsWith('image/')) {
       this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
       return;
     }
+    this.compressingNewVehiclePhoto = true;
+    let ready = file;
+    try {
+      ready = await compressImageFile(file, MOBILE_PHOTO_COMPRESS);
+    } catch {
+      this.toastr.warning('No se pudo optimizar la foto; se usará el original.');
+    }
+    this.compressingNewVehiclePhoto = false;
     this.uploadingNewVehiclePhoto = true;
-    this.publicReg.uploadVehiclePhoto(file).subscribe({
+    this.publicReg.uploadVehiclePhoto(ready, { skipCompress: true }).subscribe({
       next: (res) => {
         this.uploadingNewVehiclePhoto = false;
         if (res.success && res.photo_url) {
@@ -1363,41 +1384,39 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
         } else {
           this.toastr.error(res.error || 'Error al subir la foto.');
         }
-        input.value = '';
       },
       error: (err) => {
         this.uploadingNewVehiclePhoto = false;
         this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
-        input.value = '';
       }
     });
   }
 
   newVehicle(): void {
     const houseId = this.userOnSes.house_id ?? 0;
-  this.vehicleToAdd.house_id = houseId;
-  if (!this.vehicleToAdd.type_vehicle) this.vehicleToAdd.type_vehicle = 'AUTOMOVIL';
-  if (this.isTenantRestrictedInMyHouse) {
-    this.vehicleToAdd.category_entry = 'INQUILINO';
-    const pid = this.personIdSession();
-    if (pid) {
-      (this.vehicleToAdd as any).owner_id = pid;
+    this.vehicleToAdd.house_id = houseId;
+    if (!this.vehicleToAdd.type_vehicle) this.vehicleToAdd.type_vehicle = 'AUTOMOVIL';
+    if (this.isTenantRestrictedInMyHouse) {
+      this.vehicleToAdd.category_entry = 'INQUILINO';
+      const pid = this.personIdSession();
+      if (pid) {
+        (this.vehicleToAdd as any).owner_id = pid;
+      }
+    } else {
+      const pid = this.personIdSession();
+      if (pid) {
+        (this.vehicleToAdd as any).owner_id = pid;
+      }
+      if (!this.vehicleToAdd.category_entry) {
+        this.vehicleToAdd.category_entry = 'RESIDENTE';
+      }
     }
-  } else {
-    const pid = this.personIdSession();
-    if (pid) {
-      (this.vehicleToAdd as any).owner_id = pid;
+    if (!this.vehicleToAdd.status_validated) this.vehicleToAdd.status_validated = 'PERMITIDO';
+    if (this.houses.length === 0 && houseId) {
+      this.houses = [{ house_id: houseId, block_house: '—', lot: null, apartment: null } as House];
     }
-    if (!this.vehicleToAdd.category_entry) {
-      this.vehicleToAdd.category_entry = 'RESIDENTE';
-    }
+    document.getElementById('myhouse-new-vehicle-button')?.click();
   }
-  if (!this.vehicleToAdd.status_validated) this.vehicleToAdd.status_validated = 'PERMITIDO';
-  if (this.houses.length === 0 && houseId) {
-    this.houses = [{ house_id: houseId, block_house: '—', lot: null, apartment: null } as House];
-  }
-  document.getElementById('myhouse-new-vehicle-button')?.click();
-}
 
 editVehicle(vehicle:Vehicle){
   if (!this.canTenantEditVehicle(vehicle)) {
@@ -1521,12 +1540,12 @@ saveNewVehicle(): void {
 
 
   //EXTERNAL VEHICLE
-  onNewExternalVisitPhotoPick(event: Event): void {
-    void this.onExternalVisitPhotoPick(event, 'add');
+  onNewExternalVisitPhotoPick(file: File): void {
+    void this.uploadExternalVisitPhoto(file, 'add');
   }
 
-  onEditExternalVisitPhotoPick(event: Event): void {
-    void this.onExternalVisitPhotoPick(event, 'edit');
+  onEditExternalVisitPhotoPick(file: File): void {
+    void this.uploadExternalVisitPhoto(file, 'edit');
   }
 
   clearExternalVisitPhoto(mode: 'add' | 'edit'): void {
@@ -1534,10 +1553,8 @@ saveNewVehicle(): void {
     target.photo_url = undefined;
   }
 
-  private async onExternalVisitPhotoPick(event: Event, mode: 'add' | 'edit'): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
+  private async uploadExternalVisitPhoto(file: File, mode: 'add' | 'edit'): Promise<void> {
+    if (!file?.type.startsWith('image/')) {
       this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
       return;
     }
@@ -1576,7 +1593,6 @@ saveNewVehicle(): void {
         } else {
           this.toastr.error(res.error || 'Error al subir la foto.');
         }
-        input.value = '';
       },
       error: (err) => {
         if (mode === 'add') {
@@ -1585,7 +1601,6 @@ saveNewVehicle(): void {
           this.uploadingEditExternalVehiclePhoto = false;
         }
         this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
-        input.value = '';
       },
     });
   }
@@ -1593,7 +1608,6 @@ saveNewVehicle(): void {
   newExternalVehicle(){
     this.externalDurationMinutes = 120;
     this.externalVehicleToAdd = new ExternalVehicle('','','','','DELIVERY','PERMITIDO','','ACTIVO');
-    this.externalPhotoSource = 'take';
     document.getElementById('myhouse-new-external-vehicle-button')?.click();
   }
 
@@ -1603,7 +1617,6 @@ saveNewVehicle(): void {
     if (tid) {
       (this.externalVehicleToEdit as any).id = tid;
     }
-    this.externalPhotoSourceEdit = 'take';
     document.getElementById('myhouse-edit-external-vehicle-button')?.click();
   }
 
@@ -1711,105 +1724,186 @@ saveNewVehicle(): void {
     });
   }*/
 
-  /** Sube la foto del vehículo y actualiza su foto_url en el servidor */
-  onVehiclePhotoSelect(vehicleIndex: number, event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
+  openTablePhotoPicker(kind: 'vehicle' | 'pet', index: number): void {
+    this.tablePhotoPickerTarget = { kind, index };
+    this.showTablePhotoPicker = true;
+  }
+
+  closeTablePhotoPicker(): void {
+    this.showTablePhotoPicker = false;
+    this.tablePhotoPickerTarget = null;
+  }
+
+  isTablePhotoBusy(kind: 'vehicle' | 'pet', index: number): boolean {
+    if (kind === 'vehicle') {
+      return this.uploadingVehicleIndex === index
+        || (this.compressingTablePhotoKind === 'vehicle' && this.compressingTablePhotoIndex === index);
+    }
+    return this.uploadingPetIndex === index
+      || (this.compressingTablePhotoKind === 'pet' && this.compressingTablePhotoIndex === index);
+  }
+
+  isTablePhotoPickerBusy(): boolean {
+    const target = this.tablePhotoPickerTarget;
+    if (!target) {
+      return false;
+    }
+    return this.isTablePhotoBusy(target.kind, target.index);
+  }
+
+  get tablePhotoCompressing(): boolean {
+    const target = this.tablePhotoPickerTarget;
+    if (!target) {
+      return false;
+    }
+    return this.compressingTablePhotoKind === target.kind && this.compressingTablePhotoIndex === target.index;
+  }
+
+  get tablePhotoUploading(): boolean {
+    const target = this.tablePhotoPickerTarget;
+    if (!target) {
+      return false;
+    }
+    if (target.kind === 'vehicle') {
+      return this.uploadingVehicleIndex === target.index;
+    }
+    return this.uploadingPetIndex === target.index;
+  }
+
+  onTablePhotoPick(file: File): void {
+    void this.handleTablePhotoPick(file);
+  }
+
+  private async handleTablePhotoPick(file: File): Promise<void> {
+    const target = this.tablePhotoPickerTarget;
+    if (!target) {
+      return;
+    }
+
+    if (!file?.type.startsWith('image/')) {
       this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
       return;
     }
-    
+
+    this.compressingTablePhotoKind = target.kind;
+    this.compressingTablePhotoIndex = target.index;
+    let ready = file;
+    try {
+      ready = await compressImageFile(file, MOBILE_PHOTO_COMPRESS);
+    } catch {
+      this.toastr.warning('No se pudo optimizar la foto; se usará el original.');
+    }
+    this.compressingTablePhotoKind = null;
+    this.compressingTablePhotoIndex = -1;
+
+    if (target.kind === 'vehicle') {
+      await this.uploadVehicleTablePhoto(target.index, ready);
+    } else {
+      await this.uploadPetTablePhoto(target.index, ready);
+    }
+  }
+
+  private uploadVehicleTablePhoto(vehicleIndex: number, file: File): Promise<void> {
+    if (!file || !file.type.startsWith('image/')) {
+      this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
+      return Promise.resolve();
+    }
+
     const vehicle = this.myVehicles[vehicleIndex];
     if (!vehicle) {
       this.toastr.error('Vehículo no encontrado.');
-      return;
+      return Promise.resolve();
     }
     if (!this.canTenantEditVehicle(vehicle)) {
       this.toastr.warning('No puedes actualizar la foto de este vehículo.');
-      return;
+      return Promise.resolve();
     }
 
     this.uploadingVehicleIndex = vehicleIndex;
-    this.publicReg.uploadVehiclePhoto(file).subscribe({
-      next: (res) => {
-        this.uploadingVehicleIndex = -1;
-        if (res.success && res.photo_url) {
-          // Actualizar la foto_url en el servidor
-          vehicle.photo_url = res.photo_url;
-          this.entranceService.updateVehicle(vehicle).subscribe({
-            next: (updateRes: any) => {
-              if (updateRes.success) {
-                this.toastr.success('Foto del vehículo cargada correctamente.');
-              } else {
+    return new Promise((resolve) => {
+      this.publicReg.uploadVehiclePhoto(file, { skipCompress: true }).subscribe({
+        next: (res) => {
+          this.uploadingVehicleIndex = -1;
+          if (res.success && res.photo_url) {
+            vehicle.photo_url = res.photo_url;
+            this.entranceService.updateVehicle(vehicle).subscribe({
+              next: (updateRes: any) => {
+                if (updateRes.success) {
+                  this.toastr.success('Foto del vehículo cargada correctamente.');
+                  this.closeTablePhotoPicker();
+                } else {
+                  this.toastr.warning('Foto subida pero error al guardar.');
+                }
+                resolve();
+              },
+              error: () => {
                 this.toastr.warning('Foto subida pero error al guardar.');
+                resolve();
               }
-            },
-            error: () => {
-              this.toastr.warning('Foto subida pero error al guardar.');
-            }
-          });
-        } else {
-          this.toastr.error(res.error || 'Error al subir la foto.');
+            });
+          } else {
+            this.toastr.error(res.error || 'Error al subir la foto.');
+            resolve();
+          }
+        },
+        error: (err) => {
+          this.uploadingVehicleIndex = -1;
+          this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
+          resolve();
         }
-        input.value = '';
-      },
-      error: (err) => {
-        this.uploadingVehicleIndex = -1;
-        this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
-        input.value = '';
-      }
+      });
     });
   }
 
-  /** Sube la foto de la mascota y actualiza su photo_url en el servidor */
-  onPetPhotoSelect(petIndex: number, event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
+  private uploadPetTablePhoto(petIndex: number, file: File): Promise<void> {
     if (!file || !file.type.startsWith('image/')) {
       this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
-      return;
+      return Promise.resolve();
     }
 
     const pet = this.myPets[petIndex];
     if (!pet) {
       this.toastr.error('Mascota no encontrada.');
-      return;
+      return Promise.resolve();
     }
     if (!this.canTenantEditPet(pet)) {
       this.toastr.warning('No puedes actualizar la foto de esta mascota.');
-      return;
+      return Promise.resolve();
     }
 
     this.uploadingPetIndex = petIndex;
-    this.publicReg.uploadPetPhoto(file).subscribe({
-      next: (res) => {
-        this.uploadingPetIndex = -1;
-        if (res.success && res.photo_url) {
-          // Actualizar la photo_url en el servidor
-          pet.photo_url = res.photo_url;
-          this.petsService.updatePet(pet.id || (pet as any).id, pet).subscribe({
-            next: (updateRes: any) => {
-              if (updateRes.success || updateRes.message) {
-                this.toastr.success('Foto de la mascota cargada correctamente.');
-              } else {
+    return new Promise((resolve) => {
+      this.publicReg.uploadPetPhoto(file, { skipCompress: true }).subscribe({
+        next: (res) => {
+          this.uploadingPetIndex = -1;
+          if (res.success && res.photo_url) {
+            pet.photo_url = res.photo_url;
+            this.petsService.updatePet(pet.id || (pet as any).id, pet).subscribe({
+              next: (updateRes: any) => {
+                if (updateRes.success || updateRes.message) {
+                  this.toastr.success('Foto de la mascota cargada correctamente.');
+                  this.closeTablePhotoPicker();
+                } else {
+                  this.toastr.warning('Foto subida pero error al guardar.');
+                }
+                resolve();
+              },
+              error: () => {
                 this.toastr.warning('Foto subida pero error al guardar.');
+                resolve();
               }
-            },
-            error: () => {
-              this.toastr.warning('Foto subida pero error al guardar.');
-            }
-          });
-        } else {
-          this.toastr.error(res.error || 'Error al subir la foto.');
+            });
+          } else {
+            this.toastr.error(res.error || 'Error al subir la foto.');
+            resolve();
+          }
+        },
+        error: (err) => {
+          this.uploadingPetIndex = -1;
+          this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
+          resolve();
         }
-        input.value = '';
-      },
-      error: (err) => {
-        this.uploadingPetIndex = -1;
-        this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
-        input.value = '';
-      }
+      });
     });
   }
 

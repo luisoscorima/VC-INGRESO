@@ -271,6 +271,95 @@ body {
   .vc-btn-cancel {
     @apply py-2.5 px-5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-900 hover:bg-gray-100 hover:text-blue-700 focus:outline-none focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700;
   }
+
+  /* Selector unificado cámara / galería (estilo attachment) */
+  .vc-photo-picker__label {
+    @apply block mb-2 text-sm font-medium text-gray-900 dark:text-white;
+  }
+
+  .vc-photo-picker__hint {
+    @apply text-xs text-gray-600 dark:text-gray-400 mb-2;
+  }
+
+  .vc-photo-picker__preview {
+    @apply flex flex-wrap items-center gap-3 mb-3;
+  }
+
+  .vc-photo-picker__preview img {
+    @apply h-20 w-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600;
+  }
+
+  .vc-photo-picker__clear {
+    @apply text-xs text-red-600 hover:underline disabled:opacity-50;
+  }
+
+  .vc-photo-picker__zone {
+    @apply rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-800/50 px-4 py-5 text-center transition-colors;
+  }
+
+  .vc-photo-picker__zone:not(.vc-photo-picker__zone--busy):hover {
+    @apply border-teal-400/70 bg-teal-50/40 dark:border-teal-700/60 dark:bg-teal-950/20;
+  }
+
+  .vc-photo-picker__zone--busy {
+    @apply opacity-70 pointer-events-none;
+  }
+
+  .vc-photo-picker__zone--has-preview {
+    @apply py-4;
+  }
+
+  .vc-photo-picker__zone-icon {
+    @apply !h-8 !w-8 !text-[2rem] text-gray-400 dark:text-gray-500 mx-auto mb-2;
+  }
+
+  .vc-photo-picker__zone-title {
+    @apply text-sm font-medium text-gray-800 dark:text-gray-100;
+  }
+
+  .vc-photo-picker__zone-sub {
+    @apply text-xs text-gray-500 dark:text-gray-400 mt-0.5 mb-3;
+  }
+
+  .vc-photo-picker__actions {
+    @apply flex flex-wrap items-center justify-center gap-2;
+  }
+
+  .vc-photo-picker__btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/40 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .vc-photo-picker__btn mat-icon {
+    @apply !h-[18px] !w-[18px] !text-[18px];
+  }
+
+  .vc-photo-picker__btn--camera {
+    @apply border-teal-200 bg-teal-600 text-white hover:bg-teal-700 dark:border-teal-800 dark:bg-teal-700 dark:hover:bg-teal-600;
+  }
+
+  .vc-photo-picker__btn--gallery {
+    @apply border-gray-300 bg-white text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700;
+  }
+
+  .vc-photo-picker__status {
+    @apply mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300;
+  }
+
+  .vc-photo-picker__spinner {
+    @apply inline-block h-4 w-4 rounded-full border-2 border-gray-300 border-t-teal-600 animate-spin dark:border-gray-600 dark:border-t-teal-400;
+  }
+
+  .vc-photo-picker__success {
+    @apply mt-2 text-xs text-green-700 dark:text-green-400;
+  }
+
+  .vc-photo-picker--compact .vc-photo-picker__zone {
+    @apply py-4;
+  }
+
+  .vc-photo-picker--compact .vc-photo-picker__zone-icon {
+    @apply !h-6 !w-6 !text-[1.5rem] mb-1;
+  }
 }
 
 /*

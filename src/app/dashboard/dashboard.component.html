@@ -1,6 +1,24 @@
 <div class="vc-page min-h-screen">
-  <input type="file" id="neighbor-dashboard-photo-input" accept="image/jpeg,image/png,image/gif" class="hidden"
-    (change)="onNeighborPhotoChange($event)" />
+  <div *ngIf="showProfilePhotoPicker" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" (click)="closeProfilePhotoPicker()">
+    <div class="w-full max-w-md rounded-lg bg-white p-5 shadow-lg dark:bg-gray-800" (click)="$event.stopPropagation()">
+      <div class="mb-4 flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Foto de perfil</h3>
+        <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" (click)="closeProfilePhotoPicker()" aria-label="Cerrar">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="space-y-3">
+        <app-photo-source-picker
+          captureFacing="user"
+          [compact]="true"
+          zoneTitle="Actualizar foto de perfil"
+          [compressing]="compressingNeighborPhoto"
+          [uploading]="uploadingNeighborPhoto"
+          (fileSelected)="onNeighborPhotoSelected($event)"
+        />
+      </div>
+    </div>
+  </div>
 
   <div class="vc-page-inner">
     <div class="mb-6">
@@ -66,10 +84,10 @@
           <mat-icon class="!w-5 !h-5 text-[1.25rem]">event</mat-icon>
           Hacer reserva
         </a>
-        <button type="button" (click)="triggerNeighborPhotoInput()" [disabled]="uploadingNeighborPhoto"
+        <button type="button" (click)="triggerNeighborPhotoInput()" [disabled]="isProfilePhotoBusy()"
           class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700">
           <mat-icon class="!w-5 !h-5 text-[1.25rem]">photo_camera</mat-icon>
-          {{ uploadingNeighborPhoto ? '…' : 'Cambiar foto de perfil' }}
+          {{ isProfilePhotoBusy() ? '…' : 'Cambiar foto de perfil' }}
         </button>
       </div>
 

@@ -1,4 +1,23 @@
-<input type="file" id="profile-photo-input" accept="image/jpeg,image/png,image/gif" (change)="onProfilePhotoChange($event)" class="hidden" />
+<div *ngIf="showProfilePhotoPicker" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" (click)="closeProfilePhotoPicker()">
+  <div class="w-full max-w-md rounded-lg bg-white p-5 shadow-lg dark:bg-gray-800" (click)="$event.stopPropagation()">
+    <div class="mb-4 flex items-center justify-between">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Foto de perfil</h3>
+      <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" (click)="closeProfilePhotoPicker()" aria-label="Cerrar">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="space-y-3">
+      <app-photo-source-picker
+        captureFacing="user"
+        [compact]="true"
+        zoneTitle="Actualizar foto de perfil"
+        [compressing]="compressingProfilePhoto"
+        [uploading]="uploadingPhoto"
+        (fileSelected)="onProfilePhotoSelected($event)"
+      />
+    </div>
+  </div>
+</div>
 
 <!-- Posición y altura se fuerzan en side-nav.component.css (#logo-sidebar) para que quede debajo del navbar -->
 <aside id="logo-sidebar" class="sidebar-aside fixed left-0 z-30 flex w-64 flex-col -translate-x-full border-r border-gray-200 bg-white pt-6 transition-transform dark:border-gray-700 dark:bg-gray-800 sm:translate-x-0"
@@ -8,11 +27,11 @@
     <!-- Usuario (arriba del sidebar, sobre las pestañas) -->
     <div class="shrink-0 pb-4">
       <div class="flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
-        <button type="button" (click)="onProfilePhotoClick()" [disabled]="uploadingPhoto"
+        <button type="button" (click)="onProfilePhotoClick()" [disabled]="isProfilePhotoBusy()"
           class="relative shrink-0 rounded-full focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
           title="Cambiar foto de perfil">
           <img class="h-10 w-10 rounded-full object-cover shadow" [src]="getUserAvatarUrl(user)" alt="Usuario" />
-          <span *ngIf="uploadingPhoto" class="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white text-xs">...</span>
+          <span *ngIf="isProfilePhotoBusy()" class="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 text-white text-xs">...</span>
         </button>
         <div class="min-w-0 flex-1">
           <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ getUserDisplayName(user) }}</p>

@@ -218,10 +218,16 @@
                     <input [(ngModel)]="vehicleToAdd.color" type="text" name="colorNew" id="vehicles-colorNew" class="vc-field w-full" placeholder="Color..." />
                 </div>
                 <div class="min-w-0 w-full md:col-span-2">
-                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto del vehículo <span *ngIf="requiresVehiclePhotoType(vehicleToAdd.type_vehicle)" class="text-red-600">*</span></label>
-                    <p *ngIf="requiresVehiclePhotoType(vehicleToAdd.type_vehicle)" class="text-xs text-gray-600 dark:text-gray-400 mb-1">Obligatoria para bicicleta y moto eléctrica.</p>
-                    <input type="file" accept="image/jpeg,image/png,image/gif" class="block w-full text-sm text-gray-900 dark:text-gray-300" (change)="onNewVehiclePhotoPick($event)" [disabled]="uploadingNewVehiclePhoto" />
-                    <p *ngIf="vehicleToAdd.photo_url" class="text-xs text-green-700 dark:text-green-400 mt-1">Foto lista para guardar.</p>
+                    <app-photo-source-picker
+                      label="Foto del vehículo"
+                      [required]="requiresVehiclePhotoType(vehicleToAdd.type_vehicle)"
+                      [hint]="requiresVehiclePhotoType(vehicleToAdd.type_vehicle) ? 'Obligatoria para bicicleta y moto eléctrica.' : ''"
+                      [previewUrl]="vehicleToAdd.photo_url ? getPhotoUrl(vehicleToAdd.photo_url) : null"
+                      [compressing]="compressingNewVehiclePhoto"
+                      [uploading]="uploadingNewVehiclePhoto"
+                      [successText]="vehicleToAdd.photo_url ? 'Foto lista para guardar.' : ''"
+                      (fileSelected)="onNewVehiclePhotoPick($event)"
+                    />
                 </div>
                 <div class="min-w-0 w-full">
                     <label for="vehicles-houseIdNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio</label>
@@ -433,44 +439,17 @@
                     <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="vehicles-externalStatus_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
                 <div class="min-w-0 w-full md:col-span-2">
-                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto del vehículo <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
-                    <div class="flex flex-wrap items-center gap-4 mb-2">
-                      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                        <input type="radio" name="externalPhotoSourceNew" [(ngModel)]="externalPhotoSource" value="take" />
-                        Tomar foto del vehículo
-                      </label>
-                      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                        <input type="radio" name="externalPhotoSourceNew" [(ngModel)]="externalPhotoSource" value="select" />
-                        Seleccionar foto del dispositivo
-                      </label>
-                    </div>
-
-                    <input
-                      *ngIf="externalPhotoSource === 'take'"
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      capture="environment"
-                      class="block w-full text-sm text-gray-900 dark:text-gray-300"
-                      (change)="onNewExternalVehiclePhotoPick($event)"
-                      [disabled]="compressingNewExternalVehiclePhoto || uploadingNewExternalVehiclePhoto"
+                    <app-photo-source-picker
+                      label="Foto del vehículo"
+                      [optional]="true"
+                      [previewUrl]="externalVehicleToAdd.photo_url ? getPhotoUrl(externalVehicleToAdd.photo_url) : null"
+                      [showClear]="!!externalVehicleToAdd.photo_url"
+                      [compressing]="compressingNewExternalVehiclePhoto"
+                      [uploading]="uploadingNewExternalVehiclePhoto"
+                      [successText]="externalVehicleToAdd.photo_url ? 'Foto lista para guardar.' : ''"
+                      (fileSelected)="onNewExternalVehiclePhotoPick($event)"
+                      (cleared)="clearExternalVehiclePhoto('add')"
                     />
-                    <input
-                      *ngIf="externalPhotoSource === 'select'"
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      class="block w-full text-sm text-gray-900 dark:text-gray-300"
-                      (change)="onNewExternalVehiclePhotoPick($event)"
-                      [disabled]="compressingNewExternalVehiclePhoto || uploadingNewExternalVehiclePhoto"
-                    />
-                    <p *ngIf="compressingNewExternalVehiclePhoto" class="mt-1 text-sm text-gray-600 dark:text-gray-300">Procesando foto…</p>
-                    <p *ngIf="uploadingNewExternalVehiclePhoto" class="mt-1 text-sm text-gray-600 dark:text-gray-300">Subiendo foto…</p>
-                    <div class="mt-2 flex flex-wrap items-center gap-3" *ngIf="externalVehicleToAdd.photo_url">
-                        <img [src]="getPhotoUrl(externalVehicleToAdd.photo_url)" alt="Vista previa" class="h-20 w-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600" />
-                        <div class="flex flex-col gap-1">
-                            <p class="text-xs text-green-700 dark:text-green-400">Foto lista para guardar.</p>
-                            <button type="button" class="text-xs text-red-600 hover:underline w-fit" (click)="clearExternalVehiclePhoto('add')">Quitar foto</button>
-                        </div>
-                    </div>
                 </div>
             </div>
             <!-- Modal footer -->
@@ -559,44 +538,17 @@
                     <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="vehicles-externalStatus_reasonEdit" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
                 <div class="min-w-0 w-full md:col-span-2">
-                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto del vehículo <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
-                    <div class="flex flex-wrap items-center gap-4 mb-2">
-                      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                        <input type="radio" name="externalPhotoSourceEdit" [(ngModel)]="externalPhotoSourceEdit" value="take" />
-                        Tomar foto del vehículo
-                      </label>
-                      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                        <input type="radio" name="externalPhotoSourceEdit" [(ngModel)]="externalPhotoSourceEdit" value="select" />
-                        Seleccionar foto del dispositivo
-                      </label>
-                    </div>
-
-                    <input
-                      *ngIf="externalPhotoSourceEdit === 'take'"
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      capture="environment"
-                      class="block w-full text-sm text-gray-900 dark:text-gray-300"
-                      (change)="onEditExternalVehiclePhotoPick($event)"
-                      [disabled]="compressingEditExternalVehiclePhoto || uploadingEditExternalVehiclePhoto"
+                    <app-photo-source-picker
+                      label="Foto del vehículo"
+                      [optional]="true"
+                      [previewUrl]="externalVehicleToEdit.photo_url ? getPhotoUrl(externalVehicleToEdit.photo_url) : null"
+                      [showClear]="!!externalVehicleToEdit.photo_url"
+                      [compressing]="compressingEditExternalVehiclePhoto"
+                      [uploading]="uploadingEditExternalVehiclePhoto"
+                      [successText]="externalVehicleToEdit.photo_url ? 'Foto cargada.' : ''"
+                      (fileSelected)="onEditExternalVehiclePhotoPick($event)"
+                      (cleared)="clearExternalVehiclePhoto('edit')"
                     />
-                    <input
-                      *ngIf="externalPhotoSourceEdit === 'select'"
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      class="block w-full text-sm text-gray-900 dark:text-gray-300"
-                      (change)="onEditExternalVehiclePhotoPick($event)"
-                      [disabled]="compressingEditExternalVehiclePhoto || uploadingEditExternalVehiclePhoto"
-                    />
-                    <p *ngIf="compressingEditExternalVehiclePhoto" class="mt-1 text-sm text-gray-600 dark:text-gray-300">Procesando foto…</p>
-                    <p *ngIf="uploadingEditExternalVehiclePhoto" class="mt-1 text-sm text-gray-600 dark:text-gray-300">Subiendo foto…</p>
-                    <div class="mt-2 flex flex-wrap items-center gap-3" *ngIf="externalVehicleToEdit.photo_url">
-                        <img [src]="getPhotoUrl(externalVehicleToEdit.photo_url)" alt="Vista previa" class="h-20 w-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600" />
-                        <div class="flex flex-col gap-1">
-                            <p class="text-xs text-green-700 dark:text-green-400">Foto cargada.</p>
-                            <button type="button" class="text-xs text-red-600 hover:underline w-fit" (click)="clearExternalVehiclePhoto('edit')">Quitar foto</button>
-                        </div>
-                    </div>
                 </div>
                 <div class="min-w-0 w-full md:col-span-2">
                     <label for="vehicles-externalNotesEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Notas operario</label>

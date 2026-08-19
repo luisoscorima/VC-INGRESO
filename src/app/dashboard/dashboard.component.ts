@@ -17,6 +17,7 @@ import {
   addDaysYmd,
   mondayOfWeekYmd,
 } from '../app-date.util';
+import { compressImageFile, MOBILE_PHOTO_COMPRESS } from '../shared/compress-image';
 
 
 @Component({
@@ -81,6 +82,8 @@ export class DashboardComponent implements OnInit {
   chartIngresosPorDia: { label: string; count: number; value: number }[] = [];
   loadingDayTrend = false;
   uploadingNeighborPhoto = false;
+  compressingNeighborPhoto = false;
+  showProfilePhotoPicker = false;
 
   constructor(
     private router: Router,
@@ -712,35 +715,52 @@ export class DashboardComponent implements OnInit {
     this.reloadDayTrendAndAlerts();
   }
 
-  onNeighborPhotoChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
+  onNeighborPhotoSelected(file: File): void {
+    void this.uploadNeighborProfilePhoto(file);
+  }
+
+  private async uploadNeighborProfilePhoto(file: File): Promise<void> {
+    if (!file?.type.startsWith('image/')) {
       this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
-      input.value = '';
       return;
     }
+
+    this.compressingNeighborPhoto = true;
+    let ready = file;
+    try {
+      ready = await compressImageFile(file, MOBILE_PHOTO_COMPRESS);
+    } catch {
+      this.toastr.warning('No se pudo optimizar la foto; se usará el original.');
+    }
+    this.compressingNeighborPhoto = false;
     this.uploadingNeighborPhoto = true;
-    this.api.uploadProfilePhoto(file).subscribe({
+    this.api.uploadProfilePhoto(ready, { skipCompress: true }).subscribe({
       next: (res: any) => {
         this.uploadingNeighborPhoto = false;
-        input.value = '';
         const user = res?.data;
         if (user) {
           this.auth.updateCurrentUser(user);
+          this.actualUser = user;
           this.toastr.success('Foto de perfil actualizada.');
+          this.closeProfilePhotoPicker();
         }
       },
       error: () => {
         this.uploadingNeighborPhoto = false;
-        input.value = '';
       },
     });
   }
 
   triggerNeighborPhotoInput(): void {
-    const el = document.getElementById('neighbor-dashboard-photo-input') as HTMLInputElement;
-    el?.click();
+    this.showProfilePhotoPicker = true;
+  }
+
+  closeProfilePhotoPicker(): void {
+    this.showProfilePhotoPicker = false;
+  }
+
+  isProfilePhotoBusy(): boolean {
+    return this.compressingNeighborPhoto || this.uploadingNeighborPhoto;
   }
 
   ngOnInit() {

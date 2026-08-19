@@ -9,6 +9,7 @@ import { NavPermissionService } from '../nav-permission.service';
 import { VersionCheckService } from '../version-check.service';
 import { NavModuleDef } from '../nav-modules.config';
 import { User } from '../user';
+import { compressImageFile, MOBILE_PHOTO_COMPRESS } from '../shared/compress-image';
 
 @Component({
   selector: 'app-side-nav',
@@ -17,6 +18,8 @@ import { User } from '../user';
 })
 export class SideNavComponent extends AppComponent implements OnInit {
   uploadingPhoto = false;
+  compressingProfilePhoto = false;
+  showProfilePhotoPicker = false;
   infoSectionExpanded = false;
   gestionModules: NavModuleDef[] = [];
   adminModules: NavModuleDef[] = [];
@@ -71,32 +74,49 @@ export class SideNavComponent extends AppComponent implements OnInit {
   }
 
   onProfilePhotoClick(): void {
-    const el = document.getElementById('profile-photo-input') as HTMLInputElement;
-    if (el) el.click();
+    this.showProfilePhotoPicker = true;
   }
 
-  onProfilePhotoChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
+  closeProfilePhotoPicker(): void {
+    this.showProfilePhotoPicker = false;
+  }
+
+  isProfilePhotoBusy(): boolean {
+    return this.compressingProfilePhoto || this.uploadingPhoto;
+  }
+
+  onProfilePhotoSelected(file: File): void {
+    void this.uploadProfilePhoto(file);
+  }
+
+  private async uploadProfilePhoto(file: File): Promise<void> {
+    if (!file?.type.startsWith('image/')) {
       this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
-      input.value = '';
       return;
     }
+
+    this.compressingProfilePhoto = true;
+    let ready = file;
+    try {
+      ready = await compressImageFile(file, MOBILE_PHOTO_COMPRESS);
+    } catch {
+      this.toastr.warning('No se pudo optimizar la foto; se usará el original.');
+    }
+    this.compressingProfilePhoto = false;
     this.uploadingPhoto = true;
-    this.api.uploadProfilePhoto(file).subscribe({
+    this.api.uploadProfilePhoto(ready, { skipCompress: true }).subscribe({
       next: (res: any) => {
         this.uploadingPhoto = false;
-        input.value = '';
         const user = res?.data;
         if (user) {
           this.auth.updateCurrentUser(user);
+          this.syncUserFromAuth(user);
           this.toastr.success('Foto de perfil actualizada.');
+          this.closeProfilePhotoPicker();
         }
       },
       error: () => {
         this.uploadingPhoto = false;
-        input.value = '';
       }
     });
   }

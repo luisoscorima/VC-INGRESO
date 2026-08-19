@@ -1,4 +1,4 @@
-import { Component, ElementRef, Inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,7 +7,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { ToastrService } from 'ngx-toastr';
 import { AccessIncidentService, IncidentFormDialogData } from './access-incident.service';
 import { ApiService } from '../api.service';
-import { compressImageFile } from '../shared/compress-image';
+import { compressImageFile, MOBILE_PHOTO_COMPRESS } from '../shared/compress-image';
+import { PhotoSourcePickerComponent } from '../shared/photo-source-picker/photo-source-picker.component';
 
 /** panelClass para MatDialog (estilos en styles.css → .vc-incident-dialog) */
 export const INCIDENT_DIALOG_PANEL_CLASS = 'vc-incident-dialog';
@@ -33,7 +34,7 @@ interface PendingPhoto {
 @Component({
   selector: 'app-incident-form-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatDialogModule, MatIconModule, MatButtonModule],
+  imports: [CommonModule, FormsModule, MatDialogModule, MatIconModule, MatButtonModule, PhotoSourcePickerComponent],
   template: `
     <h2 mat-dialog-title class="vc-incident-dialog__title">
       {{ data.mode === 'scan' ? 'Incidencia del escaneo' : 'Nueva incidencia' }}
@@ -101,24 +102,6 @@ interface PendingPhoto {
           <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700">
             Fotos (opcional, máx. {{ maxPhotos }})
           </label>
-          <input
-            #cameraInput
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
-            capture="environment"
-            (change)="onPhotoSelected($event)"
-            class="hidden" />
-          <input
-            #galleryInput
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
-            (change)="onPhotoSelected($event)"
-            class="hidden" />
-
-          <p *ngIf="compressingPhoto" class="text-sm text-gray-600 dark:text-gray-300">
-            Procesando foto…
-          </p>
-
           <div *ngIf="photos.length" class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
             <div *ngFor="let ph of photos; let i = index" class="relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600">
               <img [src]="ph.preview" [alt]="'Foto ' + (i + 1)" class="h-28 w-full object-cover" />
@@ -137,23 +120,14 @@ interface PendingPhoto {
             </div>
           </div>
 
-          <div *ngIf="!compressingPhoto && canAddPhoto" class="mt-2 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              class="vc-btn-primary inline-flex items-center gap-2 !px-4 !py-2.5"
-              [disabled]="saving"
-              (click)="openCamera()">
-              <mat-icon class="!h-5 !w-5 !text-xl">photo_camera</mat-icon>
-              {{ photos.length ? 'Tomar otra foto' : 'Tomar foto' }}
-            </button>
-            <button
-              type="button"
-              class="text-sm font-medium text-amber-700 hover:underline dark:text-amber-400"
-              [disabled]="saving"
-              (click)="openGallery()">
-              Elegir de galería
-            </button>
-          </div>
+          <app-photo-source-picker
+            *ngIf="canAddPhoto"
+            [zoneTitle]="photos.length ? 'Añadir otra foto' : 'Añadir imagen'"
+            [cameraLabel]="photos.length ? 'Tomar otra' : 'Tomar foto'"
+            [compressing]="compressingPhoto"
+            [disabled]="saving"
+            (fileSelected)="onPhotoFileSelected($event)"
+          />
           <p *ngIf="photos.length >= maxPhotos" class="mt-1 text-xs text-gray-500">
             Límite de {{ maxPhotos }} fotos alcanzado.
           </p>
@@ -173,9 +147,6 @@ interface PendingPhoto {
   `,
 })
 export class IncidentFormDialogComponent implements OnInit, OnDestroy {
-  @ViewChild('cameraInput') private cameraInput?: ElementRef<HTMLInputElement>;
-  @ViewChild('galleryInput') private galleryInput?: ElementRef<HTMLInputElement>;
-
   readonly maxPhotos = 5;
 
   accessPoints: AccessPointOption[] = [];
@@ -346,22 +317,8 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
     return (noApt ?? matches[0]).house_id;
   }
 
-  onPhotoSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    input.value = '';
-    if (!file) {
-      return;
-    }
+  onPhotoFileSelected(file: File): void {
     void this.addPhoto(file);
-  }
-
-  openCamera(): void {
-    this.openFileInput(this.cameraInput);
-  }
-
-  openGallery(): void {
-    this.openFileInput(this.galleryInput);
   }
 
   removePhoto(index: number): void {
@@ -369,14 +326,6 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
     if (removed?.preview) {
       URL.revokeObjectURL(removed.preview);
     }
-  }
-
-  private openFileInput(input?: ElementRef<HTMLInputElement>): void {
-    if (!input || !this.canAddPhoto) {
-      return;
-    }
-    input.nativeElement.value = '';
-    input.nativeElement.click();
   }
 
   private clearAllPreviews(): void {
@@ -398,7 +347,7 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
     try {
       let ready = file;
       try {
-        ready = await compressImageFile(file, { maxEdge: 1280, quality: 0.72 });
+        ready = await compressImageFile(file, MOBILE_PHOTO_COMPRESS);
       } catch {
         this.toastr.warning('No se pudo comprimir la foto; se usará el original.');
       }

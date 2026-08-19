@@ -153,17 +153,24 @@ export class PublicRegistrationService {
   /**
    * Sube una foto de mascota. POST multipart/form-data, campo "photo".
    * Devuelve la URL que debe enviarse en photo_url de la mascota en el registro.
-   * Comprime la imagen en cliente antes de enviar.
+   * Comprime la imagen en cliente antes de enviar (salvo skipCompress).
    */
-  uploadPetPhoto(file: File): Observable<{ success: boolean; photo_url?: string; error?: string }> {
-    return compressThenUpload(file, (compressed) => {
+  uploadPetPhoto(
+    file: File,
+    options?: { maxEdge?: number; quality?: number; skipCompress?: boolean }
+  ): Observable<{ success: boolean; photo_url?: string; error?: string }> {
+    const send = (compressed: File) => {
       const formData = new FormData();
       formData.append('photo', compressed, compressed.name);
       return this.http.post<{ success: boolean; photo_url?: string; error?: string }>(
         `${this.apiBase}/api/v1/public/upload/pet-photo`,
         formData
       );
-    });
+    };
+    if (options?.skipCompress) {
+      return send(file);
+    }
+    return compressThenUpload(file, send, options);
   }
 
   /**

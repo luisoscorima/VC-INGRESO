@@ -144,13 +144,12 @@
                                 <td class="vc-td">{{ pt?.breed || '-' }}</td>
                                 <td class="vc-td uppercase">{{ pt?.status_validated }}</td>
                                 <td class="vc-td text-right myhouse-actions-cell">
-                                    <input type="file" #petPhotoInput [attr.id]="'myhouse-pet-photo-' + myPets.indexOf(pt)" accept="image/jpeg,image/png,image/gif" (change)="onPetPhotoSelect(myPets.indexOf(pt), $event)" class="hidden" />
-                                    <button *ngIf="canTenantEditPet(pt)" type="button" class="vc-action-btn vc-action-btn--upload" [attr.title]="uploadingPetIndex === myPets.indexOf(pt) ? 'Cargando...' : 'Subir foto'" [disabled]="uploadingPetIndex === myPets.indexOf(pt)" (click)="document.getElementById('myhouse-pet-photo-' + myPets.indexOf(pt))?.click()" aria-label="Subir foto">
-                                        <svg *ngIf="uploadingPetIndex !== myPets.indexOf(pt)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <button *ngIf="canTenantEditPet(pt)" type="button" class="vc-action-btn vc-action-btn--upload" [attr.title]="isTablePhotoBusy('pet', myPets.indexOf(pt)) ? 'Cargando...' : 'Subir foto'" [disabled]="isTablePhotoBusy('pet', myPets.indexOf(pt))" (click)="openTablePhotoPicker('pet', myPets.indexOf(pt))" aria-label="Subir foto">
+                                        <svg *ngIf="!isTablePhotoBusy('pet', myPets.indexOf(pt))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
-                                        <svg *ngIf="uploadingPetIndex === myPets.indexOf(pt)" class="animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                        <svg *ngIf="isTablePhotoBusy('pet', myPets.indexOf(pt))" class="animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
@@ -198,13 +197,12 @@
                                 <td class="vc-td uppercase">{{vh?.category_entry}}</td>
                                 <td class="vc-td uppercase">{{ vh?.status_system || vh?.status_validated }}</td>
                                 <td class="vc-td text-right uppercase myhouse-actions-cell">
-                                    <input type="file" [attr.id]="'myhouse-vehicle-photo-' + myVehicles.indexOf(vh)" accept="image/jpeg,image/png,image/gif" (change)="onVehiclePhotoSelect(myVehicles.indexOf(vh), $event)" class="hidden" />
-                                    <button *ngIf="canTenantEditVehicle(vh)" type="button" class="vc-action-btn vc-action-btn--upload" [attr.title]="uploadingVehicleIndex === myVehicles.indexOf(vh) ? 'Cargando...' : 'Subir foto'" [disabled]="uploadingVehicleIndex === myVehicles.indexOf(vh)" (click)="document.getElementById('myhouse-vehicle-photo-' + myVehicles.indexOf(vh))?.click()" aria-label="Subir foto">
-                                        <svg *ngIf="uploadingVehicleIndex !== myVehicles.indexOf(vh)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <button *ngIf="canTenantEditVehicle(vh)" type="button" class="vc-action-btn vc-action-btn--upload" [attr.title]="isTablePhotoBusy('vehicle', myVehicles.indexOf(vh)) ? 'Cargando...' : 'Subir foto'" [disabled]="isTablePhotoBusy('vehicle', myVehicles.indexOf(vh))" (click)="openTablePhotoPicker('vehicle', myVehicles.indexOf(vh))" aria-label="Subir foto">
+                                        <svg *ngIf="!isTablePhotoBusy('vehicle', myVehicles.indexOf(vh))" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
-                                        <svg *ngIf="uploadingVehicleIndex === myVehicles.indexOf(vh)" class="animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                        <svg *ngIf="isTablePhotoBusy('vehicle', myVehicles.indexOf(vh))" class="animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
@@ -813,10 +811,16 @@
                     </select>
                 </div>
                 <div class="col-span-2 mb-2 mx-1">
-                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto del vehículo <span *ngIf="requiresVehiclePhotoType(vehicleToAdd.type_vehicle)" class="text-red-600">*</span></label>
-                    <p *ngIf="requiresVehiclePhotoType(vehicleToAdd.type_vehicle)" class="text-xs text-gray-600 dark:text-gray-400 mb-1">Obligatoria para bicicleta y moto eléctrica.</p>
-                    <input type="file" accept="image/jpeg,image/png,image/gif" class="block w-full text-sm text-gray-900 dark:text-gray-300" (change)="onNewVehiclePhotoPick($event)" [disabled]="uploadingNewVehiclePhoto" />
-                    <p *ngIf="vehicleToAdd.photo_url" class="text-xs text-green-700 dark:text-green-400 mt-1">Foto lista para guardar.</p>
+                    <app-photo-source-picker
+                      label="Foto del vehículo"
+                      [required]="requiresVehiclePhotoType(vehicleToAdd.type_vehicle)"
+                      [hint]="requiresVehiclePhotoType(vehicleToAdd.type_vehicle) ? 'Obligatoria para bicicleta y moto eléctrica.' : ''"
+                      [previewUrl]="vehicleToAdd.photo_url ? api.getPhotoUrl(vehicleToAdd.photo_url) : null"
+                      [compressing]="compressingNewVehiclePhoto"
+                      [uploading]="uploadingNewVehiclePhoto"
+                      [successText]="vehicleToAdd.photo_url ? 'Foto lista para guardar.' : ''"
+                      (fileSelected)="onNewVehiclePhotoPick($event)"
+                    />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-houseIdNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Domicilio</label>
@@ -1017,43 +1021,17 @@
                     <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="myhouse-externalStatus_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1 sm:col-span-2">
-                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto del vehículo <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
-                    <div class="flex flex-wrap items-center gap-4 mb-2">
-                      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                        <input type="radio" name="myhouseExternalPhotoSourceNew" [(ngModel)]="externalPhotoSource" value="take" />
-                        Tomar foto del vehículo
-                      </label>
-                      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                        <input type="radio" name="myhouseExternalPhotoSourceNew" [(ngModel)]="externalPhotoSource" value="select" />
-                        Seleccionar foto del dispositivo
-                      </label>
-                    </div>
-                    <input
-                      *ngIf="externalPhotoSource === 'take'"
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      capture="environment"
-                      class="block w-full text-sm text-gray-900 dark:text-gray-300"
-                      (change)="onNewExternalVisitPhotoPick($event)"
-                      [disabled]="compressingNewExternalVehiclePhoto || uploadingNewExternalVehiclePhoto"
+                    <app-photo-source-picker
+                      label="Foto del vehículo"
+                      [optional]="true"
+                      [previewUrl]="externalVehicleToAdd.photo_url ? api.getPhotoUrl(externalVehicleToAdd.photo_url) : null"
+                      [showClear]="!!externalVehicleToAdd.photo_url"
+                      [compressing]="compressingNewExternalVehiclePhoto"
+                      [uploading]="uploadingNewExternalVehiclePhoto"
+                      [successText]="externalVehicleToAdd.photo_url ? 'Foto lista para guardar.' : ''"
+                      (fileSelected)="onNewExternalVisitPhotoPick($event)"
+                      (cleared)="clearExternalVisitPhoto('add')"
                     />
-                    <input
-                      *ngIf="externalPhotoSource === 'select'"
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      class="block w-full text-sm text-gray-900 dark:text-gray-300"
-                      (change)="onNewExternalVisitPhotoPick($event)"
-                      [disabled]="compressingNewExternalVehiclePhoto || uploadingNewExternalVehiclePhoto"
-                    />
-                    <p *ngIf="compressingNewExternalVehiclePhoto" class="mt-1 text-sm text-gray-600 dark:text-gray-300">Procesando foto…</p>
-                    <p *ngIf="uploadingNewExternalVehiclePhoto" class="mt-1 text-sm text-gray-600 dark:text-gray-300">Subiendo foto…</p>
-                    <div class="mt-2 flex flex-wrap items-center gap-3" *ngIf="externalVehicleToAdd.photo_url">
-                        <img [src]="api.getPhotoUrl(externalVehicleToAdd.photo_url)" alt="Vista previa" class="h-20 w-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600" />
-                        <div class="flex flex-col gap-1">
-                            <p class="text-xs text-green-700 dark:text-green-400">Foto lista para guardar.</p>
-                            <button type="button" class="text-xs text-red-600 hover:underline w-fit" (click)="clearExternalVisitPhoto('add')">Quitar foto</button>
-                        </div>
-                    </div>
                 </div>
             </div>
             <!-- Modal footer -->
@@ -1140,43 +1118,17 @@
                     <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="myhouse-externalStatus_reasonEdit" class="vc-field w-full" placeholder="Motivo..." required />
                 </div>
                 <div class="col-span-1 mb-2 mx-1 sm:col-span-2">
-                    <label class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto del vehículo <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
-                    <div class="flex flex-wrap items-center gap-4 mb-2">
-                      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                        <input type="radio" name="myhouseExternalPhotoSourceEdit" [(ngModel)]="externalPhotoSourceEdit" value="take" />
-                        Tomar foto del vehículo
-                      </label>
-                      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                        <input type="radio" name="myhouseExternalPhotoSourceEdit" [(ngModel)]="externalPhotoSourceEdit" value="select" />
-                        Seleccionar foto del dispositivo
-                      </label>
-                    </div>
-                    <input
-                      *ngIf="externalPhotoSourceEdit === 'take'"
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      capture="environment"
-                      class="block w-full text-sm text-gray-900 dark:text-gray-300"
-                      (change)="onEditExternalVisitPhotoPick($event)"
-                      [disabled]="compressingEditExternalVehiclePhoto || uploadingEditExternalVehiclePhoto"
+                    <app-photo-source-picker
+                      label="Foto del vehículo"
+                      [optional]="true"
+                      [previewUrl]="externalVehicleToEdit.photo_url ? api.getPhotoUrl(externalVehicleToEdit.photo_url) : null"
+                      [showClear]="!!externalVehicleToEdit.photo_url"
+                      [compressing]="compressingEditExternalVehiclePhoto"
+                      [uploading]="uploadingEditExternalVehiclePhoto"
+                      [successText]="externalVehicleToEdit.photo_url ? 'Foto cargada.' : ''"
+                      (fileSelected)="onEditExternalVisitPhotoPick($event)"
+                      (cleared)="clearExternalVisitPhoto('edit')"
                     />
-                    <input
-                      *ngIf="externalPhotoSourceEdit === 'select'"
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      class="block w-full text-sm text-gray-900 dark:text-gray-300"
-                      (change)="onEditExternalVisitPhotoPick($event)"
-                      [disabled]="compressingEditExternalVehiclePhoto || uploadingEditExternalVehiclePhoto"
-                    />
-                    <p *ngIf="compressingEditExternalVehiclePhoto" class="mt-1 text-sm text-gray-600 dark:text-gray-300">Procesando foto…</p>
-                    <p *ngIf="uploadingEditExternalVehiclePhoto" class="mt-1 text-sm text-gray-600 dark:text-gray-300">Subiendo foto…</p>
-                    <div class="mt-2 flex flex-wrap items-center gap-3" *ngIf="externalVehicleToEdit.photo_url">
-                        <img [src]="api.getPhotoUrl(externalVehicleToEdit.photo_url)" alt="Vista previa" class="h-20 w-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600" />
-                        <div class="flex flex-col gap-1">
-                            <p class="text-xs text-green-700 dark:text-green-400">Foto cargada.</p>
-                            <button type="button" class="text-xs text-red-600 hover:underline w-fit" (click)="clearExternalVisitPhoto('edit')">Quitar foto</button>
-                        </div>
-                    </div>
                 </div>
             </div>
             <!-- Modal footer -->
@@ -1228,13 +1180,19 @@
                     <input [(ngModel)]="petToAdd.age_years" type="number" name="petAgeNew" id="myhouse-petAgeNew" min="0" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Edad (opcional)" />
                 </div>
                 <div>
-                    <label for="myhouse-petPhotoNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Foto (opcional)</label>
-                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-2">Puede adjuntar una imagen de la mascota; no es obligatorio.</p>
-                    <input type="file" id="myhouse-petPhotoNew" accept="image/jpeg,image/png,image/gif" class="block w-full text-sm text-gray-900 dark:text-gray-300" (change)="onNewPetPhotoPick($event)" [disabled]="uploadingNewPetPhoto" />
-                    <div class="flex items-center gap-2 mt-2 flex-wrap">
-                      <span *ngIf="petToAdd.photo_url" class="text-xs text-green-700 dark:text-green-400">Foto lista para guardar.</span>
-                      <button *ngIf="petToAdd.photo_url" type="button" class="text-xs text-red-600 hover:underline" (click)="clearNewPetPhoto()">Quitar foto</button>
-                    </div>
+                    <app-photo-source-picker
+                      label="Foto"
+                      [optional]="true"
+                      hint="Puede adjuntar una imagen de la mascota; no es obligatorio."
+                      cameraLabel="Tomar foto"
+                      [previewUrl]="petToAdd.photo_url ? api.getPhotoUrl(petToAdd.photo_url) : null"
+                      [showClear]="!!petToAdd.photo_url"
+                      [compressing]="compressingNewPetPhoto"
+                      [uploading]="uploadingNewPetPhoto"
+                      [successText]="petToAdd.photo_url ? 'Foto lista para guardar.' : ''"
+                      (fileSelected)="onNewPetPhotoPick($event)"
+                      (cleared)="clearNewPetPhoto()"
+                    />
                 </div>
                 <div>
                     <label for="myhouse-petStatusNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
@@ -1275,6 +1233,28 @@
       </button>
     </div>
     <img *ngIf="viewPhotoUrl" [src]="viewPhotoUrl" [alt]="viewPhotoTitle" class="photo-view-img" />
+  </div>
+</div>
+
+<div *ngIf="showTablePhotoPicker" class="photo-view-overlay" (click)="closeTablePhotoPicker()">
+  <div class="photo-view-modal max-w-md w-full" (click)="$event.stopPropagation()">
+    <div class="photo-view-header">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        {{ tablePhotoPickerTarget?.kind === 'pet' ? 'Foto de la mascota' : 'Foto del vehículo' }}
+      </h3>
+      <button type="button" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" (click)="closeTablePhotoPicker()" aria-label="Cerrar">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="p-4">
+      <app-photo-source-picker
+        [label]="tablePhotoPickerTarget?.kind === 'pet' ? 'Foto de la mascota' : 'Foto del vehículo'"
+        [compact]="true"
+        [compressing]="tablePhotoCompressing"
+        [uploading]="tablePhotoUploading"
+        (fileSelected)="onTablePhotoPick($event)"
+      />
+    </div>
   </div>
 </div>
 

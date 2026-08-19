@@ -69,6 +69,7 @@ import { SurveysComponent } from './surveys/surveys.component';
 import { IncidentsComponent } from './incidents/incidents.component';
 import { EventLogsComponent } from './event-logs/event-logs.component';
 import { CamerasComponent } from './cameras/cameras.component';
+import { PhotoSourcePickerComponent } from './shared/photo-source-picker/photo-source-picker.component';
 
 import { authInterceptor } from './auth.interceptor';
 import { errorInterceptor } from './error.interceptor';
@@ -136,7 +137,8 @@ import { errorInterceptor } from './error.interceptor';
         ToastrModule.forRoot(),
         ReservationsComponent,
         QrScannerComponent,
-        CodigoQrPageComponent
+        CodigoQrPageComponent,
+        PhotoSourcePickerComponent
     ],
     providers: [
         { provide: LocationStrategy, useClass: HashLocationStrategy },

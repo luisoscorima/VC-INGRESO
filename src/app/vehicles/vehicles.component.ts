@@ -59,11 +59,12 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   };
 
   uploadingNewVehiclePhoto = false;
+  compressingNewVehiclePhoto = false;
   uploadingNewExternalVehiclePhoto = false;
   uploadingEditExternalVehiclePhoto = false;
   compressingNewExternalVehiclePhoto = false;
   compressingEditExternalVehiclePhoto = false;
-  
+
   houses: House[] = [];
   
   externalVehicleTypeIcons: { [key: string]: string } = {
@@ -75,9 +76,6 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   externalVehicles: ExternalVehicle[] = [];
   externalVehicleToAdd: ExternalVehicle = new ExternalVehicle('','','','','','','','');
   externalVehicleToEdit: ExternalVehicle = new ExternalVehicle('','','','','','','','');
-  // Fuente de la foto para visitas externas
-  externalPhotoSource: 'take' | 'select' = 'take';
-  externalPhotoSourceEdit: 'take' | 'select' = 'take';
   temp_visit_type:string[]=['DELIVERY','COLECTIVO','TAXI'];
   readonly externalDocumentTypes = IDENTITY_DOCUMENT_TYPES;
   readonly externalDurationOptions = EXTERNAL_VISIT_DURATION_OPTIONS;
@@ -240,15 +238,25 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     this.vehicleToEdit.license_plate = '';
   }
 
-  onNewVehiclePhotoPick(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
+  onNewVehiclePhotoPick(file: File): void {
+    void this.uploadNewVehiclePhoto(file);
+  }
+
+  private async uploadNewVehiclePhoto(file: File): Promise<void> {
+    if (!file?.type.startsWith('image/')) {
       this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
       return;
     }
+    this.compressingNewVehiclePhoto = true;
+    let ready = file;
+    try {
+      ready = await compressImageFile(file, MOBILE_PHOTO_COMPRESS);
+    } catch {
+      this.toastr.warning('No se pudo optimizar la foto; se usará el original.');
+    }
+    this.compressingNewVehiclePhoto = false;
     this.uploadingNewVehiclePhoto = true;
-    this.publicReg.uploadVehiclePhoto(file).subscribe({
+    this.publicReg.uploadVehiclePhoto(ready, { skipCompress: true }).subscribe({
       next: (res) => {
         this.uploadingNewVehiclePhoto = false;
         if (res.success && res.photo_url) {
@@ -257,28 +265,24 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
         } else {
           this.toastr.error(res.error || 'Error al subir la foto.');
         }
-        input.value = '';
       },
       error: (err) => {
         this.uploadingNewVehiclePhoto = false;
         this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
-        input.value = '';
       }
     });
   }
 
-  onNewExternalVehiclePhotoPick(event: Event): void {
-    void this.onExternalVehiclePhotoPick(event, 'add');
+  onNewExternalVehiclePhotoPick(file: File): void {
+    void this.uploadExternalVehiclePhoto(file, 'add');
   }
 
-  onEditExternalVehiclePhotoPick(event: Event): void {
-    void this.onExternalVehiclePhotoPick(event, 'edit');
+  onEditExternalVehiclePhotoPick(file: File): void {
+    void this.uploadExternalVehiclePhoto(file, 'edit');
   }
 
-  private async onExternalVehiclePhotoPick(event: Event, mode: 'add' | 'edit'): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input?.files?.[0];
-    if (!file || !file.type.startsWith('image/')) {
+  private async uploadExternalVehiclePhoto(file: File, mode: 'add' | 'edit'): Promise<void> {
+    if (!file?.type.startsWith('image/')) {
       this.toastr.warning('Seleccione una imagen (JPG, PNG o GIF).');
       return;
     }
@@ -317,7 +321,6 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
         } else {
           this.toastr.error(res.error || 'Error al subir la foto.');
         }
-        input.value = '';
       },
       error: (err) => {
         if (mode === 'add') {
@@ -326,7 +329,6 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
           this.uploadingEditExternalVehiclePhoto = false;
         }
         this.toastr.error(err?.error?.error || err?.message || 'Error al subir la foto.');
-        input.value = '';
       },
     });
   }
@@ -505,8 +507,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     this.viewPhotoUrl = null;
   }
 
-  getPhotoUrl(photoUrl: string): string {
-    return this.api.getPhotoUrl(photoUrl);
+  getPhotoUrl(photoUrl?: string | null): string {
+    return this.api.getPhotoUrl(photoUrl || '') || '';
   }
 
   getVehicleIcon(vehicleType: string): string {
@@ -616,7 +618,6 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   newExternalVehicle(){
     this.externalDurationMinutes = 120;
     this.externalStaffHouseId = 0;
-    this.externalPhotoSource = 'take';
     this.externalVehicleToAdd = new ExternalVehicle('','','','','DELIVERY','PERMITIDO','','ACTIVO');
     document.getElementById('vehicles-new-external-vehicle-button')?.click();
   }
@@ -659,7 +660,6 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     if (tid) {
       (this.externalVehicleToEdit as any).id = tid;
     }
-    this.externalPhotoSourceEdit = 'take';
     document.getElementById('vehicles-edit-external-vehicle-button')?.click();
   }
 
@@ -751,8 +751,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
 
   private handleSuccess() {
     this.clean();
-    this.entranceService.getAllVehicles().subscribe((res: any[]) => {
-      this.vehicles = res;
+    this.entranceService.getAllVehicles().subscribe((res: any) => {
+      this.vehicles = Array.isArray(res) ? res : (res?.data ?? []);
     });
     this.reloadExternalVehicles();
   }
@@ -762,8 +762,6 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     this.vehicleToEdit = new Vehicle('', 'AUTOMOVIL', 0, 'PERMITIDO', '', '', 'PROPIETARIO', '', '', '');
     this.externalVehicleToAdd = new ExternalVehicle('','','','','','','','',);
     this.externalVehicleToEdit = new ExternalVehicle('','','','','','','','',);
-    this.externalPhotoSource = 'take';
-    this.externalPhotoSourceEdit = 'take';
   }
  
   /* SIWTCH ON/OFF

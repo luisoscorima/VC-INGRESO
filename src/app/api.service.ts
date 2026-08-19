@@ -105,14 +105,21 @@ export class ApiService {
    * Requiere token. Devuelve { success, data: usuario actualizado }.
    * Comprime la imagen en cliente antes de enviar.
    */
-  uploadProfilePhoto(file: File): Observable<ApiResponse<any>> {
-    return compressThenUpload(file, (compressed) => {
+  uploadProfilePhoto(
+    file: File,
+    options?: { maxEdge?: number; quality?: number; skipCompress?: boolean }
+  ): Observable<ApiResponse<any>> {
+    const send = (compressed: File) => {
       const form = new FormData();
       form.append('photo', compressed);
       return this.http.post<ApiResponse<any>>(`${this.baseUrl}/api/v1/users/me/photo`, form).pipe(
         catchError(this.handleError)
       );
-    });
+    };
+    if (options?.skipCompress) {
+      return send(file);
+    }
+    return compressThenUpload(file, send, options);
   }
 
   /**
