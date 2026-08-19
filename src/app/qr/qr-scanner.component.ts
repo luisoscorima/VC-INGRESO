@@ -30,6 +30,10 @@ import {
   INCIDENT_DIALOG_PANEL_CLASS,
 } from '../incidents/incident-form-dialog.component';
 import {
+  AccessDetailsDialogComponent,
+  ACCESS_DETAILS_DIALOG_PANEL_CLASS,
+} from './access-details-dialog.component';
+import {
   IncidentFormDialogData,
   IncidentScanContext,
   buildScanContextFromHistoryRow,
@@ -317,7 +321,7 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                     <button
                       type="button"
                       class="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
-                      [disabled]="compressingDetailPhotos || savingDetails || authorizingEntry"
+                      [disabled]="compressingDetailPhotos || savingDetails"
                       (click)="removeDetailPhoto(i)"
                       title="Quitar foto"
                       aria-label="Quitar foto">
@@ -335,7 +339,7 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                   [zoneTitle]="detailPhotos.length ? 'Añadir otra foto' : 'Añadir imagen'"
                   [cameraLabel]="detailPhotos.length ? 'Tomar otra' : 'Tomar foto'"
                   [compressing]="compressingDetailPhotos"
-                  [disabled]="savingDetails || authorizingEntry"
+                  [disabled]="savingDetails"
                   (fileSelected)="onDetailPhotoSelected($event)"
                 />
                 <p *ngIf="detailPhotos.length >= maxDetailPhotos" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -348,6 +352,9 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                 <select [(ngModel)]="detailsOperatorDecision" class="scanner-controls__select w-full">
                   <option *ngFor="let opt of operatorDecisionOptions" [ngValue]="opt.value">{{ opt.label }}</option>
                 </select>
+                <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                  No modifica el resultado del scan (p. ej. DENEGADO); solo registra la acción del operario.
+                </p>
               </div>
 
               <div class="space-y-2">
@@ -384,17 +391,9 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                 <button
                   type="button"
                   (click)="saveAccessDetails()"
-                  [disabled]="savingDetails || authorizingEntry || compressingDetailPhotos"
+                  [disabled]="savingDetails || compressingDetailPhotos"
                   class="access-details__btn-save inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">
                   {{ savingDetails ? 'Guardando…' : 'Guardar detalles' }}
-                </button>
-                <button
-                  *ngIf="showAuthorizeEntryButton"
-                  type="button"
-                  (click)="authorizeEntry()"
-                  [disabled]="savingDetails || authorizingEntry"
-                  class="inline-flex items-center gap-1 rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100">
-                  {{ authorizingEntry ? 'Registrando…' : 'Registrar ingreso autorizado' }}
                 </button>
               </div>
 
@@ -404,7 +403,7 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                   (click)="openIncidentDialog()"
                   class="access-details__escalate inline-flex items-center gap-1 text-xs font-medium text-amber-800 hover:underline dark:text-amber-200">
                   <mat-icon class="!h-4 !w-4">report_problem</mat-icon>
-                  Escalar problema
+                  Reportar problema
                 </button>
               </div>
             </div>
@@ -416,9 +415,9 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                 (click)="openIncidentDialog()"
                 class="access-details__escalate inline-flex items-center gap-1 text-xs font-medium text-amber-800 hover:underline dark:text-amber-200">
                 <mat-icon class="!h-4 !w-4">report_problem</mat-icon>
-                Escalar problema
-              </button>
-            </div>
+                Reportar problema
+                </button>
+              </div>
           </div>
 
           <div
@@ -489,12 +488,11 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                   {{ recentRowIncidentCount(row) }}
                 </span>
                 <button
-                  *ngIf="canAddIncident"
                   type="button"
-                  class="recent-history__report-btn"
-                  (click)="openIncidentDialogForRow(row)">
-                  <mat-icon class="!h-4 !w-4">add_alert</mat-icon>
-                  Reportar
+                  class="recent-history__detail-btn"
+                  (click)="openAccessDetailsDialogForRow(row)">
+                  <mat-icon class="!h-4 !w-4">edit_note</mat-icon>
+                  Agregar detalle
                 </button>
               </div>
             </li>
@@ -778,26 +776,26 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
         background: rgba(120, 53, 15, 0.35);
         color: #fcd34d;
       }
-      .recent-history__report-btn {
+      .recent-history__detail-btn {
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
-        border: 1px solid #fcd34d;
+        border: 1px solid #99f6e4;
         border-radius: 0.375rem;
-        background: #fffbeb;
+        background: #f0fdfa;
         padding: 0.25rem 0.5rem;
         font-size: 0.6875rem;
         font-weight: 600;
-        color: #92400e;
+        color: #0f766e;
         cursor: pointer;
       }
-      .recent-history__report-btn:hover {
-        background: #fef3c7;
+      .recent-history__detail-btn:hover {
+        background: #ccfbf1;
       }
-      :host-context(.dark) .recent-history__report-btn {
-        border-color: #78350f;
-        background: rgba(120, 53, 15, 0.25);
-        color: #fde68a;
+      :host-context(.dark) .recent-history__detail-btn {
+        border-color: #115e59;
+        background: rgba(15, 118, 110, 0.2);
+        color: #5eead4;
       }
       .access-details__toggle {
         background: transparent;
@@ -1003,7 +1001,6 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   private detailPhotoPickSeq = 0;
   private nextDetailPhotoId = 1;
   savingDetails = false;
-  authorizingEntry = false;
   readonly operatorDecisionOptions = OPERATOR_DECISION_OPTIONS;
 
   registrationInProgress = false;
@@ -1082,14 +1079,6 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get showEscalateWhenCollapsed(): boolean {
     return !isAttentionScanStatus(this.lastScanStatus);
-  }
-
-  get showAuthorizeEntryButton(): boolean {
-    return (
-      isAttentionScanStatus(this.lastScanStatus) &&
-      this.detailsOperatorDecision === 'AUTORIZADO_POR_PROPIETARIO' &&
-      this.isExitMode() === false
-    );
   }
 
   get detailBlocks(): string[] {
@@ -1687,6 +1676,42 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.openIncidentDialogForContext(buildScanContextFromHistoryRow(row), accessPointId);
   }
 
+  openAccessDetailsDialogForRow(row: ScannerRecentRow): void {
+    const logRef = Number(row['id'] ?? 0);
+    if (!logRef) {
+      return;
+    }
+    const accessPointId = Number(row['access_point_id'] ?? this.selectedAccessPointId ?? 0);
+    if (!accessPointId) {
+      return;
+    }
+    const movementRaw = String(row['movement_type'] ?? 'INGRESO').toUpperCase();
+    this.dialog
+      .open(AccessDetailsDialogComponent, {
+        width: 'min(480px, 96vw)',
+        panelClass: ACCESS_DETAILS_DIALOG_PANEL_CLASS,
+        disableClose: true,
+        data: {
+          logRef,
+          scanStatus: parseRecentRowStatus(row),
+          accessPointId,
+          movementMode: movementRaw === 'EGRESO' ? 'EGRESO' : 'INGRESO',
+          incidentContext: buildScanContextFromHistoryRow(row),
+          canReportIncident: this.canAddIncident,
+          initialNotes: String(row['operator_notes'] ?? '').trim() || null,
+          initialDecision: (String(row['operator_decision'] ?? '').trim() as OperatorDecision) || '',
+          initialHouseId: Number(row['house_id'] ?? 0) > 0 ? Number(row['house_id']) : null,
+          rowLabel: this.recentRowLabel(row),
+        },
+      })
+      .afterClosed()
+      .subscribe((saved) => {
+        if (saved) {
+          this.refreshRecentHistory();
+        }
+      });
+  }
+
   private openIncidentDialogForContext(scanContext: IncidentScanContext, accessPointId: number): void {
     const data: IncidentFormDialogData = {
       mode: 'scan',
@@ -1914,57 +1939,6 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
       error: (err) => {
         this.savingDetails = false;
         this.toastr.error(err?.error?.error || err?.message || 'No se pudieron guardar los detalles');
-      },
-    });
-  }
-
-  authorizeEntry(): void {
-    if (!this.lastLogRef) {
-      return;
-    }
-    if (this.detailsOperatorDecision !== 'AUTORIZADO_POR_PROPIETARIO') {
-      this.toastr.warning('Seleccione «Autorizado por propietario»');
-      return;
-    }
-    this.authorizingEntry = true;
-    this.accessLogService.patchAccessDetails(this.lastLogRef, this.buildDetailsFormData()).subscribe({
-      next: () => {
-        const houseId = this.detailsNoHouse ? null : this.resolveDetailsHouseId();
-        this.accessLogService.authorizeFromAttempt(this.lastLogRef as number, houseId).subscribe({
-          next: (res) => {
-            this.authorizingEntry = false;
-            const newRef = Number(res?.data?.log_ref ?? 0) || 0;
-            if (newRef !== 0) {
-              this.lastLogRef = newRef;
-              if (newRef > 0 && this.lastIncidentContext) {
-                this.lastIncidentContext = { ...this.lastIncidentContext, access_log_id: newRef };
-              } else if (newRef < 0 && this.lastIncidentContext) {
-                this.lastIncidentContext = {
-                  ...this.lastIncidentContext,
-                  temp_access_log_id: Math.abs(newRef),
-                };
-              }
-            }
-            this.lastScanStatus = 'PERMITIDO';
-            this.patchResultMessage('PERMITIDO — Ingreso autorizado por propietario');
-            this.detailsPanelOpen = false;
-            this.operatorNotes = '';
-            this.resetAccessDetailsFields();
-            this.toastr.success(res?.data?.message || 'Ingreso autorizado registrado');
-            this.triggerInputPulse('ok');
-            this.scheduleResultFade();
-            this.refreshRecentHistory();
-            this.focusManualInput();
-          },
-          error: (err) => {
-            this.authorizingEntry = false;
-            this.toastr.error(err?.error?.error || err?.message || 'No se pudo autorizar el ingreso');
-          },
-        });
-      },
-      error: (err) => {
-        this.authorizingEntry = false;
-        this.toastr.error(err?.error?.error || err?.message || 'Guarde los detalles antes de autorizar');
       },
     });
   }
