@@ -9,21 +9,11 @@
       </svg>
     </div>
 
-    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Incidencias</h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400">
-          Reportes de garita desde el escáner o registro manual.
-        </p>
-      </div>
-      <button
-        *ngIf="canCreate"
-        type="button"
-        (click)="openCreate()"
-        class="vc-btn-primary inline-flex items-center gap-2 px-4 py-2.5">
-        <mat-icon class="!h-5 !w-5">add</mat-icon>
-        Nueva incidencia
-      </button>
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Incidencias</h2>
+      <p class="text-sm text-gray-600 dark:text-gray-400">
+        Reportes ligados a un acceso. Se crean desde Escáner / QR, después de registrar entrada o salida.
+      </p>
     </div>
 
     <div class="mb-4 vc-filter-row lg:flex-wrap lg:items-end">

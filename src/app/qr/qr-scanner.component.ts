@@ -35,6 +35,8 @@ import {
 const ACCESS_POINT_STORAGE_KEY = 'vc_scanner_access_point_id';
 const MOVEMENT_MODE_STORAGE_KEY = 'vc_scanner_movement_mode';
 const COOLDOWN_MS = 1000;
+/** Cámara QR oculta de forma temporal: la garita usa DNI/placa. Poner en true para reactivar. */
+const CAMERA_SCANNER_ENABLED = false;
 
 type MovementMode = 'INGRESO' | 'EGRESO';
 
@@ -51,7 +53,7 @@ interface AccessPointOption {
     <div>
       <!-- PNG de estado (allowed/denied/etc.): pantalla completa mientras dura el cooldown -->
       <div
-        *ngIf="cooldownActive && statusImageUrl"
+        *ngIf="cameraScannerEnabled && cooldownActive && statusImageUrl"
         class="fixed inset-0 z-[10050] flex flex-col items-center justify-center gap-4 bg-black/90 p-6 backdrop-blur-sm"
         role="dialog"
         aria-modal="true"
@@ -74,12 +76,12 @@ interface AccessPointOption {
         <div class="border-b border-gray-200 px-4 py-4 text-center dark:border-gray-700">
           <h2 class="m-0 flex items-center justify-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
             <mat-icon class="!h-7 !w-7 text-teal-600 dark:text-teal-400">qr_code_scanner</mat-icon>
-            Escáner QR / documento / placa
+            Escáner / QR
           </h2>
         </div>
         <div class="p-4">
           <p
-            *ngIf="scanEngineHint"
+            *ngIf="cameraScannerEnabled && scanEngineHint"
             class="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 p-2 text-xs text-indigo-800 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-200">
             {{ scanEngineHint }}
           </p>
@@ -144,8 +146,32 @@ interface AccessPointOption {
             No hay puntos de acceso configurados.
           </p>
 
+          <div class="manual-input mt-1">
+            <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+              DNI, placa o doc. responsable
+            </label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                [(ngModel)]="manualCode"
+                (keyup.enter)="submitManualCode()"
+                [disabled]="cooldownActive"
+                placeholder="DNI, placa o documento"
+                class="block min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm focus:border-teal-500 focus:ring-teal-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-teal-500 dark:focus:ring-teal-500" />
+              <button
+                type="button"
+                (click)="submitManualCode()"
+                [disabled]="cooldownActive || !manualCode.trim()"
+                title="Registrar"
+                class="inline-flex shrink-0 items-center justify-center rounded-lg border border-teal-800/30 !bg-teal-600 p-2.5 shadow-sm hover:!bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:!bg-teal-500 dark:hover:!bg-teal-600">
+                <mat-icon class="!text-white">send</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <ng-container *ngIf="cameraScannerEnabled">
           <div
-            class="scanner-viewport w-full md:mx-auto md:max-w-[340px] lg:max-w-[380px]"
+            class="scanner-viewport mt-4 w-full md:mx-auto md:max-w-[340px] lg:max-w-[380px]"
             #scannerViewport
             [class.dimmed]="cooldownActive">
             <video #videoElement autoplay playsinline muted></video>
@@ -185,6 +211,7 @@ interface AccessPointOption {
               {{ hasFlashOn ? 'Apagar flash' : 'Flash' }}
             </button>
           </div>
+          </ng-container>
 
           <div
             class="result-area mt-4 rounded-lg border border-teal-100 bg-teal-50/80 p-4 dark:border-teal-900/40 dark:bg-teal-950/30"
@@ -195,7 +222,7 @@ interface AccessPointOption {
                 *ngIf="lastScanDetail"
                 class="mt-2 whitespace-pre-wrap break-all rounded bg-white/90 p-2 text-left text-xs text-gray-800 dark:bg-gray-900/80 dark:text-gray-200">{{ lastScanDetail }}</pre>
             </div>
-            <div class="mt-3 flex justify-center" *ngIf="canAddIncident && !pendingHouseSelection">
+            <div class="mt-3 flex justify-center" *ngIf="canAddIncident && !pendingHouseSelection && lastIncidentContext">
               <button
                 type="button"
                 (click)="openIncidentDialog()"
@@ -238,29 +265,6 @@ interface AccessPointOption {
             <span>{{ errorMessage }}</span>
           </div>
 
-          <div class="manual-input mt-4">
-            <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-              Entrada manual: DNI, placa o doc. responsable (veh. externo)
-            </label>
-            <div class="flex gap-2">
-              <input
-                type="text"
-                [(ngModel)]="manualCode"
-                (keyup.enter)="submitManualCode()"
-                [disabled]="cooldownActive"
-                placeholder="DNI, placa o doc. responsable"
-                class="block min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm focus:border-teal-500 focus:ring-teal-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-teal-500 dark:focus:ring-teal-500" />
-              <button
-                type="button"
-                (click)="submitManualCode()"
-                [disabled]="cooldownActive || !manualCode.trim()"
-                title="Enviar"
-                class="inline-flex shrink-0 items-center justify-center rounded-lg border border-teal-800/30 !bg-teal-600 p-2.5 shadow-sm hover:!bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50 dark:!bg-teal-500 dark:hover:!bg-teal-600">
-                <mat-icon class="!text-white">send</mat-icon>
-              </button>
-            </div>
-          </div>
-
           <div
             *ngIf="cooldownActive && !statusImageUrl"
             class="mt-4 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
@@ -268,7 +272,7 @@ interface AccessPointOption {
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
             </svg>
-            <span>Esperando… no escanee de nuevo hasta finalizar.</span>
+            <span>Esperando el registro…</span>
           </div>
         </div>
       </div>
@@ -478,8 +482,8 @@ interface AccessPointOption {
   ],
 })
 export class QrScannerComponent implements OnInit, OnDestroy {
-  @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
-  @ViewChild('scannerViewport') scannerViewport!: ElementRef;
+  @ViewChild('videoElement') videoElement?: ElementRef<HTMLVideoElement>;
+  @ViewChild('scannerViewport') scannerViewport?: ElementRef;
   @Output() codeScanned = new EventEmitter<string>();
 
   isScanning = false;
@@ -511,6 +515,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
 
   incidentLogReady = false;
   lastIncidentContext: IncidentScanContext | null = null;
+  readonly cameraScannerEnabled = CAMERA_SCANNER_ENABLED;
 
   private useNativeBarcode = false;
   private mediaStream: MediaStream | null = null;
@@ -565,7 +570,9 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.checkBarcodeSupport();
+    if (this.cameraScannerEnabled) {
+      this.checkBarcodeSupport();
+    }
     this.loadMovementMode();
     this.loadAccessPoints();
     this.navPerm.load().subscribe();
@@ -700,7 +707,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   }
 
   async startScanning(): Promise<void> {
-    if (this.cooldownActive) {
+    if (!this.cameraScannerEnabled || this.cooldownActive) {
       return;
     }
     if (!this.selectedAccessPointId) {
@@ -714,7 +721,10 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     this.heroImageUrl = null;
     this.statusImageUrl = null;
 
-    const videoEl = this.videoElement.nativeElement;
+    const videoEl = this.videoElement?.nativeElement;
+    if (!videoEl) {
+      return;
+    }
     const useNative = this.useNativeBarcode && this.barcodeDetector;
 
     try {
@@ -1001,6 +1011,11 @@ export class QrScannerComponent implements OnInit, OnDestroy {
         this.lastScanSummary = msg;
         this.lastScanDetail = null;
         this.statusImageUrl = 'assets/denied.png';
+        this.lastIncidentContext = {
+          doc_number: inputKind === 'DOCUMENT' ? raw : null,
+          license_plate: inputKind === 'PLATE' ? raw : null,
+        };
+        this.markIncidentReady();
         this.toastr.error(msg);
         this.beginCooldown();
       },

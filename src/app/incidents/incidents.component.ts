@@ -1,14 +1,7 @@
 import { Component, OnInit } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
 import { ToastrService } from 'ngx-toastr';
 import { AccessLogService } from '../access-log.service';
-import {
-  AccessIncident,
-  AccessIncidentService,
-  IncidentFormDialogData,
-} from './access-incident.service';
-import { IncidentFormDialogComponent, INCIDENT_DIALOG_PANEL_CLASS } from './incident-form-dialog.component';
-import { NavPermissionService } from '../nav-permission.service';
+import { AccessIncident, AccessIncidentService } from './access-incident.service';
 
 interface AccessPointOption {
   id: number;
@@ -47,10 +40,8 @@ export class IncidentsComponent implements OnInit {
   private readonly zoomStep = 0.25;
 
   constructor(
-    public readonly navPerm: NavPermissionService,
     private readonly incidentService: AccessIncidentService,
     private readonly accessLogService: AccessLogService,
-    private readonly dialog: MatDialog,
     private readonly toastr: ToastrService
   ) {}
 
@@ -62,10 +53,6 @@ export class IncidentsComponent implements OnInit {
     this.fechaInicial = this.formatDateInput(weekAgo);
     this.loadAccessPoints();
     this.loadRows();
-  }
-
-  get canCreate(): boolean {
-    return this.navPerm.canView('incidents');
   }
 
   loadRows(): void {
@@ -103,25 +90,6 @@ export class IncidentsComponent implements OnInit {
     this.pageIndex = event.pageIndex;
     this.pageSize = event.pageSize;
     this.loadRows();
-  }
-
-  openCreate(): void {
-    const data: IncidentFormDialogData = {
-      mode: 'manual',
-      accessPointId: this.accessPointId,
-      lockAccessPoint: false,
-    };
-    this.dialog
-      .open(IncidentFormDialogComponent, {
-        width: 'min(480px, 96vw)',
-        panelClass: INCIDENT_DIALOG_PANEL_CLASS,
-        disableClose: true,
-        data,
-      })
-      .afterClosed()
-      .subscribe((saved) => {
-        if (saved) this.loadRows();
-      });
   }
 
   openDetail(row: AccessIncident): void {

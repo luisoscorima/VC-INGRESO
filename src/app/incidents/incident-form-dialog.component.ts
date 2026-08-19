@@ -37,7 +37,7 @@ interface PendingPhoto {
   imports: [CommonModule, FormsModule, MatDialogModule, MatIconModule, MatButtonModule, PhotoSourcePickerComponent],
   template: `
     <h2 mat-dialog-title class="vc-incident-dialog__title">
-      {{ data.mode === 'scan' ? 'Incidencia del escaneo' : 'Nueva incidencia' }}
+      Incidencia del acceso
     </h2>
     <mat-dialog-content class="!pt-2">
       <div class="space-y-4">
@@ -77,7 +77,7 @@ interface PendingPhoto {
           </div>
         </div>
         <p *ngIf="data.mode === 'scan'" class="text-xs text-gray-500 dark:text-gray-400">
-          Útil en denegados o visitas sin casa: se guarda en la incidencia y en el historial de acceso.
+          Queda ligada a este acceso. En denegados o visitas sin casa puede indicar Mz/Lote.
         </p>
 
         <div *ngIf="apartmentOptions.length > 1">
@@ -380,9 +380,9 @@ export class IncidentFormDialogComponent implements OnInit, OnDestroy {
     const form = new FormData();
     form.append('description', this.description.trim());
     form.append('access_point_id', String(this.accessPointId));
-    form.append('source', this.data.mode);
+    form.append('source', 'scan');
 
-    if (this.data.mode === 'scan' && this.data.scanContext) {
+    if (this.data.scanContext) {
       const ctx = this.data.scanContext;
       if (ctx.access_log_id) form.append('access_log_id', String(ctx.access_log_id));
       if (ctx.temp_access_log_id) form.append('temp_access_log_id', String(ctx.temp_access_log_id));

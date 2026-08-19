@@ -48,8 +48,8 @@
         <li *ngIf="showCodigoQrNav()">
           <a routerLink="/codigo-qr" routerLinkActive="nav-item-active"
             class="nav-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 hover:bg-gray-100">
-            <mat-icon class="nav-item-icon">qr_code_2</mat-icon>
-            <span>Código QR</span>
+            <mat-icon class="nav-item-icon">{{ isStaffUser() ? 'qr_code_scanner' : 'qr_code_2' }}</mat-icon>
+            <span>{{ isStaffUser() ? 'Escáner / QR' : 'Mi QR' }}</span>
           </a>
         </li>
         <li>

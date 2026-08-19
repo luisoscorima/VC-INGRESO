@@ -235,7 +235,7 @@ class AccessIncidentController
 
         $description = trim((string) ($_POST['description'] ?? ''));
         $accessPointId = (int) ($_POST['access_point_id'] ?? 0);
-        $source = strtolower(trim((string) ($_POST['source'] ?? 'manual')));
+        $source = strtolower(trim((string) ($_POST['source'] ?? 'scan')));
 
         if ($description === '') {
             Response::error('La descripción es obligatoria', 400);
@@ -245,8 +245,12 @@ class AccessIncidentController
             Response::error('access_point_id requerido', 400);
             return;
         }
-        if ($source !== 'scan' && $source !== 'manual') {
-            Response::error('source debe ser scan o manual', 400);
+        if ($source === 'manual') {
+            Response::error('Las incidencias se registran desde un acceso (DNI, placa o QR).', 422);
+            return;
+        }
+        if ($source !== 'scan') {
+            Response::error('source debe ser scan', 400);
             return;
         }
 
@@ -261,26 +265,20 @@ class AccessIncidentController
         $licensePlate = $this->nullableStr($_POST['license_plate'] ?? null, 20);
         $statusValidated = $this->nullableStr($_POST['status_validated'] ?? null, 50);
 
-        if ($source === 'manual') {
+        if ($accessLogId !== null && $accessLogId <= 0) {
             $accessLogId = null;
+        }
+        if ($tempAccessLogId !== null && $tempAccessLogId <= 0) {
             $tempAccessLogId = null;
-        } elseif ($source === 'scan') {
-            if ($accessLogId !== null && $accessLogId <= 0) {
-                $accessLogId = null;
-            }
-            if ($tempAccessLogId !== null && $tempAccessLogId <= 0) {
-                $tempAccessLogId = null;
-            }
-            // Sin log de acceso (p. ej. fallo al guardar): permitir si hay identidad del escaneo.
-            $hasScanIdentity = $personId !== null
-                || $vehicleId !== null
-                || $tempVisitId !== null
-                || ($docNumber !== null && $docNumber !== '')
-                || ($licensePlate !== null && $licensePlate !== '');
-            if ($accessLogId === null && $tempAccessLogId === null && !$hasScanIdentity) {
-                Response::error('Incidencia de escaneo requiere access_log_id, temp_access_log_id o identidad (placa/doc)', 422);
-                return;
-            }
+        }
+        $hasScanIdentity = $personId !== null
+            || $vehicleId !== null
+            || $tempVisitId !== null
+            || ($docNumber !== null && $docNumber !== '')
+            || ($licensePlate !== null && $licensePlate !== '');
+        if ($accessLogId === null && $tempAccessLogId === null && !$hasScanIdentity) {
+            Response::error('La incidencia requiere un acceso (log o DNI/placa).', 422);
+            return;
         }
 
         $stmtAp = $this->pdo->prepare('SELECT id FROM access_points WHERE id = ?');
@@ -321,11 +319,6 @@ class AccessIncidentController
                 Response::error('Placa peruana inválida; use 6 letras o números.', 422);
                 return;
             }
-        }
-
-        if ($source === 'manual') {
-            $personId = $vehicleId = $tempVisitId = null;
-            $docNumber = $licensePlate = $statusValidated = null;
         }
 
         if ($houseId !== null) {
