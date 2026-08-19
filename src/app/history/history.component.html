@@ -148,19 +148,26 @@
             </td>
             <td class="vc-td history-col-movement">
               <div class="history-movement-stack">
-                <div class="history-movement-line history-movement-line--entry">
+                <div *ngIf="!isEgressOnlyRow(a)" class="history-movement-line history-movement-line--entry">
                   <mat-icon class="history-movement-icon" aria-hidden="true">south</mat-icon>
                   <span class="whitespace-nowrap">{{ a.date_entry | date : 'dd/MM/yyyy HH:mm' }}</span>
                 </div>
                 <div class="history-movement-line history-movement-line--exit">
                   <mat-icon class="history-movement-icon" aria-hidden="true">north</mat-icon>
-                  <ng-container *ngIf="hasRecordedExit(a); else noExitMovement">
-                    <span class="whitespace-nowrap">{{ a.date_exit | date : 'dd/MM/yyyy HH:mm' }}</span>
+                  <ng-container *ngIf="isEgressOnlyRow(a)">
+                    <span class="whitespace-nowrap" title="Salida observada (sin ingreso abierto)">
+                      {{ a.date_entry | date : 'dd/MM/yyyy HH:mm' }}
+                    </span>
                   </ng-container>
-                  <ng-template #noExitMovement>
-                    <span class="history-movement-pending" *ngIf="isSessionOpen(a); else dashExit">Aún dentro</span>
-                    <ng-template #dashExit>—</ng-template>
-                  </ng-template>
+                  <ng-container *ngIf="!isEgressOnlyRow(a)">
+                    <ng-container *ngIf="hasRecordedExit(a); else noExitMovement">
+                      <span class="whitespace-nowrap">{{ a.date_exit | date : 'dd/MM/yyyy HH:mm' }}</span>
+                    </ng-container>
+                    <ng-template #noExitMovement>
+                      <span class="history-movement-pending" *ngIf="isSessionOpen(a); else dashExit">Aún dentro</span>
+                      <ng-template #dashExit>—</ng-template>
+                    </ng-template>
+                  </ng-container>
                 </div>
               </div>
             </td>

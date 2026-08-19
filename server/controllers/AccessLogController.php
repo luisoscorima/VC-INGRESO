@@ -428,6 +428,7 @@ class AccessLogController
                 WHERE type = 'INGRESO'
                   AND access_point_id = ?
                   AND updated_at <= created_at
+                  AND (observation IS NULL OR observation NOT LIKE '%DENEGADO%')
                   AND ({$identitySql})
                 ORDER BY created_at DESC
                 LIMIT 1";
@@ -1126,8 +1127,13 @@ class AccessLogController
                 {$s("CONCAT_WS(' ', NULLIF(h.block_house,''), NULLIF(CAST(h.lot AS CHAR),''), NULLIF(h.apartment,''))")} AS house_address,
                 al.created_at AS date_entry,
                 CASE
-                    WHEN al.type = 'INGRESO' AND al.updated_at > al.created_at THEN al.updated_at
-                    WHEN al.type = 'EGRESO' THEN al.updated_at
+                    WHEN al.type = 'INGRESO'
+                         AND al.updated_at > al.created_at
+                         AND (
+                            al.observation LIKE '%| SALIDA%'
+                            OR al.observation LIKE 'SALIDA%'
+                         )
+                    THEN al.updated_at
                     ELSE NULL
                 END AS date_exit,
                 {$s("COALESCE(NULLIF(TRIM(al.observation), ''), NULLIF(p.status_validated, ''), '—')")} AS obs,

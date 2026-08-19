@@ -63,6 +63,18 @@ function parseDisplayPlate(row: HistoryRow): string {
   return observation.match(/\bplaca\s+([a-z0-9-]+)/i)?.[1]?.toUpperCase() ?? '—';
 }
 
+/** Salida real cerrada en access_logs (marcador SALIDA en observación). */
+function hasSalidaObservation(row: HistoryRow): boolean {
+  const observation = String(row['observation_raw'] ?? row['obs'] ?? '').trim();
+  if (!observation) {
+    return false;
+  }
+  return observation
+    .split('|')
+    .map((part) => part.trim())
+    .some((part) => /^SALIDA(\s*:|$)/i.test(part));
+}
+
 function parseResultNotes(row: HistoryRow): string[] {
   const observation = String(row['observation_raw'] ?? row['obs'] ?? '').trim();
   if (!observation) {
@@ -625,28 +637,43 @@ export class HistoryComponent implements OnInit {
   }
 
   hasRecordedExit(row: HistoryRow): boolean {
+    if (this.isEgressOnlyRow(row)) {
+      return true;
+    }
     if (Number(row['session_open']) === 1) {
       return false;
+    }
+    if (this.isExternalRow(row)) {
+      const exit = row['date_exit'];
+      return exit != null && exit !== '';
     }
     const exit = row['date_exit'];
     if (exit == null || exit === '') {
       return false;
     }
-    if (String(row['movement_type'] ?? '').toUpperCase() === 'EGRESO') {
-      return true;
-    }
-    return true;
+    return hasSalidaObservation(row);
+  }
+
+  isEgressOnlyRow(row: HistoryRow): boolean {
+    return String(row['movement_type'] ?? '').toUpperCase() === 'EGRESO';
   }
 
   isSessionOpen(row: HistoryRow): boolean {
+    if (this.isEgressOnlyRow(row)) {
+      return false;
+    }
     if (Number(row['session_open']) === 1) {
       return true;
     }
     const mt = String(row['movement_type'] ?? '').toUpperCase();
-    if (mt === 'INGRESO' && (row['date_exit'] == null || row['date_exit'] === '')) {
-      return true;
+    if (mt !== 'INGRESO' || this.hasRecordedExit(row)) {
+      return false;
     }
-    return false;
+    const status = this.resultStatus(row);
+    if (status === 'DENEGADO' || status === '—') {
+      return false;
+    }
+    return status === 'PERMITIDO' || status === 'OBSERVADO' || status === 'RESTRINGIDO';
   }
 
   viewIncidents(row: HistoryRow): void {
