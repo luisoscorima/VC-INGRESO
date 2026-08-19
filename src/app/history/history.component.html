@@ -92,7 +92,7 @@
             <th *ngIf="showDocColumn" scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('doc_number')">
               Documento {{ sortIndicator('doc_number') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('name')">
+            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600 history-col-datos" (click)="toggleSort('name')">
               Datos {{ sortIndicator('name') }}
             </th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('display_plate')">
@@ -107,11 +107,8 @@
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('entry_source')">
               Origen {{ sortIndicator('entry_source') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('date_entry')">
-              Ingreso {{ sortIndicator('date_entry') }}
-            </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('date_exit')">
-              Salida {{ sortIndicator('date_exit') }}
+            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600 history-col-movement" (click)="toggleSort('date_entry')">
+              Movimiento {{ sortIndicator('date_entry') }}
             </th>
             <th
               *ngIf="hasExternalRows"
@@ -126,9 +123,9 @@
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('operator')">
               Operario {{ sortIndicator('operator') }}
             </th>
-            <th scope="col" class="vc-th">Foto</th>
-            <th scope="col" class="vc-th" *ngIf="showIncidentsColumn">Incid.</th>
-            <th scope="col" class="vc-th">Detalle</th>
+            <th scope="col" class="vc-th history-col-capture" title="Captura LPR / cámara del acceso">Captura</th>
+            <th scope="col" class="vc-th history-col-incident" *ngIf="showIncidentsColumn" title="Reportes de incidencia ligados al registro">Incid.</th>
+            <th scope="col" class="vc-th history-col-day" *ngIf="showDayColumn">Día</th>
           </tr>
         </thead>
         <tbody>
@@ -138,7 +135,9 @@
               <mat-icon *ngIf="!isVehicleRow(a)" class="text-slate-600 dark:text-slate-300">person</mat-icon>
             </td>
             <th *ngIf="showDocColumn" scope="row" class="vc-td whitespace-nowrap font-medium">{{ a.doc_number }}</th>
-            <td class="vc-td">{{ a.name }}</td>
+            <td class="vc-td history-col-datos">
+              <span class="history-datos-text" [title]="a.name || ''">{{ a.name }}</span>
+            </td>
             <td class="vc-td whitespace-nowrap font-semibold tracking-wide">{{ displayPlate(a) }}</td>
             <td class="vc-td">{{ a.house_address }}</td>
             <td class="vc-td max-w-[200px] truncate" [title]="a.access_point_name || ''">{{ a.access_point_name || '—' }}</td>
@@ -147,10 +146,23 @@
                 {{ entrySourceLabel(a) }}
               </span>
             </td>
-            <td class="vc-td whitespace-nowrap">{{ a.date_entry | date : 'dd/MM/yyyy HH:mm' }}</td>
-            <td class="vc-td whitespace-nowrap">
-              <ng-container *ngIf="a.date_exit; else noExit">{{ a.date_exit | date : 'dd/MM/yyyy HH:mm' }}</ng-container>
-              <ng-template #noExit>—</ng-template>
+            <td class="vc-td history-col-movement">
+              <div class="history-movement-stack">
+                <div class="history-movement-line history-movement-line--entry">
+                  <mat-icon class="history-movement-icon" aria-hidden="true">south</mat-icon>
+                  <span class="whitespace-nowrap">{{ a.date_entry | date : 'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+                <div class="history-movement-line history-movement-line--exit">
+                  <mat-icon class="history-movement-icon" aria-hidden="true">north</mat-icon>
+                  <ng-container *ngIf="hasRecordedExit(a); else noExitMovement">
+                    <span class="whitespace-nowrap">{{ a.date_exit | date : 'dd/MM/yyyy HH:mm' }}</span>
+                  </ng-container>
+                  <ng-template #noExitMovement>
+                    <span class="history-movement-pending" *ngIf="isSessionOpen(a); else dashExit">Aún dentro</span>
+                    <ng-template #dashExit>—</ng-template>
+                  </ng-template>
+                </div>
+              </div>
             </td>
             <td *ngIf="hasExternalRows" class="vc-td whitespace-nowrap text-sm">
               <span *ngIf="isExternalRow(a)" [class.text-amber-700]="a.stay_exceeded == 1" [class.dark:text-amber-400]="a.stay_exceeded == 1">
@@ -170,35 +182,51 @@
               </div>
             </td>
             <td class="vc-td">{{ a.operator }}</td>
-            <td class="vc-td">
+            <td class="vc-td history-col-capture">
               <button
-                *ngIf="a.access_photo_url"
+                *ngIf="a.access_photo_url; else noCapture"
                 type="button"
-                class="vc-btn-outline"
-                (click)="showHistoryPhoto(a)">
-                Ver
+                class="history-thumb-btn"
+                title="Captura LPR / cámara"
+                aria-label="Ver captura LPR"
+                (click)="showHistoryPhoto(a, $event)">
+                <img [src]="a.access_photo_url" alt="" loading="lazy" decoding="async" class="history-thumb" />
               </button>
-              <span *ngIf="!a.access_photo_url">—</span>
+              <ng-template #noCapture><span class="text-gray-400">—</span></ng-template>
             </td>
-            <td class="vc-td text-center" *ngIf="showIncidentsColumn">
+            <td class="vc-td history-col-incident" *ngIf="showIncidentsColumn">
               <button
-                *ngIf="rowIncidentCount(a) > 0"
+                *ngIf="rowIncidentCount(a) > 0; else noIncident"
                 type="button"
-                (click)="viewIncidents(a)"
-                title="Ver incidencias"
-                class="inline-flex text-amber-600 hover:text-amber-800 dark:text-amber-400">
-                <mat-icon class="!h-5 !w-5">report_problem</mat-icon>
+                class="history-incident-preview"
+                title="Ver incidencias del registro"
+                (click)="viewIncidents(a)">
+                <span *ngIf="incidentPreviewDescription(a) as incDesc" class="history-incident-desc" [title]="incDesc">
+                  {{ incDesc }}
+                </span>
+                <span class="history-incident-media">
+                  <img
+                    *ngIf="incidentPreviewPhotoUrl(a) as incPhoto"
+                    [src]="incPhoto"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    class="history-thumb history-thumb--incident"
+                    (click)="showPhotoUrl(incPhoto, $event)" />
+                  <span *ngIf="rowIncidentCount(a) > 1" class="history-incident-more">+{{ rowIncidentCount(a) - 1 }}</span>
+                  <mat-icon *ngIf="!incidentPreviewPhotoUrl(a)" class="history-incident-icon">report_problem</mat-icon>
+                </span>
               </button>
+              <ng-template #noIncident><span class="text-gray-400">—</span></ng-template>
             </td>
-            <td class="vc-td text-right">
+            <td class="vc-td text-right history-col-day" *ngIf="showDayColumn">
               <button
                 *ngIf="canOpenDayDetail(a)"
                 type="button"
-                title="Movimientos del mismo día (mismo documento)"
+                [title]="'Ver los ' + sameDayCount(a) + ' movimientos del mismo día'"
                 (click)="viewDetail(a)"
-                class="vc-action-btn vc-action-btn--view"
-                aria-label="Ver movimientos del día"
-              >
+                class="history-day-btn"
+                aria-label="Ver movimientos del día">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     stroke-linecap="round"
@@ -207,6 +235,7 @@
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
+                <span class="history-day-badge">{{ sameDayCount(a) }}×</span>
               </button>
             </td>
           </tr>
@@ -251,7 +280,7 @@
 
 <div *ngIf="historyPhotoOpen" class="history-photo-overlay" (click)="historyPhotoOpen = false">
   <div class="history-photo-modal" (click)="$event.stopPropagation()">
-    <img *ngIf="selectedHistoryPhotoUrl" [src]="selectedHistoryPhotoUrl" alt="Evidencia del acceso" />
+    <img *ngIf="selectedHistoryPhotoUrl" [src]="selectedHistoryPhotoUrl" alt="Vista ampliada" />
     <button type="button" class="vc-btn-primary mt-3" (click)="historyPhotoOpen = false">Cerrar</button>
   </div>
 </div>

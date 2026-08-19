@@ -844,8 +844,8 @@ class AccessLogController
 
         $includeIncidents = isStaffRole($auth) && canViewModule($this->pdo, $auth, 'incidents');
 
-        $sqlMain = $this->historyRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereMain);
-        $sqlTemp = $this->historyTemporaryRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereTemp);
+        $sqlMain = $this->historyRowsSelectSql($includeIncidents, $ap) . ' WHERE ' . implode(' AND ', $whereMain);
+        $sqlTemp = $this->historyTemporaryRowsSelectSql($includeIncidents, $ap) . ' WHERE ' . implode(' AND ', $whereTemp);
         $this->respondHistoryUnion($sqlMain, $paramsMain, $sqlTemp, $paramsTemp, 'DESC');
     }
 
@@ -875,8 +875,8 @@ class AccessLogController
 
         $includeIncidents = isStaffRole($auth) && canViewModule($this->pdo, $auth, 'incidents');
 
-        $sqlMain = $this->historyRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereMain);
-        $sqlTemp = $this->historyTemporaryRowsSelectSql($includeIncidents) . ' WHERE ' . implode(' AND ', $whereTemp);
+        $sqlMain = $this->historyRowsSelectSql($includeIncidents, $ap) . ' WHERE ' . implode(' AND ', $whereMain);
+        $sqlTemp = $this->historyTemporaryRowsSelectSql($includeIncidents, $ap) . ' WHERE ' . implode(' AND ', $whereTemp);
         $this->respondHistoryUnion($sqlMain, $paramsMain, $sqlTemp, $paramsTemp, 'DESC');
     }
 
@@ -915,8 +915,8 @@ class AccessLogController
 
         $this->appendHistoryNeighborHouseScope($auth, $whereMain, $paramsMain, $whereTemp, $paramsTemp);
 
-        $sqlMain = $this->historyRowsSelectSql() . ' WHERE ' . implode(' AND ', $whereMain);
-        $sqlTemp = $this->historyTemporaryRowsSelectSql() . ' WHERE ' . implode(' AND ', $whereTemp);
+        $sqlMain = $this->historyRowsSelectSql(false, $ap) . ' WHERE ' . implode(' AND ', $whereMain);
+        $sqlTemp = $this->historyTemporaryRowsSelectSql(false, $ap) . ' WHERE ' . implode(' AND ', $whereTemp);
         $this->respondHistoryUnion($sqlMain, $paramsMain, $sqlTemp, $paramsTemp, 'ASC');
     }
 
@@ -978,23 +978,127 @@ class AccessLogController
     }
 
     /**
+     * Filtro de punto para subconsultas de same_day_count (id interpolado o nombre quoted).
+     *
+     * @return array{0: string, 1: string} [filtro access_logs al2, filtro temporary tal2]
+     */
+    private function historySameDayAccessPointSql(string $ap): array
+    {
+        $ap = trim($ap);
+        if ($ap === '') {
+            return ['', ''];
+        }
+        if (ctype_digit($ap)) {
+            $id = (int) $ap;
+            return [" AND al2.access_point_id = {$id}", " AND tal2.access_point_id = {$id}"];
+        }
+        $quoted = $this->pdo->quote($ap);
+
+        return [
+            " AND EXISTS (SELECT 1 FROM access_points apx WHERE apx.id = al2.access_point_id AND apx.name = {$quoted})",
+            " AND EXISTS (SELECT 1 FROM access_points apx WHERE apx.id = tal2.access_point_id AND apx.name = {$quoted})",
+        ];
+    }
+
+    /**
+     * Conteos del mismo documento en el mismo día (access_logs + temporary_access_logs).
+     * Vacío o "—" → 1 para no mostrar el botón Día.
+     */
+    private function historySameDayCountSql(string $docExprSql, string $entryTsSql, string $ap = ''): string
+    {
+        [$apMain, $apTemp] = $this->historySameDayAccessPointSql($ap);
+        $docMatch = "COALESCE(NULLIF(TRIM(al2.document_snapshot), ''), NULLIF(TRIM(al2.doc_number), ''), NULLIF(TRIM(p2.doc_number), ''), '')";
+        $tempDoc = "COALESCE(NULLIF(TRIM(tal2.document_snapshot), ''), NULLIF(TRIM(tv2.temp_visit_doc), ''), '')";
+        $tempPlate = "NULLIF(TRIM(COALESCE(tal2.license_plate_snapshot, tv2.temp_visit_plate)), '')";
+
+        return "
+            CASE
+                WHEN NULLIF(TRIM({$docExprSql}), '') IS NULL THEN 1
+                ELSE (
+                    (
+                        SELECT COUNT(*)
+                        FROM {$this->table} al2
+                        LEFT JOIN persons p2 ON p2.id = al2.person_id
+                        WHERE al2.created_at >= CAST({$entryTsSql} AS DATE)
+                          AND al2.created_at < CAST({$entryTsSql} AS DATE) + INTERVAL 1 DAY
+                          AND {$docMatch} = {$docExprSql}
+                          {$apMain}
+                    )
+                    +
+                    (
+                        SELECT COUNT(*)
+                        FROM temporary_access_logs tal2
+                        LEFT JOIN temporary_visits tv2 ON tv2.temp_visit_id = tal2.temp_visit_id
+                        WHERE tal2.temp_entry_time >= CAST({$entryTsSql} AS DATE)
+                          AND tal2.temp_entry_time < CAST({$entryTsSql} AS DATE) + INTERVAL 1 DAY
+                          AND ({$tempDoc} = {$docExprSql} OR {$tempPlate} = {$docExprSql})
+                          {$apTemp}
+                    )
+                )
+            END
+        ";
+    }
+
+    /**
+     * Columnas de preview de incidencia (misma forma con o sin permiso).
+     *
+     * @return array{0: string, 1: string} [SELECT extra, JOIN extra]
+     */
+    private function historyIncidentPreviewSql(bool $includeIncidents, string $joinColumnSql, string $incidentFk): array
+    {
+        $s = fn (string $e) => $this->historyUnionStr($e);
+        if (!$includeIncidents) {
+            return [
+                ', 0 AS incident_count'
+                . ", {$s('CAST(NULL AS CHAR(1))')} AS incident_preview_description"
+                . ", {$s('CAST(NULL AS CHAR(1))')} AS incident_preview_photo_url",
+                '',
+            ];
+        }
+
+        $photoExpr = "COALESCE(
+            NULLIF(TRIM(ai.photo_url), ''),
+            NULLIF(JSON_UNQUOTE(JSON_EXTRACT(ai.photo_urls, '\$[0]')), ''),
+            NULLIF(JSON_UNQUOTE(JSON_EXTRACT(ai.photo_urls, '\$[0]')), 'null')
+        )";
+
+        $select = ', COALESCE(ai_prev.cnt, 0) AS incident_count'
+            . ", {$s('ai_prev.preview_description')} AS incident_preview_description"
+            . ", {$s('ai_prev.preview_photo_url')} AS incident_preview_photo_url";
+
+        $join = "
+            LEFT JOIN (
+                SELECT x.{$incidentFk} AS incident_fk,
+                       x.cnt,
+                       ai.description AS preview_description,
+                       {$photoExpr} AS preview_photo_url
+                FROM (
+                    SELECT {$incidentFk}, COUNT(*) AS cnt, MAX(incident_id) AS last_id
+                    FROM access_incidents
+                    WHERE {$incidentFk} IS NOT NULL
+                    GROUP BY {$incidentFk}
+                ) x
+                INNER JOIN access_incidents ai ON ai.incident_id = x.last_id
+            ) ai_prev ON ai_prev.incident_fk = {$joinColumnSql}
+        ";
+
+        return [$select, $join];
+    }
+
+    /**
      * SELECT enriquecido para pantalla Historial (columnas alineadas al mat-table Angular).
      */
-    private function historyRowsSelectSql(bool $includeIncidentCount = false): string
+    private function historyRowsSelectSql(bool $includeIncidentCount = false, string $accessPoint = ''): string
     {
         $t = $this->table;
         $s = fn (string $e) => $this->historyUnionStr($e);
-        $incidentSelect = $includeIncidentCount
-            ? ', COALESCE(ai_cnt.cnt, 0) AS incident_count'
-            : ', 0 AS incident_count';
-        $incidentJoin = $includeIncidentCount
-            ? ' LEFT JOIN (
-                SELECT access_log_id, COUNT(*) AS cnt
-                FROM access_incidents
-                WHERE access_log_id IS NOT NULL
-                GROUP BY access_log_id
-              ) ai_cnt ON ai_cnt.access_log_id = al.id'
-            : '';
+        $docExpr = "COALESCE(NULLIF(TRIM(al.document_snapshot), ''), NULLIF(TRIM(al.doc_number), ''), NULLIF(TRIM(p.doc_number), ''), '')";
+        $sameDaySql = $this->historySameDayCountSql($docExpr, 'al.created_at', $accessPoint);
+        [$incidentSelect, $incidentJoin] = $this->historyIncidentPreviewSql(
+            $includeIncidentCount,
+            'al.id',
+            'access_log_id'
+        );
 
         return "
             SELECT
@@ -1050,7 +1154,8 @@ class AccessLogController
                 NULL AS stay_deadline,
                 NULL AS permanence_minutes,
                 0 AS stay_exceeded,
-                NULL AS session_open
+                NULL AS session_open,
+                ({$sameDaySql}) AS same_day_count
                 {$incidentSelect}
             FROM {$t} al
             LEFT JOIN access_points ap ON ap.id = al.access_point_id
@@ -1067,20 +1172,16 @@ class AccessLogController
      * Misma forma de columnas que historyRowsSelectSql(), desde temporary_access_logs + temporary_visits.
      * id negativo para no chocar con access_logs.id.
      */
-    private function historyTemporaryRowsSelectSql(bool $includeIncidentCount = false): string
+    private function historyTemporaryRowsSelectSql(bool $includeIncidentCount = false, string $accessPoint = ''): string
     {
         $s = fn (string $e) => $this->historyUnionStr($e);
-        $incidentSelect = $includeIncidentCount
-            ? ', COALESCE(ai_cnt.cnt, 0) AS incident_count'
-            : ', 0 AS incident_count';
-        $incidentJoin = $includeIncidentCount
-            ? ' LEFT JOIN (
-                SELECT temp_access_log_id, COUNT(*) AS cnt
-                FROM access_incidents
-                WHERE temp_access_log_id IS NOT NULL
-                GROUP BY temp_access_log_id
-              ) ai_cnt ON ai_cnt.temp_access_log_id = tal.temp_access_log_id'
-            : '';
+        $docExpr = "COALESCE(NULLIF(TRIM(tal.document_snapshot), ''), NULLIF(TRIM(tv.temp_visit_doc), ''), '')";
+        $sameDaySql = $this->historySameDayCountSql($docExpr, 'tal.temp_entry_time', $accessPoint);
+        [$incidentSelect, $incidentJoin] = $this->historyIncidentPreviewSql(
+            $includeIncidentCount,
+            'tal.temp_access_log_id',
+            'temp_access_log_id'
+        );
 
         return "
             SELECT
@@ -1141,7 +1242,8 @@ class AccessLogController
                          AND TIMESTAMPDIFF(MINUTE, tal.temp_entry_time, tal.temp_exit_time) > tal.authorized_duration_minutes THEN 1
                     ELSE 0
                 END AS stay_exceeded,
-                IF(tal.temp_exit_time IS NULL, 1, 0) AS session_open
+                IF(tal.temp_exit_time IS NULL, 1, 0) AS session_open,
+                ({$sameDaySql}) AS same_day_count
                 {$incidentSelect}
             FROM temporary_access_logs tal
             LEFT JOIN temporary_visits tv ON tv.temp_visit_id = tal.temp_visit_id
@@ -1167,6 +1269,11 @@ class AccessLogController
             if (isset($row->access_photo_url)) {
                 $row->access_photo_url = resolveMediaUrl(
                     $row->access_photo_url !== null ? (string) $row->access_photo_url : null
+                );
+            }
+            if (isset($row->incident_preview_photo_url)) {
+                $row->incident_preview_photo_url = resolveMediaUrl(
+                    $row->incident_preview_photo_url !== null ? (string) $row->incident_preview_photo_url : null
                 );
             }
         }

@@ -156,10 +156,22 @@ export class HistoryComponent implements OnInit {
   selectedHistoryPhotoUrl: string | null = null;
 
   get historyTableColspan(): number {
-    let cols = this.showDocColumn ? 13 : 12;
-    if (this.hasExternalRows) cols += 1;
-    if (this.showIncidentsColumn) cols += 1;
+    let cols = this.showDocColumn ? 12 : 11;
+    if (this.hasExternalRows) {
+      cols += 1;
+    }
+    if (this.showIncidentsColumn) {
+      cols += 1;
+    }
+    if (this.showDayColumn) {
+      cols += 1;
+    }
     return cols;
+  }
+
+  /** Columna Día: solo si hay al menos un documento con varios movimientos el mismo día. */
+  get showDayColumn(): boolean {
+    return this.showDocColumn && this.filteredRows.some((r) => this.sameDayCount(r) > 1);
   }
 
   constructor(
@@ -380,11 +392,19 @@ export class HistoryComponent implements OnInit {
       PUNTO_ACCESO: r['access_point_name'],
       ORIGEN: this.entrySourceLabel(r),
       INGRESO: r['date_entry'],
-      SALIDA: r['date_exit'],
+      SALIDA: r['date_exit'] ?? '',
       ...(this.hasExternalRows ? { PERMANENCIA_MIN: this.formatPermanence(r) } : {}),
       RESULTADO: this.resultStatus(r),
       NOTAS: this.resultNotes(r).join(' · '),
       OPERARIO: r['operator'],
+      CAPTURA_LPR: r['access_photo_url'] ? 'Sí' : '—',
+      ...(this.showIncidentsColumn
+        ? {
+            INCIDENCIAS: this.rowIncidentCount(r),
+            INCIDENCIA_DESCRIPCION: this.incidentPreviewDescription(r),
+          }
+        : {}),
+      ...(this.showDayColumn ? { MOVIMIENTOS_DIA: this.sameDayCount(r) } : {}),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -443,9 +463,21 @@ export class HistoryComponent implements OnInit {
     return 'help_outline';
   }
 
-  showHistoryPhoto(row: HistoryRow): void {
+  showHistoryPhoto(row: HistoryRow, event?: Event): void {
+    event?.stopPropagation();
     const url = this.api.getPhotoUrl(String(row['access_photo_url'] ?? ''));
-    if (!url) return;
+    if (!url) {
+      return;
+    }
+    this.selectedHistoryPhotoUrl = url;
+    this.historyPhotoOpen = true;
+  }
+
+  showPhotoUrl(url: string | null | undefined, event?: Event): void {
+    event?.stopPropagation();
+    if (!url) {
+      return;
+    }
     this.selectedHistoryPhotoUrl = url;
     this.historyPhotoOpen = true;
   }
@@ -575,6 +607,48 @@ export class HistoryComponent implements OnInit {
     return Number(row['incident_count'] ?? 0) || 0;
   }
 
+  incidentPreviewDescription(row: HistoryRow): string {
+    return String(row['incident_preview_description'] ?? '').trim();
+  }
+
+  incidentPreviewPhotoUrl(row: HistoryRow): string | null {
+    const raw = row['incident_preview_photo_url'];
+    if (raw == null || raw === '') {
+      return null;
+    }
+    return this.api.getPhotoUrl(String(raw));
+  }
+
+  sameDayCount(row: HistoryRow): number {
+    const n = Number(row['same_day_count'] ?? 1);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  }
+
+  hasRecordedExit(row: HistoryRow): boolean {
+    if (Number(row['session_open']) === 1) {
+      return false;
+    }
+    const exit = row['date_exit'];
+    if (exit == null || exit === '') {
+      return false;
+    }
+    if (String(row['movement_type'] ?? '').toUpperCase() === 'EGRESO') {
+      return true;
+    }
+    return true;
+  }
+
+  isSessionOpen(row: HistoryRow): boolean {
+    if (Number(row['session_open']) === 1) {
+      return true;
+    }
+    const mt = String(row['movement_type'] ?? '').toUpperCase();
+    if (mt === 'INGRESO' && (row['date_exit'] == null || row['date_exit'] === '')) {
+      return true;
+    }
+    return false;
+  }
+
   viewIncidents(row: HistoryRow): void {
     const logRef = Number(row['id'] ?? 0);
     if (!logRef) {
@@ -592,7 +666,10 @@ export class HistoryComponent implements OnInit {
       return false;
     }
     const doc = String(row?.['doc_number'] ?? '').trim();
-    return doc.length > 0 && doc !== '—';
+    if (!doc || doc === '—') {
+      return false;
+    }
+    return this.sameDayCount(row) > 1;
   }
 }
 

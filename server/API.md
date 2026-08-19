@@ -261,9 +261,9 @@ Módulo nav `external_visits` (separado de `vehicles`). Catálogo global staff: 
 | GET | `/api/v1/access-logs/history-by-range` | Por rango (`fecha_inicial`, `fecha_final`, `access_point` opcional; unificado). |
 | GET | `/api/v1/access-logs/history-by-client` | Por fecha, `access_point` y `doc` (documento o placa en externas). |
 
-`GET /api/v1/access-logs/history-by-range` incluye `incident_count` por fila solo para staff con permiso **Ver** en módulo `incidents`.
+`GET /api/v1/access-logs/history-by-range` incluye por fila (staff con permiso **Ver** en módulo `incidents`): `incident_count`, `incident_preview_description`, `incident_preview_photo_url`. Todas las filas incluyen `same_day_count` (movimientos del mismo documento/placa ese día; respeta filtro `access_point` si se envía).
 
-Columnas unificadas de historial (además de las ya existentes): `log_source` (`REGISTRY` \| `EXTERNAL`), `entry_source` (`manual` \| `qr` \| `camera`), `access_photo_url`, `movement_type`, `assignment_valid_until`, `authorized_duration_minutes`, `stay_deadline`, `permanence_minutes`, `stay_exceeded`, `session_open` (las últimas son relevantes en filas `EXTERNAL`).
+Columnas unificadas de historial (además de las ya existentes): `log_source` (`REGISTRY` \| `EXTERNAL`), `entry_source` (`manual` \| `qr` \| `camera`), `access_photo_url`, `movement_type`, `assignment_valid_until`, `authorized_duration_minutes`, `stay_deadline`, `permanence_minutes`, `stay_exceeded`, `session_open`, `same_day_count` (las últimas son relevantes en filas `EXTERNAL`).
 
 ---
 
