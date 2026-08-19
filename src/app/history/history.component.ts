@@ -12,7 +12,17 @@ import { AccessIncident, AccessIncidentService, buildScanContextFromHistoryRow }
 import { IncidentFormDialogComponent, INCIDENT_DIALOG_PANEL_CLASS } from '../incidents/incident-form-dialog.component';
 import { ApiService } from '../api.service';
 import { todayYmdInAppTimeZone } from '../app-date.util';
-import { operatorDecisionLabel } from '../shared/operator-decision';
+import { operatorDecisionLabel, OperatorDecision } from '../shared/operator-decision';
+import {
+  accessDetailsActionLabel,
+  accessLogRowLabel,
+  hasAccessLogDetails,
+  parseAccessLogScanStatus,
+} from '../shared/access-details.util';
+import {
+  AccessDetailsDialogComponent,
+  ACCESS_DETAILS_DIALOG_PANEL_CLASS,
+} from '../qr/access-details-dialog.component';
 import * as XLSX from 'xlsx';
 import {
   ExpandableRowId,
@@ -168,6 +178,12 @@ export class HistoryComponent implements OnInit {
   /** Staff con permiso manage: puede registrar incidencias desde historial o escáner. */
   canCreateIncident = false;
 
+  /** Staff: puede agregar o editar detalle de acceso (nota, decisión, fotos). */
+  canEditAccessDetails = false;
+
+  readonly hasAccessLogDetails = hasAccessLogDetails;
+  readonly accessDetailsActionLabel = accessDetailsActionLabel;
+
   expandedHistoryRowId: ExpandableRowId = null;
   historyPhotoOpen = false;
   selectedHistoryPhotoUrl: string | null = null;
@@ -178,6 +194,9 @@ export class HistoryComponent implements OnInit {
       cols += 1;
     }
     if (this.showIncidentsColumn || this.canCreateIncident) {
+      cols += 1;
+    }
+    if (this.canEditAccessDetails) {
       cols += 1;
     }
     if (this.showDayColumn) {
@@ -417,7 +436,11 @@ export class HistoryComponent implements OnInit {
       NOTAS_OPERARIO: String(r['operator_notes'] ?? '').trim(),
       DECISION_OPERARIO: operatorDecisionLabel(String(r['operator_decision'] ?? '')),
       OPERARIO: r['operator'],
-      CAPTURA: r['access_photo_url'] ? 'Sí' : '—',
+      CAPTURA: this.capturePhotoUrls(r).length
+        ? `${this.capturePhotoUrls(r).length} foto(s)${this.operatorNotesText(r) ? ' + nota' : ''}`
+        : this.operatorNotesText(r)
+          ? 'Nota'
+          : '—',
       ...(this.showIncidentsColumn
         ? {
             INCIDENCIAS: this.rowIncidentCount(r),
@@ -468,6 +491,26 @@ export class HistoryComponent implements OnInit {
     return parseResultNotes(row);
   }
 
+  operatorNotesText(row: HistoryRow): string {
+    return String(row['operator_notes'] ?? '').trim();
+  }
+
+  operatorDecisionText(row: HistoryRow): string {
+    const label = operatorDecisionLabel(String(row['operator_decision'] ?? ''));
+    return label !== '—' ? label : '';
+  }
+
+  capturePhotoUrls(row: HistoryRow): string[] {
+    const raw = row['access_photo_urls'];
+    if (Array.isArray(raw)) {
+      return raw
+        .map((u) => this.api.getPhotoUrl(String(u ?? '')))
+        .filter((u): u is string => !!u);
+    }
+    const single = this.api.getPhotoUrl(String(row['access_photo_url'] ?? ''));
+    return single ? [single] : [];
+  }
+
   displayPlate(row: HistoryRow): string {
     return parseDisplayPlate(row);
   }
@@ -485,7 +528,8 @@ export class HistoryComponent implements OnInit {
 
   showHistoryPhoto(row: HistoryRow, event?: Event): void {
     event?.stopPropagation();
-    const url = this.api.getPhotoUrl(String(row['access_photo_url'] ?? ''));
+    const urls = this.capturePhotoUrls(row);
+    const url = urls[0];
     if (!url) {
       return;
     }
@@ -578,6 +622,7 @@ export class HistoryComponent implements OnInit {
 
   ngOnInit(): void {
     this.showDocColumn = this.auth.isStaff();
+    this.canEditAccessDetails = this.auth.isStaff();
     this.navPerm.load().subscribe(() => {
       this.showIncidentsColumn = this.auth.isStaff() && this.navPerm.canView('incidents');
       this.canCreateIncident = this.auth.isStaff() && this.navPerm.canManage('incidents');
@@ -715,6 +760,41 @@ export class HistoryComponent implements OnInit {
           accessPointId,
           lockAccessPoint: true,
           scanContext: buildScanContextFromHistoryRow(row),
+        },
+      })
+      .afterClosed()
+      .subscribe((saved) => {
+        if (saved) {
+          this.fetchHistory();
+        }
+      });
+  }
+
+  openAccessDetailsDialog(row: HistoryRow, event?: Event): void {
+    event?.stopPropagation();
+    const logRef = Number(row['id'] ?? 0);
+    const accessPointId = Number(row['access_point_id'] ?? this.access_point ?? 0);
+    if (!logRef || accessPointId <= 0) {
+      this.toastr.warning('No se puede editar detalle: falta referencia del acceso.');
+      return;
+    }
+    const movementRaw = String(row['movement_type'] ?? 'INGRESO').toUpperCase();
+    this.dialog
+      .open(AccessDetailsDialogComponent, {
+        width: 'min(480px, 96vw)',
+        panelClass: ACCESS_DETAILS_DIALOG_PANEL_CLASS,
+        disableClose: true,
+        data: {
+          logRef,
+          scanStatus: parseAccessLogScanStatus(row),
+          accessPointId,
+          movementMode: movementRaw === 'EGRESO' ? 'EGRESO' : 'INGRESO',
+          incidentContext: buildScanContextFromHistoryRow(row),
+          canReportIncident: this.canCreateIncident,
+          initialNotes: String(row['operator_notes'] ?? '').trim() || null,
+          initialDecision: (String(row['operator_decision'] ?? '').trim() as OperatorDecision) || '',
+          initialHouseId: Number(row['house_id'] ?? 0) > 0 ? Number(row['house_id']) : null,
+          rowLabel: accessLogRowLabel(row),
         },
       })
       .afterClosed()
@@ -971,10 +1051,22 @@ export class HistoryComponent implements OnInit {
   }
 
   tooltipCapture(row: HistoryRow): string {
-    if (!row['access_photo_url']) {
-      return 'Sin captura en este registro';
+    const photos = this.capturePhotoUrls(row).length;
+    const note = this.operatorNotesText(row);
+    const lines: string[] = [];
+    if (photos) {
+      lines.push(`${photos} foto(s) de garita / captura`);
     }
-    return 'Captura del acceso (LPR o garita)\nClic para ampliar';
+    if (note) {
+      lines.push(`Nota operario: ${note}`);
+    }
+    if (!lines.length) {
+      return 'Sin captura ni nota de garita en este registro';
+    }
+    if (photos) {
+      lines.push('Clic en la miniatura para ampliar');
+    }
+    return lines.join('\n');
   }
 
   tooltipIncident(row: HistoryRow): string {
@@ -1102,6 +1194,8 @@ export class DialogHistoryIncidents implements OnInit {
 })
 export class DialogHistoryDetail implements OnInit {
   detailRows: HistoryRow[] = [];
+  anchorRow: HistoryRow | null = null;
+  dayLabel = '';
 
   loading = false;
 
@@ -1109,11 +1203,29 @@ export class DialogHistoryDetail implements OnInit {
     public dialogRef: MatDialogRef<DialogHistoryDetail>,
     @Inject(MAT_DIALOG_DATA) public data: { data: Visit; accessPointId: number | null },
     private accessLogService: AccessLogService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private api: ApiService
   ) {}
+
+  get anchorDoc(): string {
+    return String(this.anchorRow?.['doc_number'] ?? '').trim();
+  }
+
+  get anchorPlate(): string {
+    if (!this.anchorRow) {
+      return '';
+    }
+    return parseDisplayPlate(this.anchorRow);
+  }
+
+  get anchorHouse(): string {
+    const h = String(this.anchorRow?.['house_address'] ?? '').trim();
+    return h && h !== '—' ? h : '';
+  }
 
   ngOnInit(): void {
     const row = this.data?.data as unknown as HistoryRow | undefined;
+    this.anchorRow = row ?? null;
     const accessPointId = this.data?.accessPointId;
     const doc = String(row?.['doc_number'] ?? '').trim();
     const rawDate = row?.['date_entry'] ?? row?.['created_at'];
@@ -1123,6 +1235,11 @@ export class DialogHistoryDetail implements OnInit {
         : rawDate instanceof Date
           ? rawDate.toISOString().slice(0, 10)
           : '';
+
+    if (fecha) {
+      const [y, m, d] = fecha.split('-');
+      this.dayLabel = `${d}/${m}/${y}`;
+    }
 
     if (!fecha || !doc) {
       this.toastr.error('Faltan datos para cargar el detalle.');
@@ -1139,7 +1256,9 @@ export class DialogHistoryDetail implements OnInit {
           : list && typeof list === 'object' && Array.isArray((list as { data?: unknown }).data)
             ? (list as { data: HistoryRow[] }).data
             : [];
-        this.detailRows = rows as HistoryRow[];
+        this.detailRows = (rows as HistoryRow[]).sort((a, b) =>
+          String(a['date_entry'] ?? '').localeCompare(String(b['date_entry'] ?? ''))
+        );
         this.loading = false;
       },
       error: () => {
@@ -1159,6 +1278,61 @@ export class DialogHistoryDetail implements OnInit {
 
   resultNotes(row: HistoryRow): string[] {
     return parseResultNotes(row);
+  }
+
+  timelineTime(row: HistoryRow): string {
+    const h = String(row['hour_entrance'] ?? '').trim();
+    if (h) {
+      return h;
+    }
+    const raw = row['date_entry'];
+    if (!raw) {
+      return '—';
+    }
+    const d = raw instanceof Date ? raw : new Date(String(raw));
+    if (Number.isNaN(d.getTime())) {
+      return '—';
+    }
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  timelineMovement(row: HistoryRow): string {
+    const mt = String(row['movement_type'] ?? '').toUpperCase();
+    if (mt === 'EGRESO') {
+      return '· Salida';
+    }
+    const src = String(row['entry_source'] ?? 'manual').toLowerCase();
+    const srcLabel = src === 'camera' ? 'Cámara' : src === 'qr' ? 'QR' : 'Manual';
+    return `· Ingreso (${srcLabel})`;
+  }
+
+  timelinePoint(row: HistoryRow): string {
+    return String(row['access_point_name'] ?? '').trim();
+  }
+
+  timelineDecision(row: HistoryRow): string {
+    const label = operatorDecisionLabel(String(row['operator_decision'] ?? ''));
+    return label !== '—' ? label : '';
+  }
+
+  timelineOperatorNote(row: HistoryRow): string {
+    return String(row['operator_notes'] ?? '').trim();
+  }
+
+  timelineSystemNotes(row: HistoryRow): string[] {
+    return parseResultNotes(row);
+  }
+
+  timelinePhotoUrls(row: HistoryRow): string[] {
+    const raw = row['access_photo_urls'];
+    if (Array.isArray(raw)) {
+      return raw
+        .map((u) => this.api.getPhotoUrl(String(u ?? '')))
+        .filter((u): u is string => !!u);
+    }
+    const single = this.api.getPhotoUrl(String(row['access_photo_url'] ?? ''));
+    return single ? [single] : [];
   }
 
   statusBadgeClass(status: HistoryResultStatus): string {

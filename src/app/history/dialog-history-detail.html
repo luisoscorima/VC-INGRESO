@@ -1,5 +1,14 @@
 <div class="border-b border-gray-200 px-4 pb-3 pt-2 dark:border-gray-700">
-  <h2 class="m-0 text-lg font-semibold text-gray-900 dark:text-white">Registros del día (mismo documento)</h2>
+  <h2 class="m-0 text-lg font-semibold text-gray-900 dark:text-white">Movimientos del día</h2>
+  <div *ngIf="anchorRow" class="mt-2 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+    <p class="m-0 font-semibold text-gray-900 dark:text-white">{{ anchorRow['name'] }}</p>
+    <p class="m-0 text-xs">
+      <span *ngIf="anchorDoc">Doc. {{ anchorDoc }}</span>
+      <span *ngIf="anchorPlate && anchorPlate !== '—'"> · Placa {{ anchorPlate }}</span>
+      <span *ngIf="anchorHouse"> · {{ anchorHouse }}</span>
+    </p>
+    <p class="m-0 text-xs">{{ dayLabel }} · {{ detailRows.length }} registro(s)</p>
+  </div>
 </div>
 
 <mat-dialog-content class="!max-h-[70vh] !overflow-y-auto">
@@ -17,45 +26,50 @@
     </svg>
   </div>
 
-  <div *ngIf="!loading" class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-    <table class="w-full text-left text-sm text-gray-500 dark:text-gray-400">
-      <thead class="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
-        <tr>
-          <th scope="col" class="px-4 py-3">DNI</th>
-          <th scope="col" class="px-4 py-3">Nombre</th>
-          <th scope="col" class="px-4 py-3">Hora</th>
-          <th scope="col" class="px-4 py-3">Estado</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          *ngFor="let a of detailRows"
-          class="border-b bg-white hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-600">
-          <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ a.doc_number }}</td>
-          <td class="px-4 py-3">{{ a.name }}</td>
-          <td class="px-4 py-3 whitespace-nowrap">{{ a.hour_entrance }}</td>
-          <td class="px-4 py-3">
-            <ng-container *ngIf="resultStatus(a) as status">
-              <span class="history-status-badge" [ngClass]="statusBadgeClass(status)">
-                <mat-icon>{{ statusIcon(status) }}</mat-icon>
-                {{ status }}
-              </span>
-            </ng-container>
-            <div *ngIf="resultNotes(a) as notes" class="history-result-notes">
-              <span *ngFor="let note of notes" class="history-note-chip">{{ note }}</span>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <ul *ngIf="!loading && detailRows.length" class="day-timeline m-0 list-none space-y-3 p-0">
+    <li
+      *ngFor="let ev of detailRows; let i = index"
+      class="day-timeline__item rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/60">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div class="min-w-0">
+          <p class="m-0 text-sm font-semibold text-gray-900 dark:text-white">
+            {{ timelineTime(ev) }}
+            <span class="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">{{ timelineMovement(ev) }}</span>
+          </p>
+          <p *ngIf="timelinePoint(ev) as pt" class="m-0 mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ pt }}</p>
+        </div>
+        <ng-container *ngIf="resultStatus(ev) as status">
+          <span class="history-status-badge shrink-0" [ngClass]="statusBadgeClass(status)">
+            <mat-icon>{{ statusIcon(status) }}</mat-icon>
+            {{ status }}
+          </span>
+        </ng-container>
+      </div>
+
+      <div *ngIf="timelineDecision(ev) as dec" class="mt-2">
+        <span class="history-note-chip history-note-chip--decision">{{ dec }}</span>
+      </div>
+      <p *ngIf="timelineOperatorNote(ev) as note" class="mt-2 mb-0 text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+        {{ note }}
+      </p>
+      <div *ngIf="timelineSystemNotes(ev).length" class="mt-2 flex flex-wrap gap-1">
+        <span *ngFor="let n of timelineSystemNotes(ev)" class="history-note-chip">{{ n }}</span>
+      </div>
+
+      <div *ngIf="timelinePhotoUrls(ev).length" class="mt-2 flex flex-wrap gap-2">
+        <img
+          *ngFor="let url of timelinePhotoUrls(ev)"
+          [src]="url"
+          alt=""
+          loading="lazy"
+          class="history-thumb history-thumb--timeline" />
+      </div>
+    </li>
+  </ul>
+
+  <p *ngIf="!loading && !detailRows.length" class="py-6 text-center text-sm text-gray-500">Sin registros para este día.</p>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end" class="!border-t !border-gray-200 !px-4 !pb-4 !pt-3 dark:!border-gray-700">
-  <button
-    type="button"
-    (click)="onNoClick()"
-    class="rounded-lg bg-gradient-to-r from-teal-400 via-teal-500 to-teal-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-teal-500/50 hover:bg-gradient-to-br focus:outline-none focus:ring-4 focus:ring-teal-300 dark:shadow-teal-800/80 dark:focus:ring-teal-800">
-    Cerrar
-  </button>
+  <button type="button" class="vc-btn-cancel" (click)="onNoClick()">Cerrar</button>
 </mat-dialog-actions>

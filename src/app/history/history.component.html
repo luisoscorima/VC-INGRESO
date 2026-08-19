@@ -123,8 +123,9 @@
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('operator')">
               Operario {{ sortIndicator('operator') }}
             </th>
-            <th scope="col" class="vc-th history-col-capture" title="Captura LPR / cámara del acceso">Captura</th>
+            <th scope="col" class="vc-th history-col-capture" title="Fotos y nota de garita">Captura</th>
             <th scope="col" class="vc-th history-col-incident" *ngIf="showIncidentsColumn || canCreateIncident" title="Reportes de incidencia ligados al registro">Incid.</th>
+            <th scope="col" class="vc-th history-col-detail" *ngIf="canEditAccessDetails" title="Nota, decisión y fotos de garita">Detalle</th>
             <th scope="col" class="vc-th history-col-day" *ngIf="showDayColumn">Día</th>
           </tr>
         </thead>
@@ -233,6 +234,12 @@
                   {{ status }}
                 </span>
               </ng-container>
+              <div *ngIf="operatorDecisionText(a) as dec" class="history-result-notes">
+                <span class="history-note-chip history-note-chip--decision">{{ dec }}</span>
+              </div>
+              <div *ngIf="operatorNotesText(a) as opNote" class="history-result-notes">
+                <span class="history-note-chip history-note-chip--operator">{{ opNote }}</span>
+              </div>
               <div *ngIf="resultNotes(a) as notes" class="history-result-notes">
                 <span *ngFor="let note of notes" class="history-note-chip">{{ note }}</span>
               </div>
@@ -245,23 +252,45 @@
               {{ a.operator }}
             </td>
             <td class="vc-td history-col-capture">
-              <button
-                *ngIf="a.access_photo_url; else noCapture"
-                type="button"
-                class="history-thumb-btn"
-                [matTooltip]="tooltipCapture(a)"
-                matTooltipClass="history-cell-tooltip"
-                matTooltipPosition="above"
-                aria-label="Ver captura LPR"
-                (click)="showHistoryPhoto(a, $event)">
-                <img [src]="a.access_photo_url" alt="" loading="lazy" decoding="async" class="history-thumb" />
-              </button>
+              <div class="history-capture-cell">
+                <button
+                  *ngIf="capturePhotoUrls(a).length; else noCapture"
+                  type="button"
+                  class="history-thumb-btn"
+                  [matTooltip]="tooltipCapture(a)"
+                  matTooltipClass="history-cell-tooltip"
+                  matTooltipPosition="above"
+                  aria-label="Ver captura del acceso"
+                  (click)="showHistoryPhoto(a, $event)">
+                  <img [src]="capturePhotoUrls(a)[0]" alt="" loading="lazy" decoding="async" class="history-thumb" />
+                  <span *ngIf="capturePhotoUrls(a).length > 1" class="history-capture-more">+{{ capturePhotoUrls(a).length - 1 }}</span>
+                </button>
+                <span
+                  *ngIf="operatorNotesText(a)"
+                  class="history-capture-note"
+                  [matTooltip]="operatorNotesText(a)"
+                  matTooltipClass="history-cell-tooltip"
+                  matTooltipPosition="above"
+                  aria-hidden="true">
+                  <mat-icon class="!h-4 !w-4">sticky_note_2</mat-icon>
+                </span>
+              </div>
               <ng-template #noCapture>
                 <span
+                  *ngIf="!operatorNotesText(a)"
                   class="text-gray-400"
                   [matTooltip]="tooltipCapture(a)"
                   matTooltipClass="history-cell-tooltip"
                   matTooltipPosition="above">—</span>
+                <span
+                  *ngIf="operatorNotesText(a) as opNote"
+                  class="history-capture-note-only"
+                  [matTooltip]="tooltipCapture(a)"
+                  matTooltipClass="history-cell-tooltip"
+                  matTooltipPosition="above">
+                  <mat-icon class="!h-4 !w-4">sticky_note_2</mat-icon>
+                  <span class="history-capture-note-snippet">{{ opNote }}</span>
+                </span>
               </ng-template>
             </td>
             <td class="vc-td history-col-incident" *ngIf="showIncidentsColumn || canCreateIncident">
@@ -298,7 +327,7 @@
                   matTooltipClass="history-cell-tooltip"
                   matTooltipPosition="above"
                   (click)="reportIncident(a, $event)">
-                  <mat-icon class="!h-4 !w-4">add_alert</mat-icon>
+                  <mat-icon class="history-incident-report-icon">add_alert</mat-icon>
                   Reportar
                 </button>
                 <span
@@ -308,6 +337,19 @@
                   matTooltipClass="history-cell-tooltip"
                   matTooltipPosition="above">—</span>
               </div>
+            </td>
+            <td class="vc-td history-col-detail" *ngIf="canEditAccessDetails">
+              <button
+                type="button"
+                class="history-detail-btn"
+                [class.history-detail-btn--saved]="hasAccessLogDetails(a)"
+                [matTooltip]="hasAccessLogDetails(a) ? 'Editar nota, decisión o fotos de garita' : 'Agregar nota, decisión o fotos de garita'"
+                matTooltipClass="history-cell-tooltip"
+                matTooltipPosition="above"
+                (click)="openAccessDetailsDialog(a, $event)">
+                <mat-icon class="!h-4 !w-4">{{ hasAccessLogDetails(a) ? 'check_circle' : 'edit_note' }}</mat-icon>
+                {{ accessDetailsActionLabel(a) }}
+              </button>
             </td>
             <td class="vc-td text-right history-col-day" *ngIf="showDayColumn">
               <button

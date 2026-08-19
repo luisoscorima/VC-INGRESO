@@ -84,17 +84,12 @@ type ScannerRecentRow = Record<string, unknown>;
 
 type ResultTone = 'ok' | 'warn' | 'deny' | 'info' | 'error';
 
-const RECENT_STATUS_LABELS = ['PERMITIDO', 'DENEGADO', 'RESTRINGIDO', 'OBSERVADO'] as const;
-
-function parseRecentRowStatus(row: ScannerRecentRow): string {
-  const observation = String(row['observation_raw'] ?? row['obs'] ?? '').toUpperCase();
-  const found = RECENT_STATUS_LABELS.find((s) => new RegExp(`(^|\\|)\\s*${s}\\b`).test(observation));
-  if (found) {
-    return found;
-  }
-  const obs = String(row['obs'] ?? '').trim();
-  return obs && obs !== '—' ? obs.split('|')[0]?.trim() || '—' : '—';
-}
+import {
+  accessDetailsActionLabel,
+  accessLogRowLabel,
+  hasAccessLogDetails,
+  parseAccessLogScanStatus,
+} from '../shared/access-details.util';
 
 @Component({
   selector: 'app-qr-scanner',
@@ -461,9 +456,9 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
           </div>
           <a
             routerLink="/history"
-            class="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline dark:text-teal-300">
+            class="recent-history__full-link inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline dark:text-teal-300">
             Historial completo
-            <mat-icon class="!h-4 !w-4">open_in_new</mat-icon>
+            <mat-icon>open_in_new</mat-icon>
           </a>
         </div>
         <div class="p-3">
@@ -484,15 +479,17 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                   *ngIf="canViewIncidents && recentRowIncidentCount(row) > 0"
                   class="recent-history__inc-badge"
                   [title]="recentRowIncidentCount(row) + ' incidencia(s)'">
-                  <mat-icon class="!h-3.5 !w-3.5">report_problem</mat-icon>
+                  <mat-icon>report_problem</mat-icon>
                   {{ recentRowIncidentCount(row) }}
                 </span>
                 <button
                   type="button"
                   class="recent-history__detail-btn"
+                  [class.recent-history__detail-btn--saved]="hasAccessLogDetails(row)"
+                  [title]="hasAccessLogDetails(row) ? 'Editar nota, decisión o fotos de garita' : 'Agregar nota, decisión o fotos de garita'"
                   (click)="openAccessDetailsDialogForRow(row)">
-                  <mat-icon class="!h-4 !w-4">edit_note</mat-icon>
-                  Agregar detalle
+                  <mat-icon class="!h-4 !w-4">{{ hasAccessLogDetails(row) ? 'check_circle' : 'edit_note' }}</mat-icon>
+                  {{ accessDetailsActionLabel(row) }}
                 </button>
               </div>
             </li>
@@ -771,6 +768,19 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
         font-size: 0.625rem;
         font-weight: 600;
         color: #92400e;
+        line-height: 1;
+      }
+      .recent-history__inc-badge mat-icon {
+        width: 0.75rem !important;
+        height: 0.75rem !important;
+        font-size: 0.75rem !important;
+        line-height: 0.75rem !important;
+      }
+      .recent-history__full-link mat-icon {
+        width: 0.875rem !important;
+        height: 0.875rem !important;
+        font-size: 0.875rem !important;
+        line-height: 0.875rem !important;
       }
       :host-context(.dark) .recent-history__inc-badge {
         background: rgba(120, 53, 15, 0.35);
@@ -792,10 +802,23 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
       .recent-history__detail-btn:hover {
         background: #ccfbf1;
       }
+      .recent-history__detail-btn--saved {
+        border-color: #6ee7b7;
+        background: #ecfdf5;
+        color: #047857;
+      }
+      .recent-history__detail-btn--saved:hover {
+        background: #d1fae5;
+      }
       :host-context(.dark) .recent-history__detail-btn {
         border-color: #115e59;
         background: rgba(15, 118, 110, 0.2);
         color: #5eead4;
+      }
+      :host-context(.dark) .recent-history__detail-btn--saved {
+        border-color: #059669;
+        background: rgba(6, 95, 70, 0.35);
+        color: #6ee7b7;
       }
       .access-details__toggle {
         background: transparent;
@@ -964,6 +987,9 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
   ],
 })
 export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
+  readonly hasAccessLogDetails = hasAccessLogDetails;
+  readonly accessDetailsActionLabel = accessDetailsActionLabel;
+
   @ViewChild('manualInput') manualInput?: ElementRef<HTMLInputElement>;
   @ViewChild('videoElement') videoElement?: ElementRef<HTMLVideoElement>;
   @ViewChild('scannerViewport') scannerViewport?: ElementRef;
@@ -1693,7 +1719,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
         disableClose: true,
         data: {
           logRef,
-          scanStatus: parseRecentRowStatus(row),
+          scanStatus: parseAccessLogScanStatus(row),
           accessPointId,
           movementMode: movementRaw === 'EGRESO' ? 'EGRESO' : 'INGRESO',
           incidentContext: buildScanContextFromHistoryRow(row),
@@ -1766,7 +1792,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   recentRowMeta(row: ScannerRecentRow): string {
-    const status = parseRecentRowStatus(row);
+    const status = parseAccessLogScanStatus(row);
     const movement = String(row['movement_type'] ?? 'INGRESO').toUpperCase();
     const parts = [status !== '—' ? status : null, movement === 'EGRESO' ? 'Salida' : 'Entrada'];
     const doc = String(row['doc_number'] ?? '').trim();

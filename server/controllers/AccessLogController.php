@@ -1240,6 +1240,7 @@ class AccessLogController
                 {$s('al.operator_decision')} AS operator_decision,
                 {$s('al.entry_source')} AS entry_source,
                 {$s('al.photo_url')} AS access_photo_url,
+                al.photo_urls AS access_photo_urls_json,
                 al.created_by_user_id,
                 al.created_at,
                 al.updated_at,
@@ -1335,6 +1336,7 @@ class AccessLogController
                 {$s('tal.operator_decision')} AS operator_decision,
                 {$s('tal.entry_source')} AS entry_source,
                 {$s('tal.photo_url')} AS access_photo_url,
+                tal.photo_urls AS access_photo_urls_json,
                 tal.created_by_user_id,
                 tal.temp_entry_time AS created_at,
                 COALESCE(tal.temp_exit_time, tal.temp_entry_time) AS updated_at,
@@ -1404,11 +1406,20 @@ class AccessLogController
             if (!is_object($row)) {
                 continue;
             }
-            if (isset($row->access_photo_url)) {
-                $row->access_photo_url = resolveMediaUrl(
-                    $row->access_photo_url !== null ? (string) $row->access_photo_url : null
-                );
+            $paths = $this->decodeAccessLogPhotoUrlsFromJson(
+                $row->access_photo_urls_json ?? null,
+                isset($row->access_photo_url) ? (string) $row->access_photo_url : null
+            );
+            unset($row->access_photo_urls_json);
+            $resolved = [];
+            foreach ($paths as $path) {
+                $url = resolveMediaUrl($path);
+                if ($url !== null && $url !== '') {
+                    $resolved[] = $url;
+                }
             }
+            $row->access_photo_urls = $resolved;
+            $row->access_photo_url = $resolved[0] ?? null;
             if (isset($row->incident_preview_photo_url)) {
                 $row->incident_preview_photo_url = resolveMediaUrl(
                     $row->incident_preview_photo_url !== null ? (string) $row->incident_preview_photo_url : null
@@ -1416,6 +1427,34 @@ class AccessLogController
             }
         }
         return $rows;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function decodeAccessLogPhotoUrlsFromJson($jsonRaw, ?string $fallbackSingle): array
+    {
+        if (is_string($jsonRaw) && $jsonRaw !== '') {
+            $decoded = json_decode($jsonRaw, true);
+            if (is_array($decoded)) {
+                $paths = [];
+                foreach ($decoded as $item) {
+                    $path = trim((string) $item);
+                    if ($path !== '') {
+                        $paths[] = $path;
+                    }
+                }
+                if ($paths !== []) {
+                    return $paths;
+                }
+            }
+        }
+        $single = trim((string) ($fallbackSingle ?? ''));
+        if ($single !== '') {
+            return [$single];
+        }
+
+        return [];
     }
 
     private function normalizeHistoryRangeStart(string $value): string
