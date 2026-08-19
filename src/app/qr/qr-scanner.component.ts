@@ -176,18 +176,23 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
             No hay puntos de acceso configurados.
           </p>
 
-          <div class="manual-input mt-1">
-            <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+          <div class="manual-input mt-1" (click)="onManualInputZoneTap($event)">
+            <label for="scanner-manual-code" class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
               DNI, placa o doc. responsable
             </label>
             <div class="flex gap-2">
               <input
                 #manualInput
+                id="scanner-manual-code"
                 type="text"
+                inputmode="text"
+                autocomplete="off"
+                autocapitalize="characters"
+                enterkeyhint="go"
                 [(ngModel)]="manualCode"
                 (keyup.enter)="submitManualCode()"
                 placeholder="DNI, placa o documento"
-                class="scan-input block min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm focus:border-teal-500 focus:ring-teal-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-teal-500 dark:focus:ring-teal-500"
+                class="scan-input block min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-base focus:border-teal-500 focus:ring-teal-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-teal-500 dark:focus:ring-teal-500 md:text-sm"
                 [class.scan-input--pulse-ok]="inputPulseTone === 'ok'"
                 [class.scan-input--pulse-warn]="inputPulseTone === 'warn'"
                 [class.scan-input--pulse-deny]="inputPulseTone === 'deny'" />
@@ -297,7 +302,7 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
                   rows="2"
                   maxlength="2000"
                   placeholder="Observaciones para auditoría…"
-                  class="vc-field w-full resize-y text-sm"></textarea>
+                  class="vc-field w-full resize-y"></textarea>
               </div>
 
               <div>
@@ -910,7 +915,16 @@ function parseRecentRowStatus(row: ScannerRecentRow): string {
         height: 2.75rem;
       }
       .scan-input {
+        font-size: 1rem;
         transition: box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      @media (min-width: 768px) {
+        .scan-input {
+          font-size: 0.875rem;
+        }
+      }
+      .manual-input {
+        cursor: text;
       }
       .scan-input--pulse-ok {
         animation: scan-input-pulse-ok 0.3s ease;
@@ -1131,8 +1145,32 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.focusManualInput();
   }
 
-  private focusManualInput(): void {
-    setTimeout(() => this.manualInput?.nativeElement?.focus(), 0);
+  /** Tap en la zona de lectura: en iOS el focus programático no abre teclado; el gesto del usuario sí. */
+  onManualInputZoneTap(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button')) {
+      return;
+    }
+    this.focusManualInput(true);
+  }
+
+  private focusManualInput(fromUserGesture = false): void {
+    const el = this.manualInput?.nativeElement;
+    if (!el) {
+      return;
+    }
+    const run = (): void => {
+      el.focus({ preventScroll: !fromUserGesture });
+      if (fromUserGesture && typeof el.setSelectionRange === 'function') {
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
+      }
+    };
+    if (fromUserGesture) {
+      run();
+      return;
+    }
+    requestAnimationFrame(run);
   }
 
   setMovementMode(mode: MovementMode): void {
