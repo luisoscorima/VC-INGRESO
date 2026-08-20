@@ -294,7 +294,10 @@ import {
               type="button"
               class="access-details__toggle flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
               (click)="detailsPanelOpen = !detailsPanelOpen">
-              <span class="text-sm font-semibold text-gray-900 dark:text-white">Detalles del acceso</span>
+              <span class="text-sm font-semibold text-gray-900 dark:text-white">
+                Detalles del acceso
+                <span class="ml-1 font-normal text-gray-400">(opcional)</span>
+              </span>
               <mat-icon class="!h-5 !w-5 text-gray-500">{{ detailsPanelOpen ? 'expand_less' : 'expand_more' }}</mat-icon>
             </button>
             <div *ngIf="detailsPanelOpen" class="access-details__body space-y-3 border-t border-gray-200 px-4 py-3 dark:border-gray-700">
@@ -409,7 +412,8 @@ import {
                 <app-photo-source-picker
                   *ngIf="canAddDetailPhoto"
                   [compact]="true"
-                  [zoneTitle]="detailPhotos.length ? 'Añadir otra foto' : 'Añadir imagen'"
+                  [showGallery]="false"
+                  [zoneTitle]="detailPhotos.length ? 'Añadir otra foto' : 'Tomar foto'"
                   [cameraLabel]="detailPhotos.length ? 'Tomar otra' : 'Tomar foto'"
                   [compressing]="compressingDetailPhotos"
                   [disabled]="savingDetails"
@@ -420,12 +424,12 @@ import {
                 </p>
               </div>
 
-              <div class="flex flex-wrap gap-2 pt-1">
+              <div class="flex justify-center pt-1">
                 <button
                   type="button"
                   (click)="saveAccessDetails()"
                   [disabled]="savingDetails || compressingDetailPhotos"
-                  class="access-details__btn-save inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">
+                  class="access-details__btn-save inline-flex items-center justify-center gap-1 rounded-lg px-5 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">
                   {{ savingDetails ? 'Guardando…' : 'Guardar detalles' }}
                 </button>
               </div>

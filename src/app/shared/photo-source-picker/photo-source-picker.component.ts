@@ -48,7 +48,7 @@ import { MatIconModule } from '@angular/material/icon';
         <p class="vc-photo-picker__zone-title">{{ zoneTitle }}</p>
         <p class="vc-photo-picker__zone-sub">JPG, PNG o WEBP</p>
 
-        <div class="vc-photo-picker__actions">
+        <div class="vc-photo-picker__actions" [class.vc-photo-picker__actions--single]="!showGallery">
           <button
             type="button"
             class="vc-photo-picker__btn vc-photo-picker__btn--camera"
@@ -59,6 +59,7 @@ import { MatIconModule } from '@angular/material/icon';
             <span>{{ cameraLabel }}</span>
           </button>
           <button
+            *ngIf="showGallery"
             type="button"
             class="vc-photo-picker__btn vc-photo-picker__btn--gallery"
             [disabled]="busy"
@@ -87,6 +88,7 @@ import { MatIconModule } from '@angular/material/icon';
         (change)="onInputChange($event)"
       />
       <input
+        *ngIf="showGallery"
         #galleryInput
         type="file"
         class="hidden"
@@ -117,6 +119,7 @@ export class PhotoSourcePickerComponent {
   @Input() zoneTitle = 'Añadir imagen';
   @Input() cameraLabel = 'Tomar foto';
   @Input() galleryLabel = 'Galería';
+  @Input() showGallery = true;
   @Input() accept = 'image/jpeg,image/png,image/gif,image/webp';
 
   @Output() fileSelected = new EventEmitter<File>();
@@ -134,7 +137,7 @@ export class PhotoSourcePickerComponent {
   }
 
   openGallery(): void {
-    if (this.busy) {
+    if (this.busy || !this.showGallery) {
       return;
     }
     this.galleryInput?.nativeElement.click();

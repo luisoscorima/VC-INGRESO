@@ -63,7 +63,10 @@ interface PendingPhoto {
   standalone: true,
   imports: [CommonModule, FormsModule, MatDialogModule, MatIconModule, MatButtonModule, PhotoSourcePickerComponent],
   template: `
-    <h2 mat-dialog-title class="vc-incident-dialog__title">Detalles del acceso</h2>
+    <h2 mat-dialog-title class="vc-incident-dialog__title">
+      Detalles del acceso
+      <span class="ml-1 font-normal text-gray-400">(opcional)</span>
+    </h2>
     <p *ngIf="data.rowLabel" class="mx-6 -mt-2 mb-0 text-xs text-gray-500 dark:text-gray-400">{{ data.rowLabel }}</p>
     <mat-dialog-content class="!pt-2">
       <div class="space-y-3">
@@ -174,7 +177,8 @@ interface PendingPhoto {
           </div>
           <app-photo-source-picker
             *ngIf="canAddPhoto"
-            [zoneTitle]="photos.length ? 'Añadir otra foto' : 'Añadir imagen'"
+            [showGallery]="false"
+            [zoneTitle]="photos.length ? 'Añadir otra foto' : 'Tomar foto'"
             [cameraLabel]="photos.length ? 'Tomar otra' : 'Tomar foto'"
             [compressing]="compressingPhoto"
             [disabled]="saving"
@@ -183,17 +187,8 @@ interface PendingPhoto {
         </div>
       </div>
     </mat-dialog-content>
-    <mat-dialog-actions align="end" class="!flex-col !items-stretch !gap-2 !px-6 !pb-4 sm:!flex-row sm:!items-center">
-      <button
-        *ngIf="data.canReportIncident"
-        type="button"
-        class="order-2 mr-auto inline-flex items-center gap-1 text-xs font-medium text-amber-800 hover:underline dark:text-amber-200 sm:order-1"
-        [disabled]="saving"
-        (click)="openReportDialog()">
-        <mat-icon class="!h-4 !w-4">report_problem</mat-icon>
-        Reportar problema
-      </button>
-      <div class="order-1 flex justify-end gap-2 sm:order-2">
+    <mat-dialog-actions class="!flex-col !items-center !gap-2 !px-6 !pb-4">
+      <div class="flex justify-center gap-2">
         <button type="button" class="vc-btn-cancel" (click)="close()" [disabled]="saving">Cancelar</button>
         <button
           type="button"
@@ -203,6 +198,15 @@ interface PendingPhoto {
           {{ primaryLabel }}
         </button>
       </div>
+      <button
+        *ngIf="data.canReportIncident"
+        type="button"
+        class="inline-flex items-center gap-1 text-xs font-medium text-amber-800 hover:underline dark:text-amber-200"
+        [disabled]="saving"
+        (click)="openReportDialog()">
+        <mat-icon class="!h-4 !w-4">report_problem</mat-icon>
+        Reportar problema
+      </button>
     </mat-dialog-actions>
   `,
 })
