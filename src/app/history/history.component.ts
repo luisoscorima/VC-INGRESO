@@ -2,6 +2,7 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { AccessLogService } from '../access-log.service';
 import { Visit } from '../visit';
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_TOOLTIP_DEFAULT_OPTIONS, MatTooltipDefaultOptions } from '@angular/material/tooltip';
 import { Item } from '../item';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { ToastrService } from 'ngx-toastr';
@@ -45,6 +46,15 @@ interface HistoryRow extends Record<string, unknown> {
   identity_source?: 'LOCAL' | 'RENIEC' | 'LEGACY' | null;
 }
 type HistoryResultStatus = 'PERMITIDO' | 'DENEGADO' | 'RESTRINGIDO' | 'OBSERVADO' | '—';
+
+/** En móvil el long-press del tooltip cancela el pan horizontal de la tabla. */
+const HISTORY_TOOLTIP_OPTIONS: MatTooltipDefaultOptions = {
+  showDelay: 0,
+  hideDelay: 0,
+  touchendHideDelay: 1500,
+  touchGestures: 'off',
+  disableTooltipInteractivity: true,
+};
 
 const HISTORY_RESULT_STATUSES: HistoryResultStatus[] = [
   'PERMITIDO',
@@ -128,6 +138,7 @@ function parseResultNotes(row: HistoryRow): string[] {
   selector: 'app-history',
   templateUrl: './history.component.html',
   styleUrls: ['./history.component.css'],
+  providers: [{ provide: MAT_TOOLTIP_DEFAULT_OPTIONS, useValue: HISTORY_TOOLTIP_OPTIONS }],
   animations: [
     trigger('detailExpand', [
       state('collapsed', style({ height: '0px', minHeight: '0', display: 'none' })),

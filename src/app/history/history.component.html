@@ -135,6 +135,7 @@
               class="vc-td"
               [matTooltip]="tooltipType(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               <mat-icon *ngIf="isVehicleRow(a)" class="text-slate-600 dark:text-slate-300">directions_car</mat-icon>
               <mat-icon *ngIf="!isVehicleRow(a)" class="text-slate-600 dark:text-slate-300">person</mat-icon>
@@ -145,6 +146,7 @@
               class="vc-td whitespace-nowrap font-medium"
               [matTooltip]="tooltipDocument(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               {{ a.doc_number }}
             </th>
@@ -152,6 +154,7 @@
               class="vc-td history-col-datos"
               [matTooltip]="tooltipDatos(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               <span class="history-datos-text">{{ a.name }}</span>
             </td>
@@ -159,6 +162,7 @@
               class="vc-td whitespace-nowrap font-semibold tracking-wide"
               [matTooltip]="tooltipPlate(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               {{ displayPlate(a) }}
             </td>
@@ -166,6 +170,7 @@
               class="vc-td"
               [matTooltip]="tooltipHouse(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               {{ a.house_address }}
             </td>
@@ -173,6 +178,7 @@
               class="vc-td max-w-[200px] truncate"
               [matTooltip]="tooltipAccessPoint(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               {{ a.access_point_name || '—' }}
             </td>
@@ -180,6 +186,7 @@
               class="vc-td"
               [matTooltip]="tooltipSource(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               <span class="history-source-badge" [class.history-source-badge--camera]="isCameraRow(a)">
                 {{ entrySourceLabel(a) }}
@@ -189,6 +196,7 @@
               class="vc-td history-col-movement"
               [matTooltip]="tooltipMovement(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               <div class="history-movement-stack">
                 <div *ngIf="!isEgressOnlyRow(a)" class="history-movement-line history-movement-line--entry">
@@ -217,6 +225,7 @@
               class="vc-td whitespace-nowrap text-sm"
               [matTooltip]="tooltipPermanence(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               <span *ngIf="isExternalRow(a)" [class.text-amber-700]="a.stay_exceeded == 1" [class.dark:text-amber-400]="a.stay_exceeded == 1">
                 {{ formatPermanence(a) }}
@@ -227,6 +236,7 @@
               class="vc-td"
               [matTooltip]="tooltipResult(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               <ng-container *ngIf="resultStatus(a) as status">
                 <span class="history-status-badge" [ngClass]="statusBadgeClass(status)">
@@ -242,6 +252,7 @@
               class="vc-td history-col-decision"
               [matTooltip]="tooltipDecision(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               <span *ngIf="operatorDecisionText(a) as dec; else noDecision" class="history-decision-chip">{{ dec }}</span>
               <ng-template #noDecision><span class="text-gray-400">—</span></ng-template>
@@ -250,6 +261,7 @@
               class="vc-td"
               [matTooltip]="tooltipOperator(a)"
               matTooltipClass="history-cell-tooltip"
+              matTooltipTouchGestures="off"
               matTooltipPosition="above">
               {{ a.operator }}
             </td>
@@ -260,6 +272,7 @@
                   class="history-detail-note"
                   [matTooltip]="detailText"
                   matTooltipClass="history-cell-tooltip"
+                  matTooltipTouchGestures="off"
                   matTooltipPosition="above">
                   {{ detailText }}
                 </span>
@@ -269,6 +282,7 @@
                     class="history-thumb-btn"
                     [matTooltip]="tooltipDetail(a)"
                     matTooltipClass="history-cell-tooltip"
+                    matTooltipTouchGestures="off"
                     matTooltipPosition="above"
                     aria-label="Ver foto del detalle"
                     (click)="showHistoryPhoto(a, $event)">
@@ -290,6 +304,7 @@
                   [class.history-detail-btn--saved]="hasAccessLogDetails(a)"
                   [matTooltip]="hasAccessLogDetails(a) ? 'Editar nota, decisión o fotos de garita' : 'Agregar nota, decisión o fotos de garita'"
                   matTooltipClass="history-cell-tooltip"
+                  matTooltipTouchGestures="off"
                   matTooltipPosition="above"
                   (click)="openAccessDetailsDialog(a, $event)">
                   <mat-icon>{{ hasAccessLogDetails(a) ? 'check_circle' : 'edit_note' }}</mat-icon>
@@ -300,6 +315,7 @@
                   class="text-gray-400"
                   [matTooltip]="tooltipDetail(a)"
                   matTooltipClass="history-cell-tooltip"
+                  matTooltipTouchGestures="off"
                   matTooltipPosition="above">—</span>
               </div>
             </td>
@@ -311,6 +327,7 @@
                   class="history-incident-preview"
                   [matTooltip]="tooltipIncident(a)"
                   matTooltipClass="history-cell-tooltip"
+                  matTooltipTouchGestures="off"
                   matTooltipPosition="above"
                   (click)="viewIncidents(a)">
                   <span *ngIf="incidentPreviewDescription(a) as incDesc" class="history-incident-desc">
@@ -335,6 +352,7 @@
                   class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-50 dark:text-amber-200 dark:hover:bg-amber-950/40"
                   [matTooltip]="rowIncidentCount(a) > 0 ? 'Añadir otra incidencia' : 'Reportar incidencia sobre este acceso'"
                   matTooltipClass="history-cell-tooltip"
+                  matTooltipTouchGestures="off"
                   matTooltipPosition="above"
                   (click)="reportIncident(a, $event)">
                   <mat-icon class="history-incident-report-icon">add_alert</mat-icon>
@@ -345,6 +363,7 @@
                   class="text-gray-400"
                   [matTooltip]="tooltipIncident(a)"
                   matTooltipClass="history-cell-tooltip"
+                  matTooltipTouchGestures="off"
                   matTooltipPosition="above">—</span>
               </div>
             </td>
@@ -354,6 +373,7 @@
                 type="button"
                 [matTooltip]="tooltipDay(a)"
                 matTooltipClass="history-cell-tooltip"
+                matTooltipTouchGestures="off"
                 matTooltipPosition="above"
                 (click)="viewDetail(a)"
                 class="history-day-btn"

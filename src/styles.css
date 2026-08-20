@@ -135,7 +135,7 @@ body {
     @apply w-full min-w-0 max-w-full rounded-xl border border-gray-200 dark:border-gray-700;
     display: block;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: clip;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
     touch-action: pan-x pan-y;
@@ -376,7 +376,7 @@ body {
 .vc-table-wrap {
   display: block;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: clip;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   touch-action: pan-x pan-y;
