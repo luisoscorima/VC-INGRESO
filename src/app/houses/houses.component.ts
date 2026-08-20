@@ -147,7 +147,7 @@ export class HousesComponent implements OnInit, AfterViewInit{
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Viviendas');
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '').slice(0, 14);
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace(/T/g, '').slice(0, 14);
     XLSX.writeFile(wb, `viviendas_${stamp}.xlsx`);
   }
 

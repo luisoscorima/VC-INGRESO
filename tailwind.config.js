@@ -30,4 +30,6 @@ module.exports = {
     require('@tailwindcss/forms'),
     require('tailwindcss-animate'),
   ],
+  // Evita que regex tipo /[-:T]/ en .ts se interprete como clase arbitrary `[prop:value]`.
+  blocklist: ['[-:T]'],
 }
