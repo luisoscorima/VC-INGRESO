@@ -93,7 +93,9 @@ body {
 
   /* Shell móvil-first para pantallas autenticadas (CRUD, historial, etc.) */
   .vc-page {
-    @apply min-w-0 max-w-full overflow-x-hidden p-4 pb-8 dark:bg-gray-900;
+    @apply min-w-0 max-w-full p-4 pb-8 dark:bg-gray-900;
+    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   .vc-page-inner {
@@ -102,7 +104,9 @@ body {
 
   /* Tarjeta principal con “glass” y borde discontinuo (Inicio, Reservas, etc.) */
   .vc-card {
-    @apply glass-effect rounded-xl border-2 border-dashed border-gray-200 shadow-lg dark:border-gray-600 min-w-0 overflow-x-hidden;
+    @apply glass-effect rounded-xl border-2 border-dashed border-gray-200 shadow-lg dark:border-gray-600 min-w-0;
+    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   .vc-card-header {
@@ -128,13 +132,20 @@ body {
 
   /* Contenedor de tabla: scroll horizontal solo en la tabla, no en la página */
   .vc-table-wrap {
-    @apply w-full min-w-0 max-w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700;
+    @apply w-full min-w-0 max-w-full rounded-xl border border-gray-200 dark:border-gray-700;
+    display: block;
+    overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
   }
 
   .vc-table {
-    @apply w-max min-w-full text-sm;
+    @apply text-sm;
+    width: 100%;
+    min-width: max-content;
+    max-width: none;
   }
 
   /* Fila de filtros encima de tablas CRUD */
@@ -360,6 +371,21 @@ body {
   .vc-photo-picker--compact .vc-photo-picker__zone-icon {
     @apply !h-6 !w-6 !text-[1.5rem] mb-1;
   }
+}
+
+.vc-table-wrap {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+.vc-table {
+  width: 100%;
+  min-width: max-content;
+  max-width: none;
 }
 
 /*

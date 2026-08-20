@@ -1,5 +1,38 @@
 :host {
   display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+:host .vc-page,
+:host .vc-card {
+  overflow-x: clip;
+}
+
+.history-table-scroll {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+.history-table {
+  width: max-content;
+  min-width: max(100%, 70rem);
+  max-width: none;
+  border-collapse: collapse;
+}
+
+@media (max-width: 639.98px) {
+  .history-table-scroll {
+    /* page p-4 + card p-4: el wrap no debe crecer con la tabla */
+    max-width: calc(100vw - 4.5rem);
+  }
 }
 
 .history-page .history-toolbar ::ng-deep .history-field,
