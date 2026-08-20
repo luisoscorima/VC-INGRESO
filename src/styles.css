@@ -142,9 +142,7 @@ body {
   }
 
   .vc-table {
-    @apply text-sm;
-    width: 100%;
-    min-width: max-content;
+    @apply w-max min-w-full text-sm;
     max-width: none;
   }
 
@@ -382,10 +380,37 @@ body {
   touch-action: pan-x pan-y;
 }
 
-.vc-table {
+.history-table-scroll {
+  display: block;
   width: 100%;
-  min-width: max-content;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: clip;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+.history-table-scroll th,
+.history-table-scroll td,
+.history-table-scroll button {
+  touch-action: pan-x pan-y;
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+
+.history-table {
+  width: 100%;
+  min-width: 70rem;
   max-width: none;
+  border-collapse: collapse;
+}
+
+@media (max-width: 639.98px) {
+  .history-table-scroll {
+    max-width: calc(100vw - 4.5rem);
+  }
 }
 
 /*

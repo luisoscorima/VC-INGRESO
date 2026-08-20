@@ -1,48 +1,5 @@
 :host {
   display: block;
-  min-width: 0;
-  max-width: 100%;
-}
-
-:host .vc-page,
-:host .vc-card {
-  overflow-x: clip;
-}
-
-.history-table-scroll {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: clip;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
-  touch-action: pan-x pan-y;
-}
-
-/* Las celdas tienen matTooltip: Material pone touch-action/user-select que bloquean el swipe. */
-.history-table-scroll th,
-.history-table-scroll td,
-.history-table-scroll button {
-  touch-action: pan-x pan-y;
-  user-select: auto;
-  -webkit-user-select: auto;
-  -webkit-touch-callout: default;
-}
-
-.history-table {
-  width: max-content;
-  min-width: max(100%, 70rem);
-  max-width: none;
-  border-collapse: collapse;
-}
-
-@media (max-width: 639.98px) {
-  .history-table-scroll {
-    /* page p-4 + card p-4: el wrap no debe crecer con la tabla */
-    max-width: calc(100vw - 4.5rem);
-  }
 }
 
 .history-page .history-toolbar ::ng-deep .history-field,
