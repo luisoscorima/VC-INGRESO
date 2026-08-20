@@ -60,6 +60,20 @@ export function requiresHouseForAuthorizeEntry(logRef: number): boolean {
   return logRef < 0;
 }
 
+export function formatHouseSummary(
+  block: string | null | undefined,
+  lot: string | null | undefined,
+  apartment?: string | null
+): string {
+  const mz = String(block ?? '').trim();
+  const lt = String(lot ?? '').trim();
+  if (!mz || !lt) {
+    return '';
+  }
+  const apt = String(apartment ?? '').trim();
+  return apt ? `Mz ${mz} · Lote ${lt} · Dpto ${apt}` : `Mz ${mz} · Lote ${lt}`;
+}
+
 export function accessLogRowLabel(row: Record<string, unknown>): string {
   const name = String(row['name'] ?? row['display_name_snapshot'] ?? '').trim();
   if (name && name !== '—') {

@@ -45,6 +45,7 @@ import {
   OperatorDecision,
   isAttentionScanStatus,
   operatorDecisionLabel,
+  shouldShowOperatorDecision,
 } from '../shared/operator-decision';
 import { compressImageFile, MOBILE_PHOTO_COMPRESS } from '../shared/compress-image';
 
@@ -88,6 +89,7 @@ import {
   accessDetailsActionLabel,
   accessLogRowLabel,
   canOfferAuthorizeEntry,
+  formatHouseSummary,
   hasAccessLogDetails,
   parseAccessLogScanStatus,
   requiresHouseForAuthorizeEntry,
@@ -296,19 +298,93 @@ import {
               <mat-icon class="!h-5 !w-5 text-gray-500">{{ detailsPanelOpen ? 'expand_less' : 'expand_more' }}</mat-icon>
             </button>
             <div *ngIf="detailsPanelOpen" class="access-details__body space-y-3 border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+              <div *ngIf="showOperatorDecisionSelect">
+                <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Qué hizo el operario</label>
+                <select
+                  [(ngModel)]="detailsOperatorDecision"
+                  (ngModelChange)="onDetailsOperatorDecisionChange($event)"
+                  class="scanner-controls__select w-full">
+                  <option *ngFor="let opt of operatorDecisionOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+                </select>
+              </div>
+
+              <label
+                *ngIf="showAuthorizeEntryCheckbox"
+                class="flex cursor-pointer items-start gap-2 rounded-lg border border-teal-200 bg-teal-50/80 p-2.5 text-xs text-gray-800 dark:border-teal-900 dark:bg-teal-950/30 dark:text-gray-200">
+                <input
+                  type="checkbox"
+                  class="mt-0.5"
+                  [(ngModel)]="detailsPersonEnteredNow"
+                  [disabled]="savingDetails || compressingDetailPhotos" />
+                <span>
+                  <span class="font-semibold">Persona ingresó ahora</span>
+                  <span class="mt-0.5 block text-[11px] font-normal text-gray-500 dark:text-gray-400">
+                    Empieza a contar el tiempo dentro.
+                  </span>
+                </span>
+              </label>
+              <p
+                *ngIf="!showAuthorizeEntryCheckbox && attemptEffectiveEntryAt"
+                class="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-2 text-xs text-teal-900 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-100">
+                Ingreso ya registrado.
+              </p>
+
+              <div class="space-y-2">
+                <p
+                  *ngIf="showDetailsHouseSummary"
+                  class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-800 dark:text-gray-200">
+                  <span>{{ detailsHouseSummary }}</span>
+                  <button
+                    type="button"
+                    class="text-xs font-medium text-teal-700 hover:underline dark:text-teal-300"
+                    (click)="detailsHouseEditing = true">
+                    Cambiar
+                  </button>
+                </p>
+                <ng-container *ngIf="!showDetailsHouseSummary">
+                  <label class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" [(ngModel)]="detailsNoHouse" (ngModelChange)="onDetailsNoHouseChange($event)" />
+                    Sin domicilio / no aplica
+                  </label>
+                  <div *ngIf="showDetailsHouseSelectors" class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div>
+                      <label class="mb-1 block text-xs text-gray-600 dark:text-gray-400">Manzana</label>
+                      <select [(ngModel)]="detailsBlock" class="scanner-controls__select w-full">
+                        <option value="">—</option>
+                        <option *ngFor="let b of detailBlocks" [value]="b">{{ b }}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="mb-1 block text-xs text-gray-600 dark:text-gray-400">Lote</label>
+                      <select [(ngModel)]="detailsLot" class="scanner-controls__select w-full">
+                        <option value="">—</option>
+                        <option *ngFor="let l of detailLots" [value]="l">{{ l }}</option>
+                      </select>
+                    </div>
+                    <div *ngIf="detailApartments.length">
+                      <label class="mb-1 block text-xs text-gray-600 dark:text-gray-400">Dpto</label>
+                      <select [(ngModel)]="detailsApartment" class="scanner-controls__select w-full">
+                        <option value="">—</option>
+                        <option *ngFor="let a of detailApartments" [value]="a">{{ a }}</option>
+                      </select>
+                    </div>
+                  </div>
+                </ng-container>
+              </div>
+
               <div>
-                <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Nota del operario</label>
+                <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Nota (opcional)</label>
                 <textarea
                   [(ngModel)]="operatorNotes"
                   rows="2"
                   maxlength="2000"
-                  placeholder="Observaciones para auditoría…"
+                  placeholder="Observaciones…"
                   class="vc-field w-full resize-y"></textarea>
               </div>
 
               <div>
                 <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                  Fotos del acceso (opcional, máx. {{ maxDetailPhotos }})
+                  Fotos (opcional, máx. {{ maxDetailPhotos }})
                 </label>
                 <div *ngIf="detailPhotos.length" class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <div
@@ -343,70 +419,6 @@ import {
                   Límite de {{ maxDetailPhotos }} fotos alcanzado.
                 </p>
               </div>
-
-              <div>
-                <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Decisión del operario</label>
-                <select
-                  [(ngModel)]="detailsOperatorDecision"
-                  (ngModelChange)="onDetailsOperatorDecisionChange($event)"
-                  class="scanner-controls__select w-full">
-                  <option *ngFor="let opt of operatorDecisionOptions" [ngValue]="opt.value">{{ opt.label }}</option>
-                </select>
-                <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                  No modifica el resultado del scan (p. ej. DENEGADO); solo registra la acción del operario.
-                </p>
-              </div>
-
-              <div class="space-y-2">
-                <label class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300">
-                  <input type="checkbox" [(ngModel)]="detailsNoHouse" (ngModelChange)="onDetailsNoHouseChange($event)" />
-                  Sin domicilio / no aplica
-                </label>
-                <div *ngIf="!detailsNoHouse" class="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <div>
-                    <label class="mb-1 block text-xs text-gray-600 dark:text-gray-400">Manzana</label>
-                    <select [(ngModel)]="detailsBlock" class="scanner-controls__select w-full">
-                      <option value="">—</option>
-                      <option *ngFor="let b of detailBlocks" [value]="b">{{ b }}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="mb-1 block text-xs text-gray-600 dark:text-gray-400">Lote</label>
-                    <select [(ngModel)]="detailsLot" class="scanner-controls__select w-full">
-                      <option value="">—</option>
-                      <option *ngFor="let l of detailLots" [value]="l">{{ l }}</option>
-                    </select>
-                  </div>
-                  <div *ngIf="detailApartments.length">
-                    <label class="mb-1 block text-xs text-gray-600 dark:text-gray-400">Dpto</label>
-                    <select [(ngModel)]="detailsApartment" class="scanner-controls__select w-full">
-                      <option value="">—</option>
-                      <option *ngFor="let a of detailApartments" [value]="a">{{ a }}</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <label
-                *ngIf="showAuthorizeEntryCheckbox"
-                class="flex cursor-pointer items-start gap-2 rounded-lg border border-teal-200 bg-teal-50/80 p-2.5 text-xs text-gray-800 dark:border-teal-900 dark:bg-teal-950/30 dark:text-gray-200">
-                <input
-                  type="checkbox"
-                  class="mt-0.5"
-                  [(ngModel)]="detailsPersonEnteredNow"
-                  [disabled]="savingDetails || compressingDetailPhotos" />
-                <span>
-                  <span class="font-semibold">Persona ingresó ahora</span>
-                  <span class="mt-0.5 block text-[11px] font-normal text-gray-500 dark:text-gray-400">
-                    Registra el ingreso efectivo para calcular permanencia. El resultado del scan no cambia.
-                  </span>
-                </span>
-              </label>
-              <p
-                *ngIf="!showAuthorizeEntryCheckbox && attemptEffectiveEntryAt"
-                class="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-2 text-xs text-teal-900 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-100">
-                Ingreso efectivo ya registrado en este acceso.
-              </p>
 
               <div class="flex flex-wrap gap-2 pt-1">
                 <button
@@ -1043,6 +1055,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   detailsPanelOpen = false;
   detailsOperatorDecision: OperatorDecision | '' = '';
   detailsNoHouse = false;
+  detailsHouseEditing = false;
   detailsBlock = '';
   detailsLot = '';
   detailsApartment = '';
@@ -1168,6 +1181,26 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get canViewIncidents(): boolean {
     return this.navPerm.canView('incidents');
+  }
+
+  get showOperatorDecisionSelect(): boolean {
+    return shouldShowOperatorDecision(this.lastScanStatus);
+  }
+
+  get hasKnownDetailsHouse(): boolean {
+    return !!this.detailsBlock.trim() && !!this.detailsLot.trim();
+  }
+
+  get detailsHouseSummary(): string {
+    return formatHouseSummary(this.detailsBlock, this.detailsLot, this.detailsApartment);
+  }
+
+  get showDetailsHouseSummary(): boolean {
+    return !this.detailsNoHouse && this.hasKnownDetailsHouse && !this.detailsHouseEditing;
+  }
+
+  get showDetailsHouseSelectors(): boolean {
+    return !this.detailsNoHouse && (!this.hasKnownDetailsHouse || this.detailsHouseEditing);
   }
 
   get showAuthorizeEntryCheckbox(): boolean {
@@ -1856,21 +1889,17 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onDetailsNoHouseChange(checked: boolean): void {
-    if (checked && !this.detailsOperatorDecision) {
-      this.detailsOperatorDecision = 'SIN_DOMICILIO';
-    }
-    if (!checked && this.detailsOperatorDecision === 'SIN_DOMICILIO') {
-      this.detailsOperatorDecision = '';
+    if (checked) {
+      this.detailsHouseEditing = false;
     }
   }
 
   onDetailsOperatorDecisionChange(value: OperatorDecision | ''): void {
-    if (value !== 'AUTORIZADO_POR_PROPIETARIO') {
-      this.detailsPersonEnteredNow = false;
+    if (value === 'AUTORIZADO_POR_PROPIETARIO' && !this.attemptEffectiveEntryAt) {
+      this.detailsPersonEnteredNow = true;
+      return;
     }
-    if (value === 'SIN_DOMICILIO') {
-      this.detailsNoHouse = true;
-    }
+    this.detailsPersonEnteredNow = false;
   }
 
   onDetailPhotoSelected(file: File): void {
@@ -1932,6 +1961,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   private resetAccessDetailsFields(): void {
     this.detailsOperatorDecision = '';
     this.detailsNoHouse = false;
+    this.detailsHouseEditing = false;
     this.detailsBlock = '';
     this.detailsLot = '';
     this.detailsApartment = '';
@@ -1986,7 +2016,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     const form = new FormData();
     const notes = this.operatorNotes.trim();
     form.append('operator_notes', notes);
-    if (this.detailsOperatorDecision) {
+    if (this.showOperatorDecisionSelect && this.detailsOperatorDecision) {
       form.append('operator_decision', this.detailsOperatorDecision);
     } else {
       form.append('operator_decision', '');
@@ -2041,6 +2071,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
       .subscribe({
         next: (authRes) => {
           this.savingDetails = false;
+          this.detailsHouseEditing = false;
           this.clearAllDetailPhotos();
           if (authRes && (authRes as { authorizeFailed?: boolean }).authorizeFailed) {
             this.toastr.warning(
