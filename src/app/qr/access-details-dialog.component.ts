@@ -18,6 +18,11 @@ import {
   INCIDENT_DIALOG_PANEL_CLASS,
 } from '../incidents/incident-form-dialog.component';
 import { IncidentFormDialogData, IncidentScanContext } from '../incidents/access-incident.service';
+import {
+  canOfferAuthorizeEntry,
+  requiresHouseForAuthorizeEntry,
+} from '../shared/access-details.util';
+import { catchError, of, switchMap } from 'rxjs';
 
 export const ACCESS_DETAILS_DIALOG_PANEL_CLASS = 'vc-incident-dialog';
 
@@ -32,6 +37,8 @@ export interface AccessDetailsDialogData {
   initialDecision?: OperatorDecision | '' | null;
   initialHouseId?: number | null;
   rowLabel?: string;
+  /** Si ya se creó ingreso efectivo desde este intento (access_logs.id o temp_access_log_id). */
+  authorizedLogId?: number | null;
 }
 
 interface HouseOption {
@@ -137,6 +144,27 @@ interface PendingPhoto {
             </div>
           </div>
         </div>
+
+        <label
+          *ngIf="showAuthorizeEntryCheckbox"
+          class="flex cursor-pointer items-start gap-2 rounded-lg border border-teal-200 bg-teal-50/80 p-2.5 text-xs text-gray-800 dark:border-teal-900 dark:bg-teal-950/30 dark:text-gray-200">
+          <input
+            type="checkbox"
+            class="mt-0.5"
+            [(ngModel)]="personEnteredNow"
+            [disabled]="saving || compressingPhoto" />
+          <span>
+            <span class="font-semibold">Persona ingresó ahora</span>
+            <span class="mt-0.5 block text-[11px] font-normal text-gray-600 dark:text-gray-400">
+              Registra el ingreso efectivo para calcular permanencia. El resultado del scan no cambia.
+            </span>
+          </span>
+        </label>
+        <p
+          *ngIf="!showAuthorizeEntryCheckbox && authorizedLogId"
+          class="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-2 text-xs text-teal-900 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-100">
+          Ingreso efectivo ya registrado para este acceso.
+        </p>
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end" class="!flex-col !items-stretch !gap-2 !px-6 !pb-4 sm:!flex-row sm:!items-center">
@@ -176,6 +204,8 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
   houses: HouseOption[] = [];
   saving = false;
   compressingPhoto = false;
+  personEnteredNow = false;
+  authorizedLogId: number | null = null;
 
   private photoPickSeq = 0;
   private nextPhotoId = 1;
@@ -194,6 +224,10 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.operatorNotes = String(this.data.initialNotes ?? '').trim();
     this.operatorDecision = this.data.initialDecision ?? '';
+    this.authorizedLogId =
+      this.data.authorizedLogId != null && Number(this.data.authorizedLogId) > 0
+        ? Number(this.data.authorizedLogId)
+        : null;
     this.loadHouses();
   }
 
@@ -237,7 +271,22 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
     return this.saving ? 'Guardando…' : 'Guardar detalles';
   }
 
+  get showAuthorizeEntryCheckbox(): boolean {
+    return canOfferAuthorizeEntry({
+      scanStatus: this.data.scanStatus,
+      operatorDecision: this.operatorDecision,
+      authorizedLogId: this.authorizedLogId,
+    });
+  }
+
+  get requiresHouseForAuthorize(): boolean {
+    return requiresHouseForAuthorizeEntry(this.data.logRef);
+  }
+
   onDecisionChange(value: OperatorDecision | ''): void {
+    if (value !== 'AUTORIZADO_POR_PROPIETARIO') {
+      this.personEnteredNow = false;
+    }
     if (value === 'SIN_DOMICILIO') {
       this.noHouse = true;
     } else if (this.operatorDecision === 'SIN_DOMICILIO') {
@@ -352,18 +401,55 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
   }
 
   private saveDetails(): void {
+    const shouldAuthorize = this.showAuthorizeEntryCheckbox && this.personEnteredNow;
+    const houseId = this.noHouse ? null : this.resolveHouseId();
+
+    if (shouldAuthorize && this.operatorDecision !== 'AUTORIZADO_POR_PROPIETARIO') {
+      this.toastr.warning('Seleccione «Autorizado por propietario» para registrar el ingreso.');
+      return;
+    }
+    if (shouldAuthorize && this.requiresHouseForAuthorize && !houseId) {
+      this.toastr.warning('Indique el domicilio de destino para registrar el ingreso autorizado.');
+      return;
+    }
+
     this.saving = true;
-    this.accessLogService.patchAccessDetails(this.data.logRef, this.buildFormData()).subscribe({
-      next: () => {
-        this.saving = false;
-        this.toastr.success('Detalles guardados');
-        this.dialogRef.close(true);
-      },
-      error: (err) => {
-        this.saving = false;
-        this.toastr.error(err?.message || 'No se pudieron guardar los detalles');
-      },
-    });
+    this.accessLogService
+      .patchAccessDetails(this.data.logRef, this.buildFormData())
+      .pipe(
+        switchMap(() => {
+          if (!shouldAuthorize) {
+            return of(null);
+          }
+          return this.accessLogService.authorizeFromAttempt(this.data.logRef, houseId).pipe(
+            catchError((err) => {
+              const msg = err?.error?.error || 'No se pudo registrar el ingreso autorizado.';
+              this.toastr.warning(`Detalles guardados. ${msg}`);
+              return of(null);
+            })
+          );
+        })
+      )
+      .subscribe({
+        next: (authRes) => {
+          this.saving = false;
+          const authorizedId = Number(authRes?.data?.authorized_log_id ?? 0);
+          if (authorizedId > 0) {
+            this.authorizedLogId = authorizedId;
+            this.personEnteredNow = false;
+            this.toastr.success('Detalles guardados e ingreso autorizado registrado');
+          } else if (shouldAuthorize && authRes) {
+            this.toastr.success('Detalles guardados e ingreso autorizado registrado');
+          } else {
+            this.toastr.success('Detalles guardados');
+          }
+          this.dialogRef.close(true);
+        },
+        error: (err) => {
+          this.saving = false;
+          this.toastr.error(err?.error?.error || err?.message || 'No se pudieron guardar los detalles');
+        },
+      });
   }
 
   private clearAllPhotos(): void {

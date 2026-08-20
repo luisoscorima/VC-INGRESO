@@ -41,6 +41,7 @@ class AccessLogController
         self::ensureOperatorNotesColumns($this->pdo);
         self::ensureOperatorDecisionColumns($this->pdo);
         self::ensurePhotoUrlsColumns($this->pdo);
+        self::ensureAuthorizedLogIdColumns($this->pdo);
     }
 
     private static function ensureOperatorNotesColumns(\PDO $pdo): void
@@ -82,6 +83,20 @@ class AccessLogController
             $stmt->execute([$table, 'photo_urls']);
             if ((int) $stmt->fetchColumn() === 0) {
                 $pdo->exec("ALTER TABLE {$table} ADD COLUMN photo_urls JSON DEFAULT NULL COMMENT 'Array de rutas/URLs de fotos garita'");
+            }
+        }
+    }
+
+    private static function ensureAuthorizedLogIdColumns(\PDO $pdo): void
+    {
+        foreach (['access_logs', 'temporary_access_logs'] as $table) {
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+            );
+            $stmt->execute([$table, 'authorized_log_id']);
+            if ((int) $stmt->fetchColumn() === 0) {
+                $pdo->exec("ALTER TABLE {$table} ADD COLUMN authorized_log_id INT UNSIGNED DEFAULT NULL COMMENT 'Ingreso efectivo creado desde este intento'");
             }
         }
     }
@@ -1238,6 +1253,7 @@ class AccessLogController
                 {$s('al.observation')} AS observation_raw,
                 {$s('al.operator_notes')} AS operator_notes,
                 {$s('al.operator_decision')} AS operator_decision,
+                al.authorized_log_id,
                 {$s('al.entry_source')} AS entry_source,
                 {$s('al.photo_url')} AS access_photo_url,
                 al.photo_urls AS access_photo_urls_json,
@@ -1334,6 +1350,7 @@ class AccessLogController
                 {$s('CAST(NULL AS CHAR(1))')} AS observation_raw,
                 {$s('tal.operator_notes')} AS operator_notes,
                 {$s('tal.operator_decision')} AS operator_decision,
+                tal.authorized_log_id,
                 {$s('tal.entry_source')} AS entry_source,
                 {$s('tal.photo_url')} AS access_photo_url,
                 tal.photo_urls AS access_photo_urls_json,
@@ -2071,6 +2088,15 @@ class AccessLogController
             ], 422);
             return;
         }
+        $existingAuthorizedId = (int) ($attempt['authorized_log_id'] ?? 0);
+        if ($existingAuthorizedId > 0) {
+            Response::json([
+                'success' => false,
+                'error' => 'Ya se registró el ingreso autorizado para este intento',
+                'authorized_log_id' => $existingAuthorizedId,
+            ], 409);
+            return;
+        }
 
         $houseId = $overrideHouseId ?? $this->nullablePositiveInt($attempt['house_id'] ?? null);
         $createdByUserId = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
@@ -2127,6 +2153,9 @@ class AccessLogController
 
             $newId = (int) $this->pdo->lastInsertId();
 
+            $link = $this->pdo->prepare("UPDATE {$this->table} SET authorized_log_id = ? WHERE id = ?");
+            $link->execute([$newId, $attemptId]);
+
             recordEventLog($this->pdo, $auth, 'access_log.authorize_from_attempt', [
                 'summary' => 'Ingreso autorizado desde intento #' . $attemptId,
                 'entity_type' => 'access_logs',
@@ -2168,6 +2197,16 @@ class AccessLogController
                 'success' => false,
                 'error' => 'Registre la decisión «Autorizado por propietario» antes de autorizar el ingreso',
             ], 422);
+            return;
+        }
+        $existingAuthorizedId = (int) ($attempt['authorized_log_id'] ?? 0);
+        if ($existingAuthorizedId > 0) {
+            Response::json([
+                'success' => false,
+                'error' => 'Ya se registró el ingreso autorizado para este intento',
+                'authorized_log_id' => $existingAuthorizedId,
+                'log_ref' => -$existingAuthorizedId,
+            ], 409);
             return;
         }
 
@@ -2252,6 +2291,11 @@ class AccessLogController
             ]);
 
             $newId = (int) $this->pdo->lastInsertId();
+
+            $link = $this->pdo->prepare(
+                'UPDATE temporary_access_logs SET authorized_log_id = ? WHERE temp_access_log_id = ?'
+            );
+            $link->execute([$newId, $attemptId]);
 
             recordEventLog($this->pdo, $auth, 'access_log.authorize_from_attempt', [
                 'summary' => 'Ingreso externo autorizado desde intento #' . $attemptId,

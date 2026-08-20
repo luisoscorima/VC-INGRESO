@@ -196,9 +196,6 @@ export class HistoryComponent implements OnInit {
     if (this.showIncidentsColumn || this.canCreateIncident) {
       cols += 1;
     }
-    if (this.canEditAccessDetails) {
-      cols += 1;
-    }
     if (this.showDayColumn) {
       cols += 1;
     }
@@ -436,10 +433,10 @@ export class HistoryComponent implements OnInit {
       NOTAS_OPERARIO: String(r['operator_notes'] ?? '').trim(),
       DECISION_OPERARIO: operatorDecisionLabel(String(r['operator_decision'] ?? '')),
       OPERARIO: r['operator'],
-      CAPTURA: this.capturePhotoUrls(r).length
-        ? `${this.capturePhotoUrls(r).length} foto(s)${this.operatorNotesText(r) ? ' + nota' : ''}`
-        : this.operatorNotesText(r)
-          ? 'Nota'
+      DETALLE: this.detailPreviewText(r)
+        ? `${this.detailPreviewText(r)}${this.capturePhotoUrls(r).length ? ` · ${this.capturePhotoUrls(r).length} foto(s)` : ''}`
+        : this.capturePhotoUrls(r).length
+          ? `${this.capturePhotoUrls(r).length} foto(s)`
           : '—',
       ...(this.showIncidentsColumn
         ? {
@@ -498,6 +495,15 @@ export class HistoryComponent implements OnInit {
   operatorDecisionText(row: HistoryRow): string {
     const label = operatorDecisionLabel(String(row['operator_decision'] ?? ''));
     return label !== '—' ? label : '';
+  }
+
+  /** Texto legible en columna Detalle (nota prioritaria; si no hay, decisión). */
+  detailPreviewText(row: HistoryRow): string {
+    const note = this.operatorNotesText(row);
+    if (note) {
+      return note;
+    }
+    return this.operatorDecisionText(row);
   }
 
   capturePhotoUrls(row: HistoryRow): string[] {
@@ -794,6 +800,7 @@ export class HistoryComponent implements OnInit {
           initialNotes: String(row['operator_notes'] ?? '').trim() || null,
           initialDecision: (String(row['operator_decision'] ?? '').trim() as OperatorDecision) || '',
           initialHouseId: Number(row['house_id'] ?? 0) > 0 ? Number(row['house_id']) : null,
+          authorizedLogId: Number(row['authorized_log_id'] ?? 0) > 0 ? Number(row['authorized_log_id']) : null,
           rowLabel: accessLogRowLabel(row),
         },
       })
@@ -1050,18 +1057,22 @@ export class HistoryComponent implements OnInit {
     return lines.join('\n');
   }
 
-  tooltipCapture(row: HistoryRow): string {
+  tooltipDetail(row: HistoryRow): string {
     const photos = this.capturePhotoUrls(row).length;
     const note = this.operatorNotesText(row);
+    const decision = this.operatorDecisionText(row);
     const lines: string[] = [];
-    if (photos) {
-      lines.push(`${photos} foto(s) de garita / captura`);
-    }
     if (note) {
       lines.push(`Nota operario: ${note}`);
     }
+    if (decision) {
+      lines.push(`Decisión operario: ${decision}`);
+    }
+    if (photos) {
+      lines.push(`${photos} foto(s) de garita`);
+    }
     if (!lines.length) {
-      return 'Sin captura ni nota de garita en este registro';
+      return 'Sin detalle de garita en este registro';
     }
     if (photos) {
       lines.push('Clic en la miniatura para ampliar');

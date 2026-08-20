@@ -15,8 +15,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { ToastrService } from 'ngx-toastr';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subject, of } from 'rxjs';
+import { catchError, switchMap, takeUntil } from 'rxjs/operators';
 import { ApiService } from '../api.service';
 import { AccessLogService } from '../access-log.service';
 import { QrAccessService, AccessQrScanResult } from './qr-access.service';
@@ -87,8 +87,10 @@ type ResultTone = 'ok' | 'warn' | 'deny' | 'info' | 'error';
 import {
   accessDetailsActionLabel,
   accessLogRowLabel,
+  canOfferAuthorizeEntry,
   hasAccessLogDetails,
   parseAccessLogScanStatus,
+  requiresHouseForAuthorizeEntry,
 } from '../shared/access-details.util';
 
 @Component({
@@ -344,7 +346,10 @@ import {
 
               <div>
                 <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Decisión del operario</label>
-                <select [(ngModel)]="detailsOperatorDecision" class="scanner-controls__select w-full">
+                <select
+                  [(ngModel)]="detailsOperatorDecision"
+                  (ngModelChange)="onDetailsOperatorDecisionChange($event)"
+                  class="scanner-controls__select w-full">
                   <option *ngFor="let opt of operatorDecisionOptions" [ngValue]="opt.value">{{ opt.label }}</option>
                 </select>
                 <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -381,6 +386,27 @@ import {
                   </div>
                 </div>
               </div>
+
+              <label
+                *ngIf="showAuthorizeEntryCheckbox"
+                class="flex cursor-pointer items-start gap-2 rounded-lg border border-teal-200 bg-teal-50/80 p-2.5 text-xs text-gray-800 dark:border-teal-900 dark:bg-teal-950/30 dark:text-gray-200">
+                <input
+                  type="checkbox"
+                  class="mt-0.5"
+                  [(ngModel)]="detailsPersonEnteredNow"
+                  [disabled]="savingDetails || compressingDetailPhotos" />
+                <span>
+                  <span class="font-semibold">Persona ingresó ahora</span>
+                  <span class="mt-0.5 block text-[11px] font-normal text-gray-500 dark:text-gray-400">
+                    Registra el ingreso efectivo para calcular permanencia. El resultado del scan no cambia.
+                  </span>
+                </span>
+              </label>
+              <p
+                *ngIf="!showAuthorizeEntryCheckbox && attemptAuthorizedLogId"
+                class="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-2 text-xs text-teal-900 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-100">
+                Ingreso efectivo ya registrado para este acceso.
+              </p>
 
               <div class="flex flex-wrap gap-2 pt-1">
                 <button
@@ -1027,6 +1053,8 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   private detailPhotoPickSeq = 0;
   private nextDetailPhotoId = 1;
   savingDetails = false;
+  detailsPersonEnteredNow = false;
+  attemptAuthorizedLogId: number | null = null;
   readonly operatorDecisionOptions = OPERATOR_DECISION_OPTIONS;
 
   registrationInProgress = false;
@@ -1140,6 +1168,21 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get canViewIncidents(): boolean {
     return this.navPerm.canView('incidents');
+  }
+
+  get showAuthorizeEntryCheckbox(): boolean {
+    if (!this.lastLogRef) {
+      return false;
+    }
+    return canOfferAuthorizeEntry({
+      scanStatus: this.lastScanStatus,
+      operatorDecision: this.detailsOperatorDecision,
+      authorizedLogId: this.attemptAuthorizedLogId,
+    });
+  }
+
+  get requiresHouseForAuthorize(): boolean {
+    return this.lastLogRef != null && requiresHouseForAuthorizeEntry(this.lastLogRef);
   }
 
   get showRecentHistoryPanel(): boolean {
@@ -1727,6 +1770,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
           initialNotes: String(row['operator_notes'] ?? '').trim() || null,
           initialDecision: (String(row['operator_decision'] ?? '').trim() as OperatorDecision) || '',
           initialHouseId: Number(row['house_id'] ?? 0) > 0 ? Number(row['house_id']) : null,
+          authorizedLogId: Number(row['authorized_log_id'] ?? 0) > 0 ? Number(row['authorized_log_id']) : null,
           rowLabel: this.recentRowLabel(row),
         },
       })
@@ -1820,6 +1864,15 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  onDetailsOperatorDecisionChange(value: OperatorDecision | ''): void {
+    if (value !== 'AUTORIZADO_POR_PROPIETARIO') {
+      this.detailsPersonEnteredNow = false;
+    }
+    if (value === 'SIN_DOMICILIO') {
+      this.detailsNoHouse = true;
+    }
+  }
+
   onDetailPhotoSelected(file: File): void {
     void this.addDetailPhoto(file);
   }
@@ -1882,6 +1935,8 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.detailsBlock = '';
     this.detailsLot = '';
     this.detailsApartment = '';
+    this.detailsPersonEnteredNow = false;
+    this.attemptAuthorizedLogId = null;
     this.clearAllDetailPhotos();
   }
 
@@ -1954,19 +2009,57 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.lastLogRef) {
       return;
     }
+    const logRef = this.lastLogRef;
+    const shouldAuthorize = this.showAuthorizeEntryCheckbox && this.detailsPersonEnteredNow;
+    const houseId = this.detailsNoHouse ? null : this.resolveDetailsHouseId();
+
+    if (shouldAuthorize && this.detailsOperatorDecision !== 'AUTORIZADO_POR_PROPIETARIO') {
+      this.toastr.warning('Seleccione «Autorizado por propietario» para registrar el ingreso.');
+      return;
+    }
+    if (shouldAuthorize && this.requiresHouseForAuthorize && !houseId) {
+      this.toastr.warning('Indique el domicilio de destino para registrar el ingreso autorizado.');
+      return;
+    }
+
     this.savingDetails = true;
-    this.accessLogService.patchAccessDetails(this.lastLogRef, this.buildDetailsFormData()).subscribe({
-      next: () => {
-        this.savingDetails = false;
-        this.clearAllDetailPhotos();
-        this.toastr.success('Detalles guardados');
-        this.refreshRecentHistory();
-      },
-      error: (err) => {
-        this.savingDetails = false;
-        this.toastr.error(err?.error?.error || err?.message || 'No se pudieron guardar los detalles');
-      },
-    });
+    this.accessLogService
+      .patchAccessDetails(logRef, this.buildDetailsFormData())
+      .pipe(
+        switchMap(() => {
+          if (!shouldAuthorize) {
+            return of(null);
+          }
+          return this.accessLogService.authorizeFromAttempt(logRef, houseId).pipe(
+            catchError((err) => {
+              const msg = err?.error?.error || 'No se pudo registrar el ingreso autorizado.';
+              this.toastr.warning(`Detalles guardados. ${msg}`);
+              return of(null);
+            })
+          );
+        })
+      )
+      .subscribe({
+        next: (authRes) => {
+          this.savingDetails = false;
+          this.clearAllDetailPhotos();
+          const authorizedId = Number(authRes?.data?.authorized_log_id ?? 0);
+          if (authorizedId > 0) {
+            this.attemptAuthorizedLogId = authorizedId;
+            this.detailsPersonEnteredNow = false;
+            this.toastr.success('Detalles guardados e ingreso autorizado registrado');
+          } else if (shouldAuthorize && authRes) {
+            this.toastr.success('Detalles guardados e ingreso autorizado registrado');
+          } else {
+            this.toastr.success('Detalles guardados');
+          }
+          this.refreshRecentHistory();
+        },
+        error: (err) => {
+          this.savingDetails = false;
+          this.toastr.error(err?.error?.error || err?.message || 'No se pudieron guardar los detalles');
+        },
+      });
   }
 
   private applyLogRefFromScan(data: AccessQrScanResult, logRef: number): void {

@@ -228,9 +228,8 @@
   color: #fbbf24;
 }
 
-.history-col-capture,
-.history-col-incident,
-.history-col-detail {
+.history-col-detail,
+.history-col-incident {
   width: 5.5rem;
   max-width: 8.5rem;
 }
@@ -353,6 +352,14 @@
   white-space: nowrap;
 }
 
+.history-detail-btn mat-icon {
+  width: 0.875rem !important;
+  height: 0.875rem !important;
+  font-size: 0.875rem !important;
+  line-height: 0.875rem !important;
+  flex-shrink: 0;
+}
+
 .history-detail-btn:hover {
   background: #ccfbf1;
 }
@@ -448,13 +455,38 @@
   color: #fde68a;
 }
 
-.history-capture-cell {
+.history-detail-cell {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 0.35rem;
+  width: 100%;
+  max-width: 8rem;
 }
 
-.history-capture-more {
+.history-detail-note {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #0f766e;
+  word-break: break-word;
+}
+
+.dark .history-detail-note {
+  color: #5eead4;
+}
+
+.history-detail-media {
+  display: inline-flex;
+  align-items: center;
+}
+
+.history-detail-more {
   position: absolute;
   right: 0.1rem;
   bottom: 0.1rem;
@@ -469,30 +501,6 @@
 
 .history-thumb-btn {
   position: relative;
-}
-
-.history-capture-note {
-  display: inline-flex;
-  color: #b45309;
-}
-
-.dark .history-capture-note {
-  color: #fcd34d;
-}
-
-.history-capture-note-only {
-  display: inline-flex;
-  max-width: 7rem;
-  align-items: center;
-  gap: 0.2rem;
-  color: #b45309;
-  font-size: 0.65rem;
-}
-
-.history-capture-note-snippet {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .history-thumb--timeline {

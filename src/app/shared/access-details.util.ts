@@ -1,3 +1,5 @@
+import { isAttentionScanStatus } from './operator-decision';
+
 const SCAN_STATUS_LABELS = ['PERMITIDO', 'DENEGADO', 'RESTRINGIDO', 'OBSERVADO'] as const;
 
 export function hasAccessLogDetails(row: Record<string, unknown>): boolean {
@@ -30,6 +32,26 @@ export function parseAccessLogScanStatus(row: Record<string, unknown>): string {
   }
   const obs = String(row['obs'] ?? '').trim();
   return obs && obs !== '—' ? obs.split('|')[0]?.trim() || '—' : '—';
+}
+
+/** Muestra checkbox «Persona ingresó ahora» tras autorización del propietario en scan no permitido. */
+export function canOfferAuthorizeEntry(opts: {
+  scanStatus: string;
+  operatorDecision: string;
+  authorizedLogId?: number | null;
+}): boolean {
+  if (opts.authorizedLogId != null && Number(opts.authorizedLogId) !== 0) {
+    return false;
+  }
+  if (String(opts.operatorDecision ?? '').trim() !== 'AUTORIZADO_POR_PROPIETARIO') {
+    return false;
+  }
+  return isAttentionScanStatus(opts.scanStatus);
+}
+
+/** Visitas externas (log_ref negativo) exigen domicilio al autorizar ingreso. */
+export function requiresHouseForAuthorizeEntry(logRef: number): boolean {
+  return logRef < 0;
 }
 
 export function accessLogRowLabel(row: Record<string, unknown>): string {
