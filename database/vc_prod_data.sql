@@ -23,7 +23,7 @@ TRUNCATE TABLE `persons`;
 TRUNCATE TABLE `houses`;
 
 -- -----------------------------------------------------------------------------
--- 1. DOMICILIOS OFICIALES (houses) - Grid completo Mz A-V, O (dept), LC
+-- 1. DOMICILIOS OFICIALES (houses) - Grid completo Mz A-V, O (dept + extras oficiales), LC
 -- -----------------------------------------------------------------------------
 INSERT INTO houses (house_type, block_house, lot, apartment, status_system) VALUES
 ('CASA','A',1,NULL,'ACTIVO'),
@@ -474,14 +474,18 @@ INSERT INTO houses (house_type, block_house, lot, apartment, status_system) VALU
 ('DEPARTAMENTO','O',3,'102','ACTIVO'),
 ('DEPARTAMENTO','O',3,'103','ACTIVO'),
 ('DEPARTAMENTO','O',3,'104','ACTIVO'),
+('DEPARTAMENTO','O',3,'105','ACTIVO'),
+('DEPARTAMENTO','O',3,'120','ACTIVO'),
 ('DEPARTAMENTO','O',3,'201','ACTIVO'),
 ('DEPARTAMENTO','O',3,'202','ACTIVO'),
 ('DEPARTAMENTO','O',3,'203','ACTIVO'),
 ('DEPARTAMENTO','O',3,'204','ACTIVO'),
+('DEPARTAMENTO','O',3,'206','ACTIVO'),
 ('DEPARTAMENTO','O',3,'301','ACTIVO'),
 ('DEPARTAMENTO','O',3,'302','ACTIVO'),
 ('DEPARTAMENTO','O',3,'303','ACTIVO'),
 ('DEPARTAMENTO','O',3,'304','ACTIVO'),
+('DEPARTAMENTO','O',3,'305','ACTIVO'),
 ('DEPARTAMENTO','O',4,'101','ACTIVO'),
 ('DEPARTAMENTO','O',4,'102','ACTIVO'),
 ('DEPARTAMENTO','O',4,'103','ACTIVO'),
@@ -494,10 +498,13 @@ INSERT INTO houses (house_type, block_house, lot, apartment, status_system) VALU
 ('DEPARTAMENTO','O',4,'302','ACTIVO'),
 ('DEPARTAMENTO','O',4,'303','ACTIVO'),
 ('DEPARTAMENTO','O',4,'304','ACTIVO'),
+('DEPARTAMENTO','O',4,'307','ACTIVO'),
+('DEPARTAMENTO','O',4,'318','ACTIVO'),
 ('DEPARTAMENTO','O',5,'101','ACTIVO'),
 ('DEPARTAMENTO','O',5,'102','ACTIVO'),
 ('DEPARTAMENTO','O',5,'103','ACTIVO'),
 ('DEPARTAMENTO','O',5,'104','ACTIVO'),
+('DEPARTAMENTO','O',5,'116','ACTIVO'),
 ('DEPARTAMENTO','O',5,'201','ACTIVO'),
 ('DEPARTAMENTO','O',5,'202','ACTIVO'),
 ('DEPARTAMENTO','O',5,'203','ACTIVO'),
@@ -506,6 +513,7 @@ INSERT INTO houses (house_type, block_house, lot, apartment, status_system) VALU
 ('DEPARTAMENTO','O',5,'302','ACTIVO'),
 ('DEPARTAMENTO','O',5,'303','ACTIVO'),
 ('DEPARTAMENTO','O',5,'304','ACTIVO'),
+('DEPARTAMENTO','O',5,'316','ACTIVO'),
 ('DEPARTAMENTO','O',6,'101','ACTIVO'),
 ('DEPARTAMENTO','O',6,'102','ACTIVO'),
 ('DEPARTAMENTO','O',6,'103','ACTIVO'),
@@ -514,6 +522,8 @@ INSERT INTO houses (house_type, block_house, lot, apartment, status_system) VALU
 ('DEPARTAMENTO','O',6,'202','ACTIVO'),
 ('DEPARTAMENTO','O',6,'203','ACTIVO'),
 ('DEPARTAMENTO','O',6,'204','ACTIVO'),
+('DEPARTAMENTO','O',6,'211','ACTIVO'),
+('DEPARTAMENTO','O',6,'213','ACTIVO'),
 ('DEPARTAMENTO','O',6,'301','ACTIVO'),
 ('DEPARTAMENTO','O',6,'302','ACTIVO'),
 ('DEPARTAMENTO','O',6,'303','ACTIVO'),
