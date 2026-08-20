@@ -1,5 +1,3 @@
-import { isAttentionScanStatus } from './operator-decision';
-
 const SCAN_STATUS_LABELS = ['PERMITIDO', 'DENEGADO', 'RESTRINGIDO', 'OBSERVADO'] as const;
 
 export function hasAccessLogDetails(row: Record<string, unknown>): boolean {
@@ -34,19 +32,27 @@ export function parseAccessLogScanStatus(row: Record<string, unknown>): string {
   return obs && obs !== '—' ? obs.split('|')[0]?.trim() || '—' : '—';
 }
 
-/** Muestra checkbox «Persona ingresó ahora» tras autorización del propietario en scan no permitido. */
+export function hasEffectiveEntry(row: Record<string, unknown> | null | undefined): boolean {
+  const raw = row?.['effective_entry_at'];
+  if (raw == null || raw === '') {
+    return false;
+  }
+  return String(raw).trim() !== '';
+}
+
+/** Checkbox «Persona ingresó ahora»: solo DENEGADO + autorizado, si aún no hay ingreso efectivo. */
 export function canOfferAuthorizeEntry(opts: {
   scanStatus: string;
   operatorDecision: string;
-  authorizedLogId?: number | null;
+  effectiveEntryAt?: string | number | null;
 }): boolean {
-  if (opts.authorizedLogId != null && Number(opts.authorizedLogId) !== 0) {
+  if (opts.effectiveEntryAt != null && String(opts.effectiveEntryAt).trim() !== '') {
     return false;
   }
   if (String(opts.operatorDecision ?? '').trim() !== 'AUTORIZADO_POR_PROPIETARIO') {
     return false;
   }
-  return isAttentionScanStatus(opts.scanStatus);
+  return String(opts.scanStatus ?? '').trim().toUpperCase() === 'DENEGADO';
 }
 
 /** Visitas externas (log_ref negativo) exigen domicilio al autorizar ingreso. */

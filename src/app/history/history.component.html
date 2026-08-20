@@ -120,6 +120,7 @@
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('result_status')">
               Resultado {{ sortIndicator('result_status') }}
             </th>
+            <th scope="col" class="vc-th" title="Decisión humana del operario; no modifica el resultado del scan">Decisión</th>
             <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('operator')">
               Operario {{ sortIndicator('operator') }}
             </th>
@@ -236,6 +237,14 @@
               <div *ngIf="resultNotes(a) as notes" class="history-result-notes">
                 <span *ngFor="let note of notes" class="history-note-chip">{{ note }}</span>
               </div>
+            </td>
+            <td
+              class="vc-td history-col-decision"
+              [matTooltip]="tooltipDecision(a)"
+              matTooltipClass="history-cell-tooltip"
+              matTooltipPosition="above">
+              <span *ngIf="operatorDecisionText(a) as dec; else noDecision" class="history-decision-chip">{{ dec }}</span>
+              <ng-template #noDecision><span class="text-gray-400">—</span></ng-template>
             </td>
             <td
               class="vc-td"

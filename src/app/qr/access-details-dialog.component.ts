@@ -37,8 +37,8 @@ export interface AccessDetailsDialogData {
   initialDecision?: OperatorDecision | '' | null;
   initialHouseId?: number | null;
   rowLabel?: string;
-  /** Si ya se creó ingreso efectivo desde este intento (access_logs.id o temp_access_log_id). */
-  authorizedLogId?: number | null;
+  /** Si ya hay ingreso efectivo en este mismo registro. */
+  effectiveEntryAt?: string | null;
 }
 
 interface HouseOption {
@@ -161,9 +161,9 @@ interface PendingPhoto {
           </span>
         </label>
         <p
-          *ngIf="!showAuthorizeEntryCheckbox && authorizedLogId"
+          *ngIf="!showAuthorizeEntryCheckbox && effectiveEntryAt"
           class="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-2 text-xs text-teal-900 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-100">
-          Ingreso efectivo ya registrado para este acceso.
+          Ingreso efectivo ya registrado en este acceso.
         </p>
       </div>
     </mat-dialog-content>
@@ -205,7 +205,7 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
   saving = false;
   compressingPhoto = false;
   personEnteredNow = false;
-  authorizedLogId: number | null = null;
+  effectiveEntryAt: string | null = null;
 
   private photoPickSeq = 0;
   private nextPhotoId = 1;
@@ -224,10 +224,7 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.operatorNotes = String(this.data.initialNotes ?? '').trim();
     this.operatorDecision = this.data.initialDecision ?? '';
-    this.authorizedLogId =
-      this.data.authorizedLogId != null && Number(this.data.authorizedLogId) > 0
-        ? Number(this.data.authorizedLogId)
-        : null;
+    this.effectiveEntryAt = String(this.data.effectiveEntryAt ?? '').trim() || null;
     this.loadHouses();
   }
 
@@ -275,7 +272,7 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
     return canOfferAuthorizeEntry({
       scanStatus: this.data.scanStatus,
       operatorDecision: this.operatorDecision,
-      authorizedLogId: this.authorizedLogId,
+      effectiveEntryAt: this.effectiveEntryAt,
     });
   }
 
@@ -422,10 +419,9 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
             return of(null);
           }
           return this.accessLogService.authorizeFromAttempt(this.data.logRef, houseId).pipe(
-            catchError((err) => {
-              const msg = err?.error?.error || 'No se pudo registrar el ingreso autorizado.';
-              this.toastr.warning(`Detalles guardados. ${msg}`);
-              return of(null);
+            catchError((err: Error) => {
+              const msg = err?.message || 'No se pudo registrar el ingreso efectivo.';
+              return of({ authorizeFailed: true, message: msg });
             })
           );
         })
@@ -433,13 +429,20 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (authRes) => {
           this.saving = false;
-          const authorizedId = Number(authRes?.data?.authorized_log_id ?? 0);
-          if (authorizedId > 0) {
-            this.authorizedLogId = authorizedId;
+          if (authRes && (authRes as { authorizeFailed?: boolean }).authorizeFailed) {
+            this.toastr.warning(
+              `Detalles guardados. ${(authRes as { message?: string }).message || 'No se pudo registrar el ingreso efectivo.'}`
+            );
+            this.dialogRef.close(true);
+            return;
+          }
+          const effectiveAt = String((authRes as { data?: { effective_entry_at?: string } })?.data?.effective_entry_at ?? '').trim();
+          if (effectiveAt) {
+            this.effectiveEntryAt = effectiveAt;
             this.personEnteredNow = false;
-            this.toastr.success('Detalles guardados e ingreso autorizado registrado');
+            this.toastr.success('Detalles guardados e ingreso efectivo registrado');
           } else if (shouldAuthorize && authRes) {
-            this.toastr.success('Detalles guardados e ingreso autorizado registrado');
+            this.toastr.success('Detalles guardados e ingreso efectivo registrado');
           } else {
             this.toastr.success('Detalles guardados');
           }

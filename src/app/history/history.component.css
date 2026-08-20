@@ -89,6 +89,33 @@
   color: #64748b;
 }
 
+.history-col-decision {
+  min-width: 7.5rem;
+  max-width: 11rem;
+}
+
+.history-decision-chip {
+  display: inline-block;
+  max-width: 10.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 0.25rem;
+  border: 1px solid #99f6e4;
+  background: #ecfdf5;
+  color: #0f766e;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.dark .history-decision-chip {
+  border-color: #115e59;
+  background: rgba(15, 118, 110, 0.25);
+  color: #5eead4;
+}
+
 .history-result-notes {
   display: flex;
   max-width: 18rem;

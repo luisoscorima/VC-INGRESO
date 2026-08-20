@@ -17,6 +17,7 @@ import {
   accessDetailsActionLabel,
   accessLogRowLabel,
   hasAccessLogDetails,
+  hasEffectiveEntry,
   parseAccessLogScanStatus,
 } from '../shared/access-details.util';
 import {
@@ -189,7 +190,7 @@ export class HistoryComponent implements OnInit {
   selectedHistoryPhotoUrl: string | null = null;
 
   get historyTableColspan(): number {
-    let cols = this.showDocColumn ? 12 : 11;
+    let cols = this.showDocColumn ? 13 : 12;
     if (this.hasExternalRows) {
       cols += 1;
     }
@@ -429,9 +430,9 @@ export class HistoryComponent implements OnInit {
       PERMANENCIA_MIN: this.permanenceMinutes(r) ?? '',
       EXCEDIO_ESTADIA: Number(r['stay_exceeded']) === 1 ? 'Sí' : 'No',
       RESULTADO: this.resultStatus(r),
+      DECISION: this.operatorDecisionText(r) || '—',
       NOTAS_SISTEMA: this.resultNotes(r).join(' · '),
       NOTAS_OPERARIO: String(r['operator_notes'] ?? '').trim(),
-      DECISION_OPERARIO: operatorDecisionLabel(String(r['operator_decision'] ?? '')),
       OPERARIO: r['operator'],
       DETALLE: this.detailPreviewText(r)
         ? `${this.detailPreviewText(r)}${this.capturePhotoUrls(r).length ? ` · ${this.capturePhotoUrls(r).length} foto(s)` : ''}`
@@ -497,13 +498,9 @@ export class HistoryComponent implements OnInit {
     return label !== '—' ? label : '';
   }
 
-  /** Texto legible en columna Detalle (nota prioritaria; si no hay, decisión). */
+  /** Texto legible en columna Detalle (nota de garita). */
   detailPreviewText(row: HistoryRow): string {
-    const note = this.operatorNotesText(row);
-    if (note) {
-      return note;
-    }
-    return this.operatorDecisionText(row);
+    return this.operatorNotesText(row);
   }
 
   capturePhotoUrls(row: HistoryRow): string[] {
@@ -729,6 +726,9 @@ export class HistoryComponent implements OnInit {
     if (mt !== 'INGRESO' || this.hasRecordedExit(row)) {
       return false;
     }
+    if (hasEffectiveEntry(row)) {
+      return true;
+    }
     const status = this.resultStatus(row);
     if (status === 'DENEGADO' || status === '—') {
       return false;
@@ -800,7 +800,7 @@ export class HistoryComponent implements OnInit {
           initialNotes: String(row['operator_notes'] ?? '').trim() || null,
           initialDecision: (String(row['operator_decision'] ?? '').trim() as OperatorDecision) || '',
           initialHouseId: Number(row['house_id'] ?? 0) > 0 ? Number(row['house_id']) : null,
-          authorizedLogId: Number(row['authorized_log_id'] ?? 0) > 0 ? Number(row['authorized_log_id']) : null,
+          effectiveEntryAt: String(row['effective_entry_at'] ?? '').trim() || null,
           rowLabel: accessLogRowLabel(row),
         },
       })
@@ -857,7 +857,7 @@ export class HistoryComponent implements OnInit {
     }
     if (!this.hasRecordedExit(row)) {
       if (this.isSessionOpen(row)) {
-        const entry = new Date(String(row['date_entry'] ?? ''));
+        const entry = new Date(String(row['effective_entry_at'] ?? row['date_entry'] ?? ''));
         if (Number.isNaN(entry.getTime())) {
           return null;
         }
@@ -865,7 +865,7 @@ export class HistoryComponent implements OnInit {
       }
       return null;
     }
-    const entry = new Date(String(row['date_entry'] ?? ''));
+    const entry = new Date(String(row['effective_entry_at'] ?? row['date_entry'] ?? ''));
     const exit = new Date(String(row['date_exit'] ?? ''));
     if (Number.isNaN(entry.getTime()) || Number.isNaN(exit.getTime())) {
       return null;
@@ -1036,6 +1036,18 @@ export class HistoryComponent implements OnInit {
     const raw = String(row['observation_raw'] ?? row['obs'] ?? '').trim();
     if (raw && raw !== '—') {
       lines.push(`Observación completa: ${raw}`);
+    }
+    return lines.join('\n');
+  }
+
+  tooltipDecision(row: HistoryRow): string {
+    const decision = this.operatorDecisionText(row);
+    if (!decision) {
+      return 'Sin decisión del operario';
+    }
+    const lines = [`Decisión: ${decision}`];
+    if (hasEffectiveEntry(row)) {
+      lines.push('Ingreso efectivo registrado en este mismo acceso (permanencia activa o cerrada).');
     }
     return lines.join('\n');
   }

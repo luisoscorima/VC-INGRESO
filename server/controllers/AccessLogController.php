@@ -42,6 +42,7 @@ class AccessLogController
         self::ensureOperatorDecisionColumns($this->pdo);
         self::ensurePhotoUrlsColumns($this->pdo);
         self::ensureAuthorizedLogIdColumns($this->pdo);
+        self::ensureEffectiveEntryAtColumns($this->pdo);
     }
 
     private static function ensureOperatorNotesColumns(\PDO $pdo): void
@@ -99,6 +100,33 @@ class AccessLogController
                 $pdo->exec("ALTER TABLE {$table} ADD COLUMN authorized_log_id INT UNSIGNED DEFAULT NULL COMMENT 'Ingreso efectivo creado desde este intento'");
             }
         }
+    }
+
+    private static function ensureEffectiveEntryAtColumns(\PDO $pdo): void
+    {
+        foreach (['access_logs', 'temporary_access_logs'] as $table) {
+            try {
+                if (self::tableHasColumn($pdo, $table, 'effective_entry_at')) {
+                    continue;
+                }
+                $pdo->exec(
+                    "ALTER TABLE {$table} ADD COLUMN effective_entry_at DATETIME DEFAULT NULL"
+                );
+            } catch (\Throwable $e) {
+                error_log('[access_logs] ensure effective_entry_at on ' . $table . ': ' . $e->getMessage());
+            }
+        }
+    }
+
+    private static function tableHasColumn(\PDO $pdo, string $table, string $column): bool
+    {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+        );
+        $stmt->execute([$table, $column]);
+
+        return (int) $stmt->fetchColumn() > 0;
     }
 
     private function sanitizeOperatorNotes($raw): ?string
@@ -418,7 +446,7 @@ class AccessLogController
                 return;
             }
 
-            $entryTs = strtotime((string) ($open['created_at'] ?? ''));
+            $entryTs = strtotime((string) ($open['effective_entry_at'] ?? $open['created_at'] ?? ''));
             $exitTs = strtotime($now);
             $permanenceMinutes = ($entryTs !== false && $exitTs !== false && $exitTs >= $entryTs)
                 ? (int) max(0, round(($exitTs - $entryTs) / 60))
@@ -554,12 +582,19 @@ class AccessLogController
             return null;
         }
 
-        $sql = "SELECT id, created_at, updated_at, observation, person_id, vehicle_id, doc_number
+        $sql = "SELECT id, created_at, updated_at, observation, effective_entry_at, person_id, vehicle_id, doc_number
                 FROM {$this->table}
                 WHERE type = 'INGRESO'
                   AND access_point_id = ?
                   AND updated_at <= created_at
-                  AND (observation IS NULL OR observation NOT LIKE '%DENEGADO%')
+                  AND (
+                    observation IS NULL
+                    OR observation NOT LIKE '%DENEGADO%'
+                    OR (
+                        operator_decision = 'AUTORIZADO_POR_PROPIETARIO'
+                        AND effective_entry_at IS NOT NULL
+                    )
+                  )
                   AND ({$identitySql})
                 ORDER BY created_at DESC
                 LIMIT 1";
@@ -869,7 +904,7 @@ class AccessLogController
             );
             $stmt->execute([$now, $logId]);
 
-            $entryTs = strtotime((string) ($open['temp_entry_time'] ?? ''));
+            $entryTs = strtotime((string) ($open['effective_entry_at'] ?? $open['temp_entry_time'] ?? ''));
             $exitTs = strtotime($now);
             $permanenceMinutes = ($entryTs !== false && $exitTs !== false && $exitTs >= $entryTs)
                 ? (int) max(0, round(($exitTs - $entryTs) / 60))
@@ -1254,6 +1289,7 @@ class AccessLogController
                 {$s('al.operator_notes')} AS operator_notes,
                 {$s('al.operator_decision')} AS operator_decision,
                 al.authorized_log_id,
+                al.effective_entry_at,
                 {$s('al.entry_source')} AS entry_source,
                 {$s('al.photo_url')} AS access_photo_url,
                 al.photo_urls AS access_photo_urls_json,
@@ -1301,7 +1337,19 @@ class AccessLogController
                 NULL AS stay_deadline,
                 NULL AS permanence_minutes,
                 0 AS stay_exceeded,
-                NULL AS session_open,
+                CASE
+                    WHEN al.type = 'INGRESO'
+                         AND al.effective_entry_at IS NOT NULL
+                         AND NOT (
+                            al.updated_at > al.created_at
+                            AND (
+                                al.observation LIKE '%| SALIDA%'
+                                OR al.observation LIKE 'SALIDA%'
+                            )
+                         )
+                    THEN 1
+                    ELSE NULL
+                END AS session_open,
                 ({$sameDaySql}) AS same_day_count
                 {$incidentSelect}
             FROM {$t} al
@@ -1351,6 +1399,7 @@ class AccessLogController
                 {$s('tal.operator_notes')} AS operator_notes,
                 {$s('tal.operator_decision')} AS operator_decision,
                 tal.authorized_log_id,
+                tal.effective_entry_at,
                 {$s('tal.entry_source')} AS entry_source,
                 {$s('tal.photo_url')} AS access_photo_url,
                 tal.photo_urls AS access_photo_urls_json,
@@ -1388,14 +1437,14 @@ class AccessLogController
                 tal.authorized_duration_minutes,
                 tal.stay_deadline,
                 CASE
-                    WHEN tal.temp_exit_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, tal.temp_entry_time, tal.temp_exit_time)
-                    ELSE TIMESTAMPDIFF(MINUTE, tal.temp_entry_time, NOW())
+                    WHEN tal.temp_exit_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, COALESCE(tal.effective_entry_at, tal.temp_entry_time), tal.temp_exit_time)
+                    ELSE TIMESTAMPDIFF(MINUTE, COALESCE(tal.effective_entry_at, tal.temp_entry_time), NOW())
                 END AS permanence_minutes,
                 CASE
                     WHEN tal.stay_deadline IS NOT NULL AND tal.temp_exit_time IS NOT NULL AND tal.temp_exit_time > tal.stay_deadline THEN 1
                     WHEN tal.stay_deadline IS NOT NULL AND tal.temp_exit_time IS NULL AND NOW() > tal.stay_deadline THEN 1
                     WHEN tal.authorized_duration_minutes IS NOT NULL AND tal.temp_exit_time IS NOT NULL
-                         AND TIMESTAMPDIFF(MINUTE, tal.temp_entry_time, tal.temp_exit_time) > tal.authorized_duration_minutes THEN 1
+                         AND TIMESTAMPDIFF(MINUTE, COALESCE(tal.effective_entry_at, tal.temp_entry_time), tal.temp_exit_time) > tal.authorized_duration_minutes THEN 1
                     ELSE 0
                 END AS stay_exceeded,
                 IF(tal.temp_exit_time IS NULL, 1, 0) AS session_open,
@@ -1603,6 +1652,9 @@ class AccessLogController
     {
         $status = strtoupper(trim((string) ($row['status_validated'] ?? '')));
         if ($status !== 'DENEGADO') {
+            return false;
+        }
+        if (!empty($row['effective_entry_at'])) {
             return false;
         }
         $entry = strtotime((string) ($row['temp_entry_time'] ?? ''));
@@ -2052,16 +2104,23 @@ class AccessLogController
             return;
         }
 
-        $overrideHouseId = array_key_exists('house_id', $data)
-            ? $this->validateHouseIdOrNull($data['house_id'])
-            : null;
+        self::ensureEffectiveEntryAtColumns($this->pdo);
 
-        if ($logRef > 0) {
-            $this->authorizeFromResidentAttempt($auth, $logRef, $overrideHouseId);
-            return;
+        try {
+            $overrideHouseId = array_key_exists('house_id', $data)
+                ? $this->validateHouseIdOrNull($data['house_id'])
+                : null;
+
+            if ($logRef > 0) {
+                $this->authorizeFromResidentAttempt($auth, $logRef, $overrideHouseId);
+                return;
+            }
+
+            $this->authorizeFromTemporaryAttempt($auth, abs($logRef), $overrideHouseId);
+        } catch (\Throwable $e) {
+            error_log('[authorize-from-attempt] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            Response::json(['success' => false, 'error' => 'No se pudo abrir la sesión de ingreso. Reintente.'], 500);
         }
-
-        $this->authorizeFromTemporaryAttempt($auth, abs($logRef), $overrideHouseId);
     }
 
     private function authorizeFromResidentAttempt(array $auth, int $attemptId, ?int $overrideHouseId): void
@@ -2088,94 +2147,90 @@ class AccessLogController
             ], 422);
             return;
         }
-        $existingAuthorizedId = (int) ($attempt['authorized_log_id'] ?? 0);
-        if ($existingAuthorizedId > 0) {
+        if (!empty($attempt['effective_entry_at'])) {
             Response::json([
                 'success' => false,
-                'error' => 'Ya se registró el ingreso autorizado para este intento',
-                'authorized_log_id' => $existingAuthorizedId,
+                'error' => 'Ya se registró el ingreso efectivo en este acceso',
+                'effective_entry_at' => $attempt['effective_entry_at'],
+                'log_ref' => $attemptId,
             ], 409);
             return;
         }
 
         $houseId = $overrideHouseId ?? $this->nullablePositiveInt($attempt['house_id'] ?? null);
-        $createdByUserId = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
-        $entrySource = in_array($attempt['entry_source'] ?? '', ['manual', 'qr', 'camera'], true)
-            ? $attempt['entry_source']
-            : 'manual';
+        $now = date('Y-m-d H:i:s');
 
         try {
-            $payload = [
-                'access_point_id' => (int) $attempt['access_point_id'],
-                'type' => 'INGRESO',
-                'observation' => 'PERMITIDO | AUTORIZADO_OPERARIO',
-                'entry_source' => $entrySource,
-                'person_id' => $attempt['person_id'] ?? null,
-                'doc_number' => $attempt['doc_number'] ?? null,
-                'vehicle_id' => $attempt['vehicle_id'] ?? null,
-                'license_plate' => $attempt['license_plate_snapshot'] ?? null,
-                'entity_kind' => $attempt['entity_kind'] ?? null,
-                'display_name_snapshot' => $attempt['display_name_snapshot'] ?? null,
-                'document_snapshot' => $attempt['document_snapshot'] ?? null,
-                'document_type_snapshot' => $attempt['document_type_snapshot'] ?? null,
-                'license_plate_snapshot' => $attempt['license_plate_snapshot'] ?? null,
-                'identity_source' => $attempt['identity_source'] ?? null,
-                'identity_resolved_at' => $attempt['identity_resolved_at'] ?? null,
-                'authorized_from_attempt' => true,
-            ];
+            if ($houseId !== null && $houseId > 0) {
+                $upd = $this->pdo->prepare(
+                    "UPDATE {$this->table}
+                     SET effective_entry_at = ?, house_id = ?
+                     WHERE id = ? AND effective_entry_at IS NULL"
+                );
+                $upd->execute([$now, $houseId, $attemptId]);
+            } else {
+                $upd = $this->pdo->prepare(
+                    "UPDATE {$this->table}
+                     SET effective_entry_at = ?
+                     WHERE id = ? AND effective_entry_at IS NULL"
+                );
+                $upd->execute([$now, $attemptId]);
+            }
 
-            $identity = $this->resolveIdentitySnapshot($payload);
-            $insert = $this->pdo->prepare(
-                "INSERT INTO {$this->table}
-                 (access_point_id, person_id, doc_number, vehicle_id, house_id, entity_kind,
-                  display_name_snapshot, document_snapshot, document_type_snapshot, license_plate_snapshot,
-                  identity_source, identity_resolved_at, type, observation, entry_source,
-                  created_by_user_id, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INGRESO', ?, ?, ?, NOW())"
-            );
-            $insert->execute([
-                (int) $attempt['access_point_id'],
-                $attempt['person_id'] ?? null,
-                $attempt['doc_number'] ?? null,
-                $attempt['vehicle_id'] ?? null,
-                $houseId,
-                $identity['entity_kind'],
-                $identity['display_name_snapshot'],
-                $identity['document_snapshot'],
-                $identity['document_type_snapshot'],
-                $identity['license_plate_snapshot'],
-                $identity['identity_source'],
-                $identity['identity_resolved_at'],
-                'PERMITIDO | AUTORIZADO_OPERARIO',
-                $entrySource,
-                $createdByUserId,
-            ]);
-
-            $newId = (int) $this->pdo->lastInsertId();
-
-            $link = $this->pdo->prepare("UPDATE {$this->table} SET authorized_log_id = ? WHERE id = ?");
-            $link->execute([$newId, $attemptId]);
+            if ($upd->rowCount() === 0 && empty($attempt['effective_entry_at'])) {
+                self::ensureEffectiveEntryAtColumns($this->pdo);
+                $retry = $this->pdo->prepare(
+                    "UPDATE {$this->table}
+                     SET effective_entry_at = ?
+                     WHERE id = ? AND effective_entry_at IS NULL"
+                );
+                $retry->execute([$now, $attemptId]);
+            }
 
             recordEventLog($this->pdo, $auth, 'access_log.authorize_from_attempt', [
-                'summary' => 'Ingreso autorizado desde intento #' . $attemptId,
+                'summary' => 'Ingreso efectivo en intento denegado #' . $attemptId,
                 'entity_type' => 'access_logs',
-                'entity_id' => $newId,
+                'entity_id' => $attemptId,
                 'details' => [
-                    'attempt_log_id' => $attemptId,
                     'house_id' => $houseId,
+                    'effective_entry_at' => $now,
+                    'same_row' => true,
                 ],
             ]);
 
             Response::json([
                 'success' => true,
                 'data' => [
-                    'authorized_log_id' => $newId,
-                    'log_ref' => $newId,
-                    'message' => 'Ingreso autorizado registrado',
+                    'log_ref' => $attemptId,
+                    'effective_entry_at' => $now,
+                    'message' => 'Ingreso efectivo registrado en el mismo acceso',
                 ],
-            ], 201);
-        } catch (\PDOException $e) {
-            Response::json(['success' => false, 'error' => 'Error al autorizar ingreso: ' . $e->getMessage()], 500);
+            ], 200);
+        } catch (\Throwable $e) {
+            error_log('[authorize-from-attempt resident] ' . $e->getMessage());
+            if (stripos($e->getMessage(), 'effective_entry_at') !== false) {
+                self::ensureEffectiveEntryAtColumns($this->pdo);
+                try {
+                    $retry = $this->pdo->prepare(
+                        "UPDATE {$this->table}
+                         SET effective_entry_at = ?
+                         WHERE id = ? AND effective_entry_at IS NULL"
+                    );
+                    $retry->execute([$now, $attemptId]);
+                    Response::json([
+                        'success' => true,
+                        'data' => [
+                            'log_ref' => $attemptId,
+                            'effective_entry_at' => $now,
+                            'message' => 'Ingreso efectivo registrado en el mismo acceso',
+                        ],
+                    ], 200);
+                    return;
+                } catch (\Throwable $retryErr) {
+                    error_log('[authorize-from-attempt resident retry] ' . $retryErr->getMessage());
+                }
+            }
+            Response::json(['success' => false, 'error' => 'No se pudo abrir la sesión de ingreso. Reintente.'], 500);
         }
     }
 
@@ -2199,13 +2254,13 @@ class AccessLogController
             ], 422);
             return;
         }
-        $existingAuthorizedId = (int) ($attempt['authorized_log_id'] ?? 0);
-        if ($existingAuthorizedId > 0) {
+        $existingEffective = trim((string) ($attempt['effective_entry_at'] ?? ''));
+        if ($existingEffective !== '') {
             Response::json([
                 'success' => false,
-                'error' => 'Ya se registró el ingreso autorizado para este intento',
-                'authorized_log_id' => $existingAuthorizedId,
-                'log_ref' => -$existingAuthorizedId,
+                'error' => 'Ya se registró el ingreso efectivo en este acceso',
+                'effective_entry_at' => $existingEffective,
+                'log_ref' => -$attemptId,
             ], 409);
             return;
         }
@@ -2227,10 +2282,10 @@ class AccessLogController
 
         $openStmt = $this->pdo->prepare(
             'SELECT temp_access_log_id FROM temporary_access_logs
-             WHERE temp_visit_id = ? AND temp_exit_time IS NULL
+             WHERE temp_visit_id = ? AND temp_exit_time IS NULL AND temp_access_log_id <> ?
              LIMIT 1'
         );
-        $openStmt->execute([$tempVisitId]);
+        $openStmt->execute([$tempVisitId, $attemptId]);
         if ($openStmt->fetchColumn()) {
             Response::json(['success' => false, 'error' => 'Ya hay una entrada abierta para esta visita'], 409);
             return;
@@ -2254,74 +2309,58 @@ class AccessLogController
             $assignmentValidUntil = (string) ($assignment['valid_until'] ?? '');
         }
 
-        $createdByUserId = isset($auth['user_id']) ? (int) $auth['user_id'] : null;
-        $entrySource = in_array($attempt['entry_source'] ?? '', ['manual', 'qr', 'camera'], true)
-            ? $attempt['entry_source']
-            : 'manual';
         $now = date('Y-m-d H:i:s');
         $stayDeadline = date('Y-m-d H:i:s', strtotime($now) + ($authorizedMinutes * 60));
 
         try {
-            $insert = $this->pdo->prepare(
-                "INSERT INTO temporary_access_logs
-                 (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot, document_type_snapshot,
-                  license_plate_snapshot, identity_source, identity_resolved_at,
-                  assignment_id, assignment_valid_until, authorized_duration_minutes, stay_deadline,
-                  temp_entry_time, access_point_id, status_validated, entry_source, house_id, created_by_user_id)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PERMITIDO', ?, ?, ?)"
+            $upd = $this->pdo->prepare(
+                'UPDATE temporary_access_logs
+                 SET temp_exit_time = NULL,
+                     effective_entry_at = ?,
+                     house_id = ?,
+                     assignment_id = ?,
+                     assignment_valid_until = ?,
+                     authorized_duration_minutes = ?,
+                     stay_deadline = ?
+                 WHERE temp_access_log_id = ? AND effective_entry_at IS NULL'
             );
-            $insert->execute([
-                $tempVisitId,
-                $attempt['entity_kind'] ?? null,
-                $attempt['display_name_snapshot'] ?? null,
-                $attempt['document_snapshot'] ?? null,
-                $attempt['document_type_snapshot'] ?? null,
-                $attempt['license_plate_snapshot'] ?? null,
-                $attempt['identity_source'] ?? 'LOCAL',
-                $attempt['identity_resolved_at'] ?? $now,
+            $upd->execute([
+                $now,
+                $houseId,
                 $assignmentIdResolved,
                 $assignmentValidUntil !== '' ? $assignmentValidUntil : null,
                 $authorizedMinutes,
                 $stayDeadline,
-                $now,
-                $accessPointId,
-                $entrySource,
-                $houseId,
-                $createdByUserId,
+                $attemptId,
             ]);
 
-            $newId = (int) $this->pdo->lastInsertId();
-
-            $link = $this->pdo->prepare(
-                'UPDATE temporary_access_logs SET authorized_log_id = ? WHERE temp_access_log_id = ?'
-            );
-            $link->execute([$newId, $attemptId]);
-
             recordEventLog($this->pdo, $auth, 'access_log.authorize_from_attempt', [
-                'summary' => 'Ingreso externo autorizado desde intento #' . $attemptId,
+                'summary' => 'Ingreso efectivo visita externa en intento #' . $attemptId,
                 'entity_type' => 'temporary_access_logs',
-                'entity_id' => $newId,
+                'entity_id' => $attemptId,
                 'details' => [
-                    'attempt_log_id' => $attemptId,
                     'temp_visit_id' => $tempVisitId,
                     'house_id' => $houseId,
                     'assignment_override' => $assignmentOverride,
+                    'effective_entry_at' => $now,
+                    'same_row' => true,
                 ],
             ]);
 
             Response::json([
                 'success' => true,
                 'data' => [
-                    'authorized_log_id' => $newId,
-                    'log_ref' => -$newId,
+                    'log_ref' => -$attemptId,
+                    'effective_entry_at' => $now,
                     'authorized_duration_minutes' => $authorizedMinutes,
                     'stay_deadline' => $stayDeadline,
                     'assignment_override' => $assignmentOverride,
-                    'message' => 'Ingreso autorizado registrado',
+                    'message' => 'Ingreso efectivo registrado en el mismo acceso',
                 ],
-            ], 201);
-        } catch (\PDOException $e) {
-            Response::json(['success' => false, 'error' => 'Error al autorizar ingreso: ' . $e->getMessage()], 500);
+            ], 200);
+        } catch (\Throwable $e) {
+            error_log('[authorize-from-attempt temporary] ' . $e->getMessage());
+            Response::json(['success' => false, 'error' => 'No se pudo abrir la sesión de ingreso. Reintente.'], 500);
         }
     }
 }

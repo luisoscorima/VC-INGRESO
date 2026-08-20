@@ -403,9 +403,9 @@ import {
                 </span>
               </label>
               <p
-                *ngIf="!showAuthorizeEntryCheckbox && attemptAuthorizedLogId"
+                *ngIf="!showAuthorizeEntryCheckbox && attemptEffectiveEntryAt"
                 class="rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-2 text-xs text-teal-900 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-100">
-                Ingreso efectivo ya registrado para este acceso.
+                Ingreso efectivo ya registrado en este acceso.
               </p>
 
               <div class="flex flex-wrap gap-2 pt-1">
@@ -1054,7 +1054,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   private nextDetailPhotoId = 1;
   savingDetails = false;
   detailsPersonEnteredNow = false;
-  attemptAuthorizedLogId: number | null = null;
+  attemptEffectiveEntryAt: string | null = null;
   readonly operatorDecisionOptions = OPERATOR_DECISION_OPTIONS;
 
   registrationInProgress = false;
@@ -1177,7 +1177,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     return canOfferAuthorizeEntry({
       scanStatus: this.lastScanStatus,
       operatorDecision: this.detailsOperatorDecision,
-      authorizedLogId: this.attemptAuthorizedLogId,
+      effectiveEntryAt: this.attemptEffectiveEntryAt,
     });
   }
 
@@ -1770,7 +1770,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
           initialNotes: String(row['operator_notes'] ?? '').trim() || null,
           initialDecision: (String(row['operator_decision'] ?? '').trim() as OperatorDecision) || '',
           initialHouseId: Number(row['house_id'] ?? 0) > 0 ? Number(row['house_id']) : null,
-          authorizedLogId: Number(row['authorized_log_id'] ?? 0) > 0 ? Number(row['authorized_log_id']) : null,
+          effectiveEntryAt: String(row['effective_entry_at'] ?? '').trim() || null,
           rowLabel: this.recentRowLabel(row),
         },
       })
@@ -1936,7 +1936,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.detailsLot = '';
     this.detailsApartment = '';
     this.detailsPersonEnteredNow = false;
-    this.attemptAuthorizedLogId = null;
+    this.attemptEffectiveEntryAt = null;
     this.clearAllDetailPhotos();
   }
 
@@ -2031,10 +2031,9 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
             return of(null);
           }
           return this.accessLogService.authorizeFromAttempt(logRef, houseId).pipe(
-            catchError((err) => {
-              const msg = err?.error?.error || 'No se pudo registrar el ingreso autorizado.';
-              this.toastr.warning(`Detalles guardados. ${msg}`);
-              return of(null);
+            catchError((err: Error) => {
+              const msg = err?.message || 'No se pudo registrar el ingreso efectivo.';
+              return of({ authorizeFailed: true, message: msg });
             })
           );
         })
@@ -2043,13 +2042,20 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
         next: (authRes) => {
           this.savingDetails = false;
           this.clearAllDetailPhotos();
-          const authorizedId = Number(authRes?.data?.authorized_log_id ?? 0);
-          if (authorizedId > 0) {
-            this.attemptAuthorizedLogId = authorizedId;
+          if (authRes && (authRes as { authorizeFailed?: boolean }).authorizeFailed) {
+            this.toastr.warning(
+              `Detalles guardados. ${(authRes as { message?: string }).message || 'No se pudo registrar el ingreso efectivo.'}`
+            );
+            this.refreshRecentHistory();
+            return;
+          }
+          const effectiveAt = String((authRes as { data?: { effective_entry_at?: string } })?.data?.effective_entry_at ?? '').trim();
+          if (effectiveAt) {
+            this.attemptEffectiveEntryAt = effectiveAt;
             this.detailsPersonEnteredNow = false;
-            this.toastr.success('Detalles guardados e ingreso autorizado registrado');
+            this.toastr.success('Detalles guardados e ingreso efectivo registrado');
           } else if (shouldAuthorize && authRes) {
-            this.toastr.success('Detalles guardados e ingreso autorizado registrado');
+            this.toastr.success('Detalles guardados e ingreso efectivo registrado');
           } else {
             this.toastr.success('Detalles guardados');
           }
