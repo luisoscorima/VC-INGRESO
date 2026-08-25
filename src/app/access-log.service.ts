@@ -42,6 +42,8 @@ export interface CreateTemporaryDeniedBody {
   document_snapshot?: string | null;
   document_type_snapshot?: string | null;
   license_plate_snapshot?: string | null;
+  /** Estado mostrado en historial/escáner (default API: DENEGADO). */
+  status_validated?: string | null;
   operator_notes?: string | null;
 }
 

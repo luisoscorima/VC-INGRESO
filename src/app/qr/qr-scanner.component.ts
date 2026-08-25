@@ -2538,6 +2538,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
           document_snapshot: data.doc_number ?? data.person?.doc_number ?? null,
           document_type_snapshot: data.document_type ?? null,
           license_plate_snapshot: data.license_plate ?? data.vehicle?.license_plate ?? null,
+          status_validated: data.status_validated || 'DENEGADO',
         };
         if (operatorNotes) {
           body['operator_notes'] = operatorNotes;

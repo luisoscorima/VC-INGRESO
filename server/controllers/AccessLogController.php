@@ -1411,7 +1411,13 @@ class AccessLogController
                 {$s("COALESCE(NULLIF(TRIM(tal.license_plate_snapshot), ''), NULLIF(TRIM(tv.temp_visit_plate), ''))")} AS vehicle_plate,
                 {$s("CONCAT_WS(' ', NULLIF(h.block_house,''), NULLIF(CAST(h.lot AS CHAR),''), NULLIF(h.apartment,''))")} AS house_address,
                 tal.temp_entry_time AS date_entry,
-                tal.temp_exit_time AS date_exit,
+                CASE
+                    WHEN tal.effective_entry_at IS NULL
+                         AND tal.temp_exit_time IS NOT NULL
+                         AND ABS(TIMESTAMPDIFF(SECOND, tal.temp_entry_time, tal.temp_exit_time)) <= 1
+                    THEN NULL
+                    ELSE tal.temp_exit_time
+                END AS date_exit,
                 {$s("COALESCE(NULLIF(TRIM(tal.status_validated), ''), '—')")} AS obs,
                 {$s("COALESCE(
                     NULLIF(TRIM(u.username_system), ''),
@@ -1437,6 +1443,10 @@ class AccessLogController
                 tal.authorized_duration_minutes,
                 tal.stay_deadline,
                 CASE
+                    WHEN tal.effective_entry_at IS NULL
+                         AND tal.temp_exit_time IS NOT NULL
+                         AND ABS(TIMESTAMPDIFF(SECOND, tal.temp_entry_time, tal.temp_exit_time)) <= 1
+                    THEN NULL
                     WHEN tal.temp_exit_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, COALESCE(tal.effective_entry_at, tal.temp_entry_time), tal.temp_exit_time)
                     ELSE TIMESTAMPDIFF(MINUTE, COALESCE(tal.effective_entry_at, tal.temp_entry_time), NOW())
                 END AS permanence_minutes,
@@ -1651,7 +1661,8 @@ class AccessLogController
     private function isDeniedTemporaryAttempt(array $row): bool
     {
         $status = strtoupper(trim((string) ($row['status_validated'] ?? '')));
-        if ($status !== 'DENEGADO') {
+        // DENEGADO = rechazo; OBSERVADO = padrón sin convocatoria (pendiente de autorización en garita).
+        if ($status !== 'DENEGADO' && $status !== 'OBSERVADO') {
             return false;
         }
         if (!empty($row['effective_entry_at'])) {
@@ -1870,6 +1881,10 @@ class AccessLogController
         $houseId = $this->nullablePositiveInt($data['house_id'] ?? null);
         $assignmentId = $this->nullablePositiveInt($data['assignment_id'] ?? null);
         $operatorNotes = $this->sanitizeOperatorNotes($data['operator_notes'] ?? null);
+        $statusRaw = strtoupper(trim((string) ($data['status_validated'] ?? 'DENEGADO')));
+        $statusValidated = in_array($statusRaw, ['DENEGADO', 'OBSERVADO', 'RESTRINGIDO', 'PERMITIDO'], true)
+            ? $statusRaw
+            : 'DENEGADO';
 
         try {
             $profileStmt = $this->pdo->prepare(
@@ -1902,7 +1917,7 @@ class AccessLogController
                   license_plate_snapshot, identity_source, identity_resolved_at,
                   assignment_id, temp_entry_time, temp_exit_time, access_point_id, status_validated,
                   entry_source, house_id, operator_notes, created_by_user_id)
-                 VALUES (?, ?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, 'DENEGADO', ?, ?, ?, ?)"
+                 VALUES (?, ?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $stmt->execute([
                 $tempVisitId,
@@ -1916,6 +1931,7 @@ class AccessLogController
                 $now,
                 $now,
                 $accessPointId,
+                $statusValidated,
                 $entrySource,
                 $houseId,
                 $operatorNotes,

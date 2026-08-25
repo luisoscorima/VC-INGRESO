@@ -54,11 +54,11 @@ export function canOfferAuthorizeEntry(opts: {
     return false;
   }
   const st = String(opts.scanStatus ?? '').trim().toUpperCase();
-  if (st === 'DENEGADO') {
+  if (st === 'DENEGADO' || st === 'OBSERVADO') {
     return true;
   }
-  // Padrón reconocido (OBSERVADO en scan) sin convocatoria vigente.
-  if (opts.needsOperatorAuthorization && (st === 'OBSERVADO' || st === 'PERMITIDO')) {
+  // Compat: flag del scan en vivo (antes de persistir OBSERVADO en el intento).
+  if (opts.needsOperatorAuthorization && st === 'PERMITIDO') {
     return true;
   }
   return false;

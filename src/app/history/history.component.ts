@@ -333,6 +333,9 @@ export class HistoryComponent implements OnInit {
     if (!this.isExternalRow(r)) {
       return '—';
     }
+    if (this.isExternalAttemptWithoutStay(r)) {
+      return '—';
+    }
     const mins = r['permanence_minutes'];
     if (mins == null || mins === '') {
       return '—';
@@ -712,6 +715,9 @@ export class HistoryComponent implements OnInit {
       return false;
     }
     if (this.isExternalRow(row)) {
+      if (this.isExternalAttemptWithoutStay(row)) {
+        return false;
+      }
       const exit = row['date_exit'];
       return exit != null && exit !== '';
     }
@@ -722,6 +728,29 @@ export class HistoryComponent implements OnInit {
     return hasSalidaObservation(row);
   }
 
+  /**
+   * Intento de visita externa sin ingreso efectivo (temp_exit ≈ temp_entry en BD).
+   * No es una salida escaneada; no debe mostrar permanencia ni hora de salida.
+   */
+  isExternalAttemptWithoutStay(row: HistoryRow): boolean {
+    if (!this.isExternalRow(row) || hasEffectiveEntry(row)) {
+      return false;
+    }
+    if (Number(row['session_open']) === 1) {
+      return false;
+    }
+    const exitRaw = row['date_exit'];
+    if (exitRaw == null || exitRaw === '') {
+      return true;
+    }
+    const entry = new Date(String(row['date_entry'] ?? ''));
+    const exit = new Date(String(exitRaw));
+    if (Number.isNaN(entry.getTime()) || Number.isNaN(exit.getTime())) {
+      return false;
+    }
+    return Math.abs(exit.getTime() - entry.getTime()) <= 2000;
+  }
+
   isEgressOnlyRow(row: HistoryRow): boolean {
     return String(row['movement_type'] ?? '').toUpperCase() === 'EGRESO';
   }
@@ -729,6 +758,10 @@ export class HistoryComponent implements OnInit {
   isSessionOpen(row: HistoryRow): boolean {
     if (this.isEgressOnlyRow(row)) {
       return false;
+    }
+    if (this.isExternalRow(row)) {
+      // Solo sesión abierta tras ingreso efectivo (authorize / entrada permitida).
+      return Number(row['session_open']) === 1;
     }
     if (Number(row['session_open']) === 1) {
       return true;
@@ -860,6 +893,9 @@ export class HistoryComponent implements OnInit {
 
   permanenceMinutes(row: HistoryRow): number | null {
     if (this.isExternalRow(row)) {
+      if (this.isExternalAttemptWithoutStay(row)) {
+        return null;
+      }
       const mins = Number(row['permanence_minutes']);
       return Number.isFinite(mins) ? mins : null;
     }
