@@ -209,19 +209,21 @@ Módulo nav `vehicles`. Listado global staff: permiso **Ver**. Crear/editar/elim
 
 ## Visitas externas (`temporary_visits` + `temporary_visit_assignments`)
 
-Catálogo global reutilizable (placa **o** DNI) + asignaciones por casa con temporizador.
+Padrón global reutilizable (placa **o** documento; al menos uno) + asignaciones por casa con temporizador.
 
-Módulo nav `external_visits` (separado de `vehicles`). Catálogo global staff: **Ver**. Crear/editar/eliminar catálogo: **Gestionar**. Flujos de vecino (`active`/`mine` + casa) no usan esa matriz.
+Módulo nav `external_visits` (separado de `vehicles`). Catálogo global staff: **Ver**. Crear/editar/eliminar padrón: **Gestionar**. Flujos de vecino (`active`/`mine` + casa) no usan esa matriz.
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/v1/external-visits` | Staff con `external_visits.view`: catálogo global. Vecino: usar query `house_id` + `active=1`. |
+| GET | `/api/v1/external-visits` | Staff con `external_visits.view`: padrón global; cada perfil incluye `assignments[]` (convocatorias vigentes y recientes: casa, timer, quién registró). Vecino: usar query `house_id` + `active=1`. |
 | GET | `/api/v1/external-visits?house_id=X&active=1` | Asignaciones vigentes en Mi casa (JOIN perfil + timer). |
 | GET | `/api/v1/external-visits/lookup?plate=&doc=` | Autocompletar perfil global (coincidencia placa o DNI). |
 | GET | `/api/v1/external-visits/:id` | Un perfil global (`external_visits.view` o asignación de la casa). |
-| POST | `/api/v1/external-visits` | Lookup-or-create perfil + nueva asignación. Staff: `external_visits.manage`. Vecino: casa accesible. Body: `house_id`, `duration_minutes` (30\|60\|120\|240), datos del visitante. |
+| POST | `/api/v1/external-visits` | Lookup-or-create perfil. Requiere **placa o documento** (al menos uno) + nombre. **Staff** (`external_visits.manage`): sin `house_id` → solo padrón; con `house_id` + `duration_minutes` (30\|60\|120\|240) → también crea asignación ACTIVA. **Vecino:** casa accesible (body/`auth`/inferida) + duración → perfil + asignación. |
 | PUT | `/api/v1/external-visits/:id` | Actualizar perfil. Staff con manage puede `photo_url`, `operator_notes`. |
 | DELETE | `/api/v1/external-visits/:id` | Staff con manage: elimina perfil. Vecino: `?assignment_id=` cancela asignación activa. |
+
+Cada ítem de `assignments[]` en el GET global incluye: `assignment_id`, `house_id`, `house_label`, `valid_from`, `valid_until`, `status`, `registered_by_user_id`, `registered_by_label`, `minutes_remaining`, `is_active`.
 
 ### Escaneo portería
 

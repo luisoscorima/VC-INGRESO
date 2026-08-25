@@ -6,7 +6,7 @@ import { EntranceService } from '../entrance.service';
 import { AuthService } from '../auth.service';
 import { UsersService } from '../users.service';
 import { ApiService } from '../api.service';
-import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS } from '../externalVehicle';
+import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS, EXTERNAL_VISIT_TYPE_VALUES } from '../externalVehicle';
 import { Vehicle } from '../vehicle';
 import { ToastrService } from 'ngx-toastr';
 import { environment } from '../../environments/environment';
@@ -89,7 +89,7 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
   currentCategoryOptions: string[] = ['PROPIETARIO','RESIDENTE'];
   categories_visits: string[] = ['INVITADO'];
   types: string[] = [...VEHICLE_TYPE_VALUES];
-  temp_visit_type:string[]=['DELIVERY','COLECTIVO','TAXI'];
+  temp_visit_type: string[] = [...EXTERNAL_VISIT_TYPE_VALUES];
   readonly externalDurationOptions = EXTERNAL_VISIT_DURATION_OPTIONS;
   externalDurationMinutes = 120;
   externalLookupLoading = false;
@@ -1683,12 +1683,21 @@ saveNewVehicle(): void {
   }
 
   private normalizeExternalVisitIdentity(target: ExternalVehicle): boolean {
-    if (!isValidPeruvianLicensePlate(target.temp_visit_plate)) {
-      this.toastr.error(PERUVIAN_LICENSE_PLATE_ERROR);
+    const plateRaw = (target.temp_visit_plate || '').trim();
+    const doc = (target.temp_visit_doc || '').trim();
+    if (!plateRaw && !doc) {
+      this.toastr.error('Indique placa o documento del conductor');
       return false;
     }
-    target.temp_visit_plate = normalizePeruvianLicensePlate(target.temp_visit_plate);
-    const doc = target.temp_visit_doc?.trim();
+    if (plateRaw) {
+      if (!isValidPeruvianLicensePlate(plateRaw)) {
+        this.toastr.error(PERUVIAN_LICENSE_PLATE_ERROR);
+        return false;
+      }
+      target.temp_visit_plate = normalizePeruvianLicensePlate(plateRaw);
+    } else {
+      target.temp_visit_plate = '';
+    }
     if (doc) {
       const type = target.temp_visit_doc_type || 'DNI';
       if (!isValidIdentityDocument(type, doc)) {
@@ -1696,6 +1705,8 @@ saveNewVehicle(): void {
         return false;
       }
       target.temp_visit_doc = normalizeIdentityDocument(type, doc);
+    } else {
+      target.temp_visit_doc = '';
     }
     return true;
   }

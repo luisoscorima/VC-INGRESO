@@ -962,13 +962,13 @@
             <!-- Modal body -->
             <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-type_externalVehicleNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría</label>
-                    <select [(ngModel)]="externalVehicleToAdd.temp_visit_type" name="type_ExternalVehicleNew" id="myhouse-type_ExternalvehicleNew" class="vc-field w-full" placeholder="Tipo de vehiculo..." required>
+                    <label for="myhouse-type_externalVehicleNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría <span class="text-red-600">*</span></label>
+                    <select [(ngModel)]="externalVehicleToAdd.temp_visit_type" name="type_ExternalVehicleNew" id="myhouse-type_ExternalvehicleNew" class="vc-field w-full" required>
                         <option *ngFor="let t of temp_visit_type">{{t}}</option>
                     </select>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-externalDurationNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Duración de la visita</label>
+                    <label for="myhouse-externalDurationNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Duración de la visita <span class="text-red-600">*</span></label>
                     <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
                       Tiempo para que la visita pueda ingresar y, una vez dentro, máximo de permanencia en el condominio.
                     </p>
@@ -976,49 +976,40 @@
                         <option *ngFor="let d of externalDurationOptions" [ngValue]="d.value">{{ d.label }}</option>
                     </select>
                 </div>
-
-                <div class="col-span-1 sm:col-span-2 mb-1 mx-1 pt-1 border-t border-gray-200 dark:border-gray-600">
-                    <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Conductor</h4>
+                <div class="col-span-1 mb-2 mx-1">
+                    <label for="myhouse-external_license_plateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa <span class="text-gray-400 font-normal text-xs">(placa o documento)</span></label>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_plate" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="external_license_plateNew" id="myhouse-external_license_plateNew" class="vc-field w-full" placeholder="Número de placa..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-externalDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">DNI del conductor</label>
+                    <label for="myhouse-externalCompanyNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Negocio / empresa</label>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_company" type="text" name="externalCompanyNew" id="myhouse-externalCompanyNew" class="vc-field w-full" placeholder="Empresa o negocio (si aplica)..." />
+                </div>
+                <div class="col-span-1 mb-2 mx-1">
+                    <label for="myhouse-externalDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Documento conductor <span class="text-gray-400 font-normal text-xs">(placa o documento)</span></label>
                     <div class="flex gap-2">
                         <select [(ngModel)]="externalVehicleToAdd.temp_visit_doc_type" name="externalDocTypeNew" class="vc-field w-24">
                             <option *ngFor="let type of identityDocumentTypes" [value]="type">{{ type }}</option>
                         </select>
-                        <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="externalDocNew" id="myhouse-externalDocNew" [attr.inputmode]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 8 : 12" class="vc-field w-full uppercase" placeholder="Documento (opcional)..."/>
+                        <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="externalDocNew" id="myhouse-externalDocNew" [attr.inputmode]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 8 : 12" class="vc-field w-full uppercase" placeholder="DNI / CE..."/>
                     </div>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalNameNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombre del conductor <span class="text-red-600">*</span></label>
                     <input [(ngModel)]="externalVehicleToAdd.temp_visit_name" type="text" name="externalNameNew" id="myhouse-externalNameNew" class="vc-field w-full" placeholder="Nombre del conductor..." required/>
                 </div>
-
-                <div class="col-span-1 sm:col-span-2 mb-1 mx-1 pt-1 border-t border-gray-200 dark:border-gray-600">
-                    <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Negocio / vehículo</h4>
+                <div class="col-span-1 mb-2 mx-1">
+                    <label for="myhouse-externalCelNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
+                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_cel" type="text" name="externalCelNew" id="myhouse-externalCelNew" class="vc-field w-full" placeholder="Número de celular (opcional)..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-external_license_plateNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa <span class="text-red-600">*</span></label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_plate" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="external_license_plateNew" id="myhouse-external_license_plateNew" class="vc-field w-full" placeholder="Número de placa..." required />
-                </div>
-                <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-externalCompanyNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Empresa/Negocio</label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_company" type="text" name="externalCompanyNew" id="myhouse-externalCompanyNew" class="vc-field w-full" placeholder="Empresa o negocio (opcional)..." />
-                </div>
-                <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-externalCelNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
-                    <input [(ngModel)]="externalVehicleToAdd.temp_visit_cel" type="text" name="externalCelNew" id="myhouse-externalCelNew" class="vc-field w-full" placeholder="Número de celular..." />
-                </div>
-                <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-externalStatus_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <!-- <input [(ngModel)]="userToAdd.entrance_role" type="text" name="entranceRoleNew" id="myhouse-entranceRoleNew" class="vc-field w-full" placeholder="Rol..." required /> -->
-                    <select [(ngModel)]="externalVehicleToAdd.status_validated" name="externalStatus_validatedNew" id="myhouse-externalStatus_validatedNew" class="vc-field w-full" placeholder="Estado..." required>
+                    <label for="myhouse-externalStatus_validatedNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado <span class="text-red-600">*</span></label>
+                    <select [(ngModel)]="externalVehicleToAdd.status_validated" name="externalStatus_validatedNew" id="myhouse-externalStatus_validatedNew" class="vc-field w-full" required>
                         <option *ngFor="let s of status_validated">{{s}}</option>
                     </select>
                 </div>
-                <div class="col-span-1 mb-2 mx-1">
+                <div class="col-span-1 mb-2 mx-1" *ngIf="externalVehicleToAdd.status_validated !== 'PERMITIDO'">
                     <label for="myhouse-externalStatus_reasonNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="myhouse-externalStatus_reasonNew" class="vc-field w-full" placeholder="Motivo..." required />
+                    <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="myhouse-externalStatus_reasonNew" class="vc-field w-full" placeholder="Motivo..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1 sm:col-span-2">
                     <app-photo-source-picker
@@ -1067,55 +1058,45 @@
             <!-- Modal body -->
             <div class="p-4 md:p-5 grid min-w-0 grid-cols-1 sm:grid-cols-2">
                 <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-type_externalVehicleEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría</label>
-                    <select [(ngModel)]="externalVehicleToEdit.temp_visit_type" name="type_ExternalVehicleEdit" id="myhouse-type_ExternalvehicleEdit" class="vc-field w-full" placeholder="Tipo de vehiculo..." required>
+                    <label for="myhouse-type_externalVehicleEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Categoría <span class="text-red-600">*</span></label>
+                    <select [(ngModel)]="externalVehicleToEdit.temp_visit_type" name="type_ExternalVehicleEdit" id="myhouse-type_ExternalvehicleEdit" class="vc-field w-full" required>
                         <option *ngFor="let t of temp_visit_type">{{t}}</option>
                     </select>
                 </div>
-                <div class="col-span-1 mb-2 mx-1 hidden sm:block"></div>
-
-                <div class="col-span-1 sm:col-span-2 mb-1 mx-1 pt-1 border-t border-gray-200 dark:border-gray-600">
-                    <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Conductor</h4>
+                <div class="col-span-1 mb-2 mx-1">
+                    <label for="myhouse-external_license_plateEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa <span class="text-gray-400 font-normal text-xs">(placa o documento)</span></label>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_plate" type="text" name="external_license_plateEdit" id="myhouse-external_license_plateEdit" class="vc-field w-full" placeholder="Número de placa..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-externalDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">DNI del conductor</label>
+                    <label for="myhouse-externalCompanyEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Negocio / empresa</label>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_company" type="text" name="externalCompanyEdit" id="myhouse-externalCompanyEdit" class="vc-field w-full" placeholder="Empresa o negocio (si aplica)..." />
+                </div>
+                <div class="col-span-1 mb-2 mx-1">
+                    <label for="myhouse-externalDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Documento conductor <span class="text-gray-400 font-normal text-xs">(placa o documento)</span></label>
                     <div class="flex gap-2">
                         <select [(ngModel)]="externalVehicleToEdit.temp_visit_doc_type" name="externalDocTypeEdit" class="vc-field w-24">
                             <option *ngFor="let type of identityDocumentTypes" [value]="type">{{ type }}</option>
                         </select>
-                        <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="myhouse-externalDocEdit" [attr.inputmode]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 8 : 12" class="vc-field w-full uppercase" placeholder="Documento (opcional)..."/>
+                        <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" type="text" name="externalDocEdit" id="myhouse-externalDocEdit" [attr.inputmode]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 8 : 12" class="vc-field w-full uppercase" placeholder="DNI / CE..."/>
                     </div>
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
                     <label for="myhouse-externalNameEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Nombre del conductor <span class="text-red-600">*</span></label>
                     <input [(ngModel)]="externalVehicleToEdit.temp_visit_name" type="text" name="externalNameEdit" id="myhouse-externalNameEdit" class="vc-field w-full" placeholder="Nombre del conductor..." required/>
                 </div>
-
-                <div class="col-span-1 sm:col-span-2 mb-1 mx-1 pt-1 border-t border-gray-200 dark:border-gray-600">
-                    <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Negocio / vehículo</h4>
+                <div class="col-span-1 mb-2 mx-1">
+                    <label for="myhouse-externalCelEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular</label>
+                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_cel" type="text" name="externalCelEdit" id="myhouse-externalCelEdit" class="vc-field w-full" placeholder="Número de celular (opcional)..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-external_license_plateEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Placa <span class="text-red-600">*</span></label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_plate" type="text" name="external_license_plateEdit" id="myhouse-external_license_plateEdit" class="vc-field w-full" placeholder="Número de placa..." required />
-                </div>
-                <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-externalCompanyEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Empresa/Negocio</label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_company" type="text" name="externalCompanyEdit" id="myhouse-externalCompanyEdit" class="vc-field w-full" placeholder="Empresa o negocio (opcional)..." />
-                </div>
-                <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-externalCelEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Celular <span class="text-gray-400 font-normal text-xs">(opcional)</span></label>
-                    <input [(ngModel)]="externalVehicleToEdit.temp_visit_cel" type="text" name="externalCelEdit" id="myhouse-externalCelEdit" class="vc-field w-full" placeholder="Número de celular..." />
-                </div>
-                <div class="col-span-1 mb-2 mx-1">
-                    <label for="myhouse-externalStatus_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado</label>
-                    <!-- <input [(ngModel)]="userToEdit.entrance_role" type="text" name="entranceRoleEdit" id="myhouse-entranceRoleEdit" class="vc-field w-full" placeholder="Rol..." required /> -->
-                    <select [(ngModel)]="externalVehicleToEdit.status_validated" name="externalStatus_validatedEdit" id="myhouse-externalStatus_validatedEdit" class="vc-field w-full" placeholder="Estado..." required>
+                    <label for="myhouse-externalStatus_validatedEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Estado <span class="text-red-600">*</span></label>
+                    <select [(ngModel)]="externalVehicleToEdit.status_validated" name="externalStatus_validatedEdit" id="myhouse-externalStatus_validatedEdit" class="vc-field w-full" required>
                         <option *ngFor="let s of status_validated">{{s}}</option>
                     </select>
                 </div>
-                <div class="col-span-1 mb-2 mx-1">
+                <div class="col-span-1 mb-2 mx-1" *ngIf="externalVehicleToEdit.status_validated !== 'PERMITIDO'">
                     <label for="myhouse-externalStatus_reasonEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Motivo</label>
-                    <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="myhouse-externalStatus_reasonEdit" class="vc-field w-full" placeholder="Motivo..." required />
+                    <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="myhouse-externalStatus_reasonEdit" class="vc-field w-full" placeholder="Motivo..." />
                 </div>
                 <div class="col-span-1 mb-2 mx-1 sm:col-span-2">
                     <app-photo-source-picker

@@ -30,6 +30,8 @@ export class ExternalVehicle {
     public temp_visit_company?: string,
     public photo_url?: string,
     public operator_notes?: string,
+    /** Convocatorias (GET catálogo staff). */
+    public assignments?: ExternalVisitCatalogAssignment[],
   ) { }
 
 }
@@ -41,6 +43,16 @@ export const EXTERNAL_VISIT_DURATION_OPTIONS = [
   { label: '4 horas', value: 240 },
 ] as const;
 
+export const EXTERNAL_VISIT_TYPE_VALUES = [
+  'DELIVERY',
+  'COLECTIVO',
+  'TAXI',
+  'MOTOTAXI',
+  'MOTORIZADO',
+] as const;
+
+export type ExternalVisitType = (typeof EXTERNAL_VISIT_TYPE_VALUES)[number];
+
 export interface ExternalVisitAssignmentOption {
   assignment_id: number;
   house_id: number;
@@ -51,4 +63,21 @@ export interface ExternalVisitAssignmentOption {
   valid_from?: string | null;
   valid_until?: string | null;
   minutes_remaining?: number | null;
+}
+
+/** Asignación anidada en el padrón staff (GET /external-visits). */
+export interface ExternalVisitCatalogAssignment {
+  assignment_id: number;
+  house_id: number;
+  house_label: string;
+  block_house?: string | null;
+  lot?: number | string | null;
+  apartment?: string | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  status?: string | null;
+  registered_by_user_id?: number | null;
+  registered_by_label?: string | null;
+  minutes_remaining?: number | null;
+  is_active?: boolean;
 }

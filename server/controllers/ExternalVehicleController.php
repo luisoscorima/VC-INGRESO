@@ -110,7 +110,118 @@ class ExternalVehicleController extends Controller {
         }
 
         $visits = $this->getAll([], 'temp_visit_id DESC');
-        Response::success($visits, 'Catálogo global de visitas externas');
+        $enriched = $this->attachAssignmentsToCatalog($visits);
+        Response::success($enriched, 'Catálogo global de visitas externas');
+    }
+
+    /**
+     * Adjunta asignaciones vigentes y recientes a cada perfil del padrón (staff).
+     *
+     * @param array<int, object|array> $visits
+     * @return list<array<string, mixed>>
+     */
+    private function attachAssignmentsToCatalog(array $visits): array {
+        if ($visits === []) {
+            return [];
+        }
+
+        $rows = [];
+        $ids = [];
+        foreach ($visits as $visit) {
+            $row = is_object($visit) ? (array) $visit : (array) $visit;
+            $tid = (int) ($row['temp_visit_id'] ?? 0);
+            if ($tid > 0) {
+                $ids[] = $tid;
+            }
+            $row['assignments'] = [];
+            $rows[$tid > 0 ? $tid : ('x' . count($rows))] = $row;
+        }
+
+        $ids = array_values(array_unique(array_filter($ids)));
+        if ($ids === []) {
+            return array_values($rows);
+        }
+
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT tva.assignment_id,
+                    tva.temp_visit_id,
+                    tva.house_id,
+                    tva.valid_from,
+                    tva.valid_until,
+                    tva.status,
+                    tva.registered_by_user_id,
+                    TIMESTAMPDIFF(MINUTE, NOW(), tva.valid_until) AS minutes_remaining,
+                    h.block_house,
+                    h.lot,
+                    h.apartment,
+                    u.username_system AS registered_by_username,
+                    TRIM(CONCAT(
+                        COALESCE(p.first_name, ''), ' ',
+                        COALESCE(p.paternal_surname, ''), ' ',
+                        COALESCE(p.maternal_surname, '')
+                    )) AS registered_by_name
+             FROM temporary_visit_assignments tva
+             INNER JOIN houses h ON h.house_id = tva.house_id
+             LEFT JOIN users u ON u.user_id = tva.registered_by_user_id
+             LEFT JOIN persons p ON p.person_id = u.person_id
+             WHERE tva.temp_visit_id IN ({$ph})
+               AND (
+                    (tva.status = 'ACTIVA' AND tva.valid_until > NOW())
+                    OR tva.valid_until >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    OR (tva.status = 'CANCELADA' AND tva.updated_at >= CURDATE())
+               )
+             ORDER BY
+                (tva.status = 'ACTIVA' AND tva.valid_until > NOW()) DESC,
+                tva.valid_until DESC"
+        );
+        $stmt->execute($ids);
+        $assignments = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        foreach ($assignments as $a) {
+            $tid = (int) $a['temp_visit_id'];
+            if (!isset($rows[$tid])) {
+                continue;
+            }
+            $block = trim((string) ($a['block_house'] ?? ''));
+            $lot = trim((string) ($a['lot'] ?? ''));
+            $apt = trim((string) ($a['apartment'] ?? ''));
+            $houseLabel = trim("Mz:{$block} Lt:{$lot}" . ($apt !== '' ? " Dpt:{$apt}" : ''));
+            $name = trim((string) ($a['registered_by_name'] ?? ''));
+            $username = trim((string) ($a['registered_by_username'] ?? ''));
+            $registeredLabel = $name !== '' ? $name : ($username !== '' ? $username : null);
+            if ($registeredLabel === null && !empty($a['registered_by_user_id'])) {
+                $registeredLabel = '#' . (int) $a['registered_by_user_id'];
+            }
+
+            $rawMinutes = $a['minutes_remaining'];
+            $isActive = ($a['status'] === 'ACTIVA')
+                && $rawMinutes !== null
+                && (int) $rawMinutes >= 0;
+            $minutesRemaining = ($rawMinutes !== null && (int) $rawMinutes >= 0)
+                ? (int) $rawMinutes
+                : null;
+
+            $rows[$tid]['assignments'][] = [
+                'assignment_id' => (int) $a['assignment_id'],
+                'house_id' => (int) $a['house_id'],
+                'house_label' => $houseLabel,
+                'block_house' => $a['block_house'],
+                'lot' => $a['lot'],
+                'apartment' => $a['apartment'],
+                'valid_from' => $a['valid_from'],
+                'valid_until' => $a['valid_until'],
+                'status' => $a['status'],
+                'registered_by_user_id' => $a['registered_by_user_id'] !== null
+                    ? (int) $a['registered_by_user_id']
+                    : null,
+                'registered_by_label' => $registeredLabel,
+                'minutes_remaining' => $minutesRemaining !== null ? (int) $minutesRemaining : null,
+                'is_active' => $isActive,
+            ];
+        }
+
+        return array_values($rows);
     }
 
     public function lookup($params = []) {
@@ -178,45 +289,65 @@ class ExternalVehicleController extends Controller {
         $data = $this->getInput();
         $plateRaw = trim((string) ($data['temp_visit_plate'] ?? ''));
         $nameRaw = trim((string) ($data['temp_visit_name'] ?? ''));
-        if ($plateRaw === '') {
-            Response::error('Campo requerido faltante: temp_visit_plate', 400);
-            return;
-        }
+        $doc = trim((string) ($data['temp_visit_doc'] ?? ''));
         if ($nameRaw === '') {
             Response::error('Campo requerido faltante: temp_visit_name', 400);
             return;
         }
-        $doc = trim((string) ($data['temp_visit_doc'] ?? ''));
 
-        $houseId = (int) ($data['house_id'] ?? $auth['house_id'] ?? 0);
-        if ($houseId <= 0) {
-            $houseId = infer_user_primary_house_id($this->db, $uid);
-        }
-        if ($houseId <= 0) {
-            Response::error('house_id requerido', 400);
-            return;
-        }
-        if (isStaffRole($auth)) {
-            if (!canManageModule($this->db, $auth, 'external_visits')) {
+        $explicitHouseId = array_key_exists('house_id', $data) ? (int) $data['house_id'] : 0;
+        $staffCanManage = isStaffRole($auth) && canManageModule($this->db, $auth, 'external_visits');
+        $catalogOnly = false;
+        $houseId = 0;
+        $durationMinutes = null;
+
+        if ($staffCanManage && $explicitHouseId <= 0) {
+            // Staff: sin casa explícita → solo padrón (no inferir house del auth).
+            $catalogOnly = true;
+        } elseif (isStaffRole($auth)) {
+            if (!$staffCanManage) {
                 Response::error('Sin permiso para registrar visitas externas', 403);
                 return;
             }
-        } elseif (!canAccessHouse($this->db, $auth, $houseId)) {
-            Response::error('Sin permiso para registrar visitas en esta casa', 403);
-            return;
+            $houseId = $explicitHouseId;
+            if ($houseId <= 0) {
+                Response::error('house_id requerido', 400);
+                return;
+            }
+        } else {
+            $houseId = $explicitHouseId;
+            if ($houseId <= 0) {
+                $houseId = (int) ($auth['house_id'] ?? 0);
+            }
+            if ($houseId <= 0) {
+                $houseId = infer_user_primary_house_id($this->db, $uid);
+            }
+            if ($houseId <= 0) {
+                Response::error('house_id requerido', 400);
+                return;
+            }
+            if (!canAccessHouse($this->db, $auth, $houseId)) {
+                Response::error('Sin permiso para registrar visitas en esta casa', 403);
+                return;
+            }
         }
 
-        try {
-            $durationMinutes = validate_temp_visit_duration_minutes($data['duration_minutes'] ?? 120);
-        } catch (\InvalidArgumentException $e) {
-            Response::error($e->getMessage(), 400);
-            return;
+        if (!$catalogOnly) {
+            try {
+                $durationMinutes = validate_temp_visit_duration_minutes($data['duration_minutes'] ?? 120);
+            } catch (\InvalidArgumentException $e) {
+                Response::error($e->getMessage(), 400);
+                return;
+            }
         }
 
-        $plateNorm = $plateRaw !== '' ? normalize_license_plate($plateRaw) : '';
-        if (!validate_license_plate($plateNorm)) {
-            Response::error('Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.', 422);
-            return;
+        $plateNorm = '';
+        if ($plateRaw !== '') {
+            $plateNorm = normalize_license_plate($plateRaw);
+            if (!validate_license_plate($plateNorm)) {
+                Response::error('Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.', 422);
+                return;
+            }
         }
         $docType = normalize_identity_document_type($data['temp_visit_doc_type'] ?? '');
         $docNorm = '';
@@ -230,6 +361,10 @@ class ExternalVehicleController extends Controller {
                 return;
             }
         }
+        if ($plateNorm === '' && $docNorm === '') {
+            Response::error('Indique placa o documento del conductor', 400);
+            return;
+        }
 
         $allowed = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_doc_type', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'status_validated', 'status_reason', 'status_system', 'photo_url'];
         $incoming = [];
@@ -240,10 +375,15 @@ class ExternalVehicleController extends Controller {
         }
         if ($plateNorm !== '') {
             $incoming['temp_visit_plate'] = $plateNorm;
+        } else {
+            $incoming['temp_visit_plate'] = null;
         }
         if ($docNorm !== '') {
             $incoming['temp_visit_doc'] = $docNorm;
             $incoming['temp_visit_doc_type'] = $docType;
+        } else {
+            $incoming['temp_visit_doc'] = null;
+            $incoming['temp_visit_doc_type'] = null;
         }
         if (empty($incoming['temp_visit_type'])) {
             $incoming['temp_visit_type'] = 'DELIVERY';
@@ -287,8 +427,18 @@ class ExternalVehicleController extends Controller {
                 $tempVisitId = (int) $this->create($incoming);
             }
 
+            $visit = $this->findById($tempVisitId, 'temp_visit_id');
+            $payload = is_object($visit) ? (array) $visit : (array) $visit;
+
+            if ($catalogOnly) {
+                $this->db->commit();
+                $payload['assignments'] = [];
+                Response::created($payload, 'Perfil de visita externa guardado en el padrón');
+                return;
+            }
+
             $validFrom = date('Y-m-d H:i:s');
-            $validUntil = date('Y-m-d H:i:s', time() + ($durationMinutes * 60));
+            $validUntil = date('Y-m-d H:i:s', time() + ((int) $durationMinutes * 60));
 
             $stmtIns = $this->db->prepare(
                 "INSERT INTO temporary_visit_assignments
@@ -300,13 +450,11 @@ class ExternalVehicleController extends Controller {
 
             $this->db->commit();
 
-            $visit = $this->findById($tempVisitId, 'temp_visit_id');
-            $payload = is_object($visit) ? (array) $visit : (array) $visit;
             $payload['assignment_id'] = $assignmentId;
             $payload['house_id'] = $houseId;
             $payload['valid_from'] = $validFrom;
             $payload['valid_until'] = $validUntil;
-            $payload['duration_minutes'] = $durationMinutes;
+            $payload['duration_minutes'] = (int) $durationMinutes;
             $payload['assignment_status'] = 'ACTIVA';
 
             Response::created($payload, 'Visita externa registrada correctamente');
@@ -358,12 +506,17 @@ class ExternalVehicleController extends Controller {
             }
         }
         if (array_key_exists('temp_visit_plate', $filtered)) {
-            $pn = normalize_license_plate((string) $filtered['temp_visit_plate']);
-            if (!validate_license_plate($pn)) {
-                Response::error('Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.', 422);
-                return;
+            $rawPlate = trim((string) $filtered['temp_visit_plate']);
+            if ($rawPlate === '') {
+                $filtered['temp_visit_plate'] = null;
+            } else {
+                $pn = normalize_license_plate($rawPlate);
+                if (!validate_license_plate($pn)) {
+                    Response::error('Ingrese una placa peruana de 6 letras o números. Puede usar espacios o guion.', 422);
+                    return;
+                }
+                $filtered['temp_visit_plate'] = $pn;
             }
-            $filtered['temp_visit_plate'] = $pn;
         }
         if (array_key_exists('temp_visit_doc', $filtered)) {
             $rawDoc = trim((string) $filtered['temp_visit_doc']);
@@ -384,12 +537,19 @@ class ExternalVehicleController extends Controller {
                 }
             }
         }
-        if (isset($filtered['temp_visit_plate']) && $filtered['temp_visit_plate'] === null) {
-            Response::error('Campo requerido faltante: temp_visit_plate', 400);
-            return;
-        }
         if (array_key_exists('temp_visit_name', $filtered) && trim((string) $filtered['temp_visit_name']) === '') {
             Response::error('Campo requerido faltante: temp_visit_name', 400);
+            return;
+        }
+
+        $finalPlate = array_key_exists('temp_visit_plate', $filtered)
+            ? trim((string) ($filtered['temp_visit_plate'] ?? ''))
+            : trim((string) ($visit->temp_visit_plate ?? ''));
+        $finalDoc = array_key_exists('temp_visit_doc', $filtered)
+            ? trim((string) ($filtered['temp_visit_doc'] ?? ''))
+            : trim((string) ($visit->temp_visit_doc ?? ''));
+        if ($finalPlate === '' && $finalDoc === '') {
+            Response::error('Indique placa o documento del conductor', 400);
             return;
         }
 

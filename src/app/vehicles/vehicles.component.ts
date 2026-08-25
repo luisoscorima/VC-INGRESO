@@ -4,7 +4,7 @@ import { Vehicle } from '../vehicle';
 import { House } from '../house';
 import { initFlowbite } from 'flowbite';
 import { EntranceService } from '../entrance.service';
-import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS } from '../externalVehicle';
+import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS, EXTERNAL_VISIT_TYPE_VALUES, ExternalVisitCatalogAssignment } from '../externalVehicle';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../api.service';
 import { NavPermissionService } from '../nav-permission.service';
@@ -70,16 +70,19 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   externalVehicleTypeIcons: { [key: string]: string } = {
     'DELIVERY': 'local_shipping',
     'COLECTIVO': 'directions_bus',
-    'TAXI': 'directions_car'
+    'TAXI': 'directions_car',
+    'MOTOTAXI': 'two_wheeler',
+    'MOTORIZADO': 'two_wheeler',
   };
 
   externalVehicles: ExternalVehicle[] = [];
   externalVehicleToAdd: ExternalVehicle = new ExternalVehicle('','','','','','','','');
   externalVehicleToEdit: ExternalVehicle = new ExternalVehicle('','','','','','','','');
-  temp_visit_type:string[]=['DELIVERY','COLECTIVO','TAXI'];
+  temp_visit_type: string[] = [...EXTERNAL_VISIT_TYPE_VALUES];
   readonly externalDocumentTypes = IDENTITY_DOCUMENT_TYPES;
   readonly externalDurationOptions = EXTERNAL_VISIT_DURATION_OPTIONS;
-  externalDurationMinutes = 120;
+  /** null = no autorizar ingreso (solo padrón). */
+  externalDurationMinutes: number | null = null;
   externalStaffHouseId = 0;
 
   searchTerm: string = '';
@@ -97,7 +100,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   expandedResidentRowId: ExpandableRowId = null;
   expandedExternalRowId: ExpandableRowId = null;
   readonly residentTableColspan = 7;
-  readonly externalTableColspan = 9;
+  readonly externalTableColspan = 10;
 
   showViewPhotoDialog = false;
   viewPhotoUrl: string | null = null;
@@ -138,7 +141,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
 
   get pageDescription(): string {
     if (this.currentSection === 'external') {
-      return 'Vista global: todos los registros de visitas temporales de todas las casas.';
+      return 'Padrón global de visitas externas (vecinos y staff), con sus convocatorias a casas.';
     }
     return 'Gestiona los vehículos residentes registrados en el condominio.';
   }
@@ -375,8 +378,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     const search = this.externalSearchTerm.toLowerCase();
     return this.externalVehicles.filter(ev => {
       const matchesSearch = !this.externalSearchTerm.trim() ||
-        ev.temp_visit_type.toLowerCase().includes(search) ||
-        ev.temp_visit_plate.toLowerCase().includes(search) ||
+        (ev.temp_visit_type || '').toLowerCase().includes(search) ||
+        (ev.temp_visit_plate || '').toLowerCase().includes(search) ||
         (ev.temp_visit_name && ev.temp_visit_name.toLowerCase().includes(search)) ||
         (ev.temp_visit_company && ev.temp_visit_company.toLowerCase().includes(search)) ||
         (ev.temp_visit_doc && ev.temp_visit_doc.toLowerCase().includes(search));
@@ -616,7 +619,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   
   //VEHÍCULOS EXTERNOS
   newExternalVehicle(){
-    this.externalDurationMinutes = 120;
+    this.externalDurationMinutes = null;
     this.externalStaffHouseId = 0;
     this.externalVehicleToAdd = new ExternalVehicle('','','','','DELIVERY','PERMITIDO','','ACTIVO');
     document.getElementById('vehicles-new-external-vehicle-button')?.click();
@@ -702,16 +705,21 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
       this.externalVehicleToAdd.status_validated = 'PERMITIDO';
     }
 
-    if (!this.externalStaffHouseId) {
-      this.toastr.error('Seleccione la casa destino');
+    const hasHouse = !!this.externalStaffHouseId;
+    const hasDuration = this.externalDurationMinutes != null && this.externalDurationMinutes > 0;
+    if (hasHouse !== hasDuration) {
+      this.toastr.error('Para autorizar el ingreso complete casa destino y duración, o deje ambos vacíos (solo padrón).');
       return;
     }
 
-    const payload = {
+    const payload: ExternalVehicle = {
       ...this.externalVehicleToAdd,
-      house_id: this.externalStaffHouseId,
-      duration_minutes: this.externalDurationMinutes,
     } as ExternalVehicle;
+
+    if (hasHouse && hasDuration) {
+      (payload as any).house_id = this.externalStaffHouseId;
+      (payload as any).duration_minutes = this.externalDurationMinutes;
+    }
 
     this.entranceService.addExternalVehicle(payload).subscribe({
       next: (res: any) => {
@@ -730,13 +738,60 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     });
   }
 
+  getExternalAssignments(ev: ExternalVehicle): ExternalVisitCatalogAssignment[] {
+    return Array.isArray(ev.assignments) ? ev.assignments : [];
+  }
+
+  countActiveExternalAssignments(ev: ExternalVehicle): number {
+    return this.getExternalAssignments(ev).filter((a) => a.is_active).length;
+  }
+
+  formatExternalAssignmentUntil(a: ExternalVisitCatalogAssignment): string {
+    if (!a.valid_until) {
+      return '—';
+    }
+    const d = new Date(a.valid_until);
+    if (Number.isNaN(d.getTime())) {
+      return String(a.valid_until);
+    }
+    return d.toLocaleString('es-PE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  formatExternalMinutesRemaining(a: ExternalVisitCatalogAssignment): string {
+    if (!a.is_active || a.minutes_remaining == null) {
+      return a.status === 'CANCELADA' ? 'Cancelada' : 'Vencida';
+    }
+    const m = a.minutes_remaining;
+    if (m < 60) {
+      return `${m} min`;
+    }
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return rem > 0 ? `${h} h ${rem} min` : `${h} h`;
+  }
+
   private normalizeExternalIdentity(target: ExternalVehicle): boolean {
-    if (!isValidPeruvianLicensePlate(target.temp_visit_plate)) {
-      this.toastr.error(PERUVIAN_LICENSE_PLATE_ERROR);
+    const plateRaw = (target.temp_visit_plate || '').trim();
+    const doc = (target.temp_visit_doc || '').trim();
+    if (!plateRaw && !doc) {
+      this.toastr.error('Indique placa o documento del conductor');
       return false;
     }
-    target.temp_visit_plate = normalizePeruvianLicensePlate(target.temp_visit_plate);
-    const doc = target.temp_visit_doc?.trim();
+    if (plateRaw) {
+      if (!isValidPeruvianLicensePlate(plateRaw)) {
+        this.toastr.error(PERUVIAN_LICENSE_PLATE_ERROR);
+        return false;
+      }
+      target.temp_visit_plate = normalizePeruvianLicensePlate(plateRaw);
+    } else {
+      target.temp_visit_plate = '';
+    }
     if (doc) {
       const type = target.temp_visit_doc_type || 'DNI';
       if (!isValidIdentityDocument(type, doc)) {
@@ -744,6 +799,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
         return false;
       }
       target.temp_visit_doc = normalizeIdentityDocument(type, doc);
+    } else {
+      target.temp_visit_doc = '';
     }
     return true;
   }
@@ -762,6 +819,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     this.vehicleToEdit = new Vehicle('', 'AUTOMOVIL', 0, 'PERMITIDO', '', '', 'PROPIETARIO', '', '', '');
     this.externalVehicleToAdd = new ExternalVehicle('','','','','','','','',);
     this.externalVehicleToEdit = new ExternalVehicle('','','','','','','','',);
+    this.externalStaffHouseId = 0;
+    this.externalDurationMinutes = null;
   }
  
   /* SIWTCH ON/OFF

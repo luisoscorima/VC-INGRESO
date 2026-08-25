@@ -150,11 +150,11 @@ Requiere **contexto de hogar** (casa asociada). **OPERARIO + NULL** y **ADMINIST
 - Gestión amplia con solicitante **PROPIETARIO** o **RESIDENTE**: roles `ADMINISTRADOR` / `OPERARIO` / `USUARIO`.
 - Con solicitante **INQUILINO**: `USUARIO` / `OPERARIO` + **INQUILINO**.
 
-#### 4.7 Vehículos externos (`temporary_visits`)
+#### 4.7 Vehículos externos (`temporary_visits` + asignaciones)
 
-- Registros acotados a `registered_by_user_id` = usuario en sesión.
-- **PROPIETARIO** / **RESIDENTE** en sesión: `ADMINISTRADOR` / `OPERARIO` / `USUARIO`.
-- **INQUILINO** en sesión: `USUARIO` / `OPERARIO`.
+- **Mi casa (vecino):** autoriza ingreso = lookup-or-create del perfil + asignación ACTIVA a su casa con duración (30\|60\|120\|240 min).
+- **Visitas externas (staff):** padrón global de perfiles (creados por vecinos o staff). Alta staff puede ser **solo padrón** o, opcionalmente, con casa + duración (también crea asignación). El listado muestra las convocatorias (casa, vigencia, quién convocó) de cada perfil.
+- Ingreso en portería requiere asignación vigente (el padrón solo no autoriza).
 
 ---
 
@@ -176,7 +176,7 @@ Sobre la **misma casa asociada** al solicitante:
 | **RESIDENTE** | PROPIETARIO, RESIDENTE, INQUILINO, INVITADO, vehículos |
 | **INQUILINO** | INQUILINO, INVITADO, vehículos |
 
-**Visitas externas:** todos los perfiles anteriores **listan, crean y editan** solo filas cuyo `registered_by_user_id` coincida con el usuario en sesión.
+**Visitas externas (Mi casa):** propietarios, residentes e inquilinos listan/crean asignaciones activas de su casa (perfil global reutilizado por placa/doc).
 
 ---
 
@@ -231,10 +231,10 @@ Módulos nav separados (`vehicles` y `external_visits`). Defaults en Ajustes →
 |--------|---------------------------|
 | **8.1** Listar vehículos residentes | Roles con **Ver** en `vehicles` |
 | **8.2** Crear/editar vehículos residentes | Roles con **Gestionar** en `vehicles` |
-| **8.3** Listar catálogo global visitas externas | Roles con **Ver** en `external_visits` |
-| **8.4** Crear/editar/eliminar catálogo visitas externas | Roles con **Gestionar** en `external_visits` |
+| **8.3** Listar padrón global visitas externas (con convocatorias) | Roles con **Ver** en `external_visits` |
+| **8.4** Crear/editar/eliminar padrón visitas externas (asignación casa+duración opcional al crear) | Roles con **Gestionar** en `external_visits` |
 
-Rutas: `/vehicles` y `/external-visits` (mismo componente; pestañas según permiso). **Mi casa** no usa esta matriz para visitas/vehículos del hogar.
+Rutas: `/vehicles` y `/external-visits` (mismo componente; pestañas según permiso). **Mi casa** autoriza visitas externas a la casa del vecino (no usa esta matriz nav).
 
 ---
 

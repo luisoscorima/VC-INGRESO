@@ -924,7 +924,7 @@ echo json_encode([
             'GET /api/v1/external-visits' => 'Listar visitas externas (global staff | activas por casa)',
             'GET /api/v1/external-visits/lookup' => 'Buscar perfil global por placa/doc',
             'GET /api/v1/external-visits/:id' => 'Obtener visita externa',
-            'POST /api/v1/external-visits' => 'Registrar visita externa + asignación',
+            'POST /api/v1/external-visits' => 'Padrón visita externa (staff sin casa) o perfil + asignación (con house_id)',
             'PUT /api/v1/external-visits/:id' => 'Actualizar visita externa',
             'DELETE /api/v1/external-visits/:id' => 'Eliminar perfil o cancelar asignación',
             'POST /api/v1/access-qr/scan-confirm' => 'Confirmar casa en escaneo multi-casa',
