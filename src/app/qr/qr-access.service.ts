@@ -23,7 +23,11 @@ export interface AccessQrScanResult {
   house_label?: string | null;
   license_plate?: string | null;
   status_validated: string;
+  /** Estado del padrón (antes de mapear a OBSERVADO en garita). */
+  profile_status_validated?: string | null;
   allow_entry: boolean;
+  /** Reconocido sin convocatoria: autorizar con Mz/Lt + decisión en detalles. */
+  needs_operator_authorization?: boolean;
   pending_house_selection?: boolean;
   active_assignments?: ExternalVisitAssignmentOption[];
   is_birthday: boolean;

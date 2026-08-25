@@ -565,16 +565,25 @@ class AccessQrController
         $assignmentId = null;
         $houseId = null;
         $message = null;
+        $needsOperatorAuthorization = false;
         $allow = $status !== 'DENEGADO';
+        $profileStatus = $status;
 
         if ($selectedAssignment !== null) {
             $assignmentId = (int) ($selectedAssignment['assignment_id'] ?? 0);
             $houseId = (int) ($selectedAssignment['house_id'] ?? 0);
         } elseif ($allow) {
             if ($activeAssignments === []) {
+                // Reconocido en padrón, sin convocatoria: no auto-ingresa.
+                // Garita autoriza con Mz/Lt + decisión (authorize-from-attempt).
                 $allow = false;
-                $status = 'DENEGADO';
-                $message = 'Visita externa sin autorización vigente';
+                $needsOperatorAuthorization = true;
+                if ($profileStatus === 'PERMITIDO') {
+                    $status = 'OBSERVADO';
+                }
+                $message = 'En padrón'
+                    . ($profileStatus !== '' ? " ({$profileStatus})" : '')
+                    . '. Indique Mz/Lt y autorice el ingreso en detalles.';
             } elseif (count($activeAssignments) === 1) {
                 $assignmentId = (int) $activeAssignments[0]['assignment_id'];
                 $houseId = (int) $activeAssignments[0]['house_id'];
@@ -583,6 +592,10 @@ class AccessQrController
                 $allow = false;
                 $message = 'Seleccione la casa destino antes de registrar el ingreso';
             }
+        } elseif ($status === 'DENEGADO') {
+            // Denegado en padrón: igual se registra intento; operario puede override.
+            $needsOperatorAuthorization = true;
+            $message = $message ?: 'Visita denegada en padrón. Puede autorizar en detalles si corresponde.';
         }
 
         $plate = normalize_license_plate((string) ($tv['temp_visit_plate'] ?? ''));
@@ -645,7 +658,9 @@ class AccessQrController
             'house_label' => $houseLabel,
             'license_plate' => $plate,
             'status_validated' => $status,
+            'profile_status_validated' => $profileStatus,
             'allow_entry' => $allow,
+            'needs_operator_authorization' => $needsOperatorAuthorization,
             'pending_house_selection' => $pendingHouseSelection,
             'active_assignments' => $activeForResponse,
             'is_birthday' => false,

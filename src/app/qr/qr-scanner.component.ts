@@ -1056,6 +1056,8 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   lastLogRef: number | null = null;
   lastScanStatus = '';
+  /** Último scan: visita externa reconocida que requiere Mz/Lt + decisión. */
+  lastNeedsOperatorAuthorization = false;
   detailsPanelOpen = false;
   detailsOperatorDecision: OperatorDecision | '' = '';
   detailsNoHouse = false;
@@ -1081,6 +1083,9 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   resultDetailLines: string[] = [];
   resultTimestamp: string | null = null;
   resultThumbUrl: string | null = null;
+  /** Resultado del último scan (para restaurar si cambia la decisión del operario). */
+  private baselineResultTone: ResultTone = 'info';
+  private baselineResultHeadline: string | null = null;
   inputPulseTone: ResultTone | null = null;
 
   pendingHouseSelection = false;
@@ -1215,6 +1220,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
       scanStatus: this.lastScanStatus,
       operatorDecision: this.detailsOperatorDecision,
       effectiveEntryAt: this.attemptEffectiveEntryAt,
+      needsOperatorAuthorization: this.lastNeedsOperatorAuthorization,
     });
   }
 
@@ -1708,6 +1714,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.lastIncidentContext = null;
     this.lastLogRef = null;
     this.lastScanStatus = '';
+    this.lastNeedsOperatorAuthorization = false;
     this.detailsPanelOpen = false;
     this.resetAccessDetailsFields();
 
@@ -1901,9 +1908,23 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   onDetailsOperatorDecisionChange(value: OperatorDecision | ''): void {
     if (value === 'AUTORIZADO_POR_PROPIETARIO' && !this.attemptEffectiveEntryAt) {
       this.detailsPersonEnteredNow = true;
+      this.applyOwnerAuthorizedVisualFeedback();
       return;
     }
+    this.restoreScanResultVisualFeedback();
     this.detailsPersonEnteredNow = false;
+  }
+
+  /** Solo UI: el intento sigue denegado hasta guardar + «Persona ingresó ahora». */
+  private applyOwnerAuthorizedVisualFeedback(): void {
+    this.resultTone = 'ok';
+    this.resultHeadline = 'Autorizado por propietario';
+    this.toastr.success('Autorizado por propietario');
+  }
+
+  private restoreScanResultVisualFeedback(): void {
+    this.resultTone = this.baselineResultTone;
+    this.resultHeadline = this.baselineResultHeadline;
   }
 
   onDetailPhotoSelected(file: File): void {
@@ -2106,7 +2127,9 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   private applyLogRefFromScan(data: AccessQrScanResult, logRef: number): void {
     this.lastLogRef = logRef;
     this.lastScanStatus = data.status_validated;
-    this.detailsPanelOpen = isAttentionScanStatus(data.status_validated);
+    this.lastNeedsOperatorAuthorization = !!data.needs_operator_authorization;
+    this.detailsPanelOpen =
+      isAttentionScanStatus(data.status_validated) || !!data.needs_operator_authorization;
     this.resetAccessDetailsFields();
     if (data.house_id) {
       const house = this.detailHouses.find((h) => h.house_id === data.house_id);
@@ -2218,25 +2241,47 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.appendExternalTimerLines(data, detailLines);
 
+    if (data.temp_visit_id && data.message && !detailLines.includes(data.message)) {
+      detailLines.unshift(data.message);
+    }
+
     const tone = this.resolveResultTone(data);
     const registeredLabel = `${this.movementLabel()} registrada`;
-    let headline = data.pending_house_selection
-      ? data.message || 'Seleccione casa destino'
-      : `${data.status_validated || '—'}${
-          this.isExitMode() && data.temp_visit_id
+    let headline: string;
+    let messageAsSubline: string | null = null;
+    if (data.pending_house_selection) {
+      headline = data.message || 'Seleccione casa destino';
+    } else if (data.needs_operator_authorization) {
+      // Título = estado de UI; el detalle de padrón va debajo.
+      headline = data.status_validated || 'OBSERVADO';
+      messageAsSubline = data.message || null;
+    } else if (data.temp_visit_id && !data.allow_entry && data.message) {
+      headline = data.message;
+    } else {
+      headline = `${data.status_validated || '—'}${
+        this.isExitMode() && data.temp_visit_id
+          ? ` — ${registeredLabel}`
+          : data.allow_entry
             ? ` — ${registeredLabel}`
-            : data.allow_entry
-              ? ` — ${registeredLabel}`
-              : ' — Evento registrado'
-        }`;
+            : ' — Evento registrado'
+      }`;
+    }
     if (data.is_birthday) {
       headline += ' — ¡Cumpleaños!';
     }
 
     this.lastScanStatus = data.status_validated || '';
+    this.lastNeedsOperatorAuthorization = !!data.needs_operator_authorization;
     this.detailsPanelOpen =
       isAttentionScanStatus(this.lastScanStatus) ||
+      !!data.needs_operator_authorization ||
       (!data.allow_entry && !data.pending_house_selection);
+
+    if (messageAsSubline && !subline) {
+      subline = messageAsSubline;
+    } else if (messageAsSubline && subline && !detailLines.includes(messageAsSubline)) {
+      detailLines.unshift(messageAsSubline);
+    }
 
     this.setResultDisplay(tone, headline, subline, detailLines, thumb);
   }
@@ -2244,6 +2289,9 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   private resolveResultTone(data: AccessQrScanResult): ResultTone {
     if (data.pending_house_selection) {
       return 'info';
+    }
+    if (data.needs_operator_authorization && (data.status_validated || '').toUpperCase() !== 'DENEGADO') {
+      return 'warn';
     }
     const st = (data.status_validated || '').toUpperCase();
     if (st === 'DENEGADO' || !data.allow_entry) {
@@ -2263,6 +2311,8 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     thumbUrl: string | null
   ): void {
     this.clearResultFadeTimer();
+    this.baselineResultTone = tone;
+    this.baselineResultHeadline = headline;
     this.resultTone = tone;
     this.resultHeadline = headline;
     this.resultSubline = subline;

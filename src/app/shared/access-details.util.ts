@@ -40,11 +40,12 @@ export function hasEffectiveEntry(row: Record<string, unknown> | null | undefine
   return String(raw).trim() !== '';
 }
 
-/** Checkbox «Persona ingresó ahora»: solo DENEGADO + autorizado, si aún no hay ingreso efectivo. */
+/** Checkbox «Persona ingresó ahora»: DENEGADO o visita externa pendiente de autorización en garita. */
 export function canOfferAuthorizeEntry(opts: {
   scanStatus: string;
   operatorDecision: string;
   effectiveEntryAt?: string | number | null;
+  needsOperatorAuthorization?: boolean;
 }): boolean {
   if (opts.effectiveEntryAt != null && String(opts.effectiveEntryAt).trim() !== '') {
     return false;
@@ -52,7 +53,15 @@ export function canOfferAuthorizeEntry(opts: {
   if (String(opts.operatorDecision ?? '').trim() !== 'AUTORIZADO_POR_PROPIETARIO') {
     return false;
   }
-  return String(opts.scanStatus ?? '').trim().toUpperCase() === 'DENEGADO';
+  const st = String(opts.scanStatus ?? '').trim().toUpperCase();
+  if (st === 'DENEGADO') {
+    return true;
+  }
+  // Padrón reconocido (OBSERVADO en scan) sin convocatoria vigente.
+  if (opts.needsOperatorAuthorization && (st === 'OBSERVADO' || st === 'PERMITIDO')) {
+    return true;
+  }
+  return false;
 }
 
 /** Visitas externas (log_ref negativo) exigen domicilio al autorizar ingreso. */
