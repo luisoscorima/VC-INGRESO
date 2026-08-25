@@ -21,7 +21,11 @@ class ExternalVehicleController extends Controller {
     }
 
     private function expireAssignments(): void {
-        expire_temp_visit_assignments($this->db);
+        try {
+            expire_temp_visit_assignments($this->db);
+        } catch (\Throwable $e) {
+            error_log('expire_temp_visit_assignments: ' . $e->getMessage());
+        }
     }
 
     private function canAccessTemporaryVisit(array $auth, $visit): bool {
@@ -110,7 +114,20 @@ class ExternalVehicleController extends Controller {
         }
 
         $visits = $this->getAll([], 'temp_visit_id DESC');
-        $enriched = $this->attachAssignmentsToCatalog($visits);
+        if (!is_array($visits)) {
+            $visits = [];
+        }
+        try {
+            $enriched = $this->attachAssignmentsToCatalog($visits);
+        } catch (\Throwable $e) {
+            error_log('external-visits catalog enrich failed: ' . $e->getMessage());
+            $enriched = [];
+            foreach ($visits as $visit) {
+                $row = is_object($visit) ? get_object_vars($visit) : (array) $visit;
+                $row['assignments'] = [];
+                $enriched[] = $row;
+            }
+        }
         Response::success($enriched, 'Catálogo global de visitas externas');
     }
 
@@ -128,8 +145,13 @@ class ExternalVehicleController extends Controller {
         $rows = [];
         $ids = [];
         foreach ($visits as $visit) {
-            $row = is_object($visit) ? (array) $visit : (array) $visit;
-            $tid = (int) ($row['temp_visit_id'] ?? 0);
+            if (is_object($visit)) {
+                $row = get_object_vars($visit);
+                $tid = (int) ($visit->temp_visit_id ?? 0);
+            } else {
+                $row = (array) $visit;
+                $tid = (int) ($row['temp_visit_id'] ?? 0);
+            }
             if ($tid > 0) {
                 $ids[] = $tid;
             }
@@ -137,45 +159,45 @@ class ExternalVehicleController extends Controller {
             $rows[$tid > 0 ? $tid : ('x' . count($rows))] = $row;
         }
 
-        $ids = array_values(array_unique(array_filter($ids)));
+        $ids = array_values(array_unique(array_filter($ids, static function ($id) {
+            return (int) $id > 0;
+        })));
         if ($ids === []) {
             return array_values($rows);
         }
 
         $ph = implode(',', array_fill(0, count($ids), '?'));
-        $stmt = $this->db->prepare(
-            "SELECT tva.assignment_id,
-                    tva.temp_visit_id,
-                    tva.house_id,
-                    tva.valid_from,
-                    tva.valid_until,
-                    tva.status,
-                    tva.registered_by_user_id,
-                    TIMESTAMPDIFF(MINUTE, NOW(), tva.valid_until) AS minutes_remaining,
-                    h.block_house,
-                    h.lot,
-                    h.apartment,
-                    u.username_system AS registered_by_username,
-                    TRIM(CONCAT(
-                        COALESCE(p.first_name, ''), ' ',
-                        COALESCE(p.paternal_surname, ''), ' ',
-                        COALESCE(p.maternal_surname, '')
-                    )) AS registered_by_name
-             FROM temporary_visit_assignments tva
-             INNER JOIN houses h ON h.house_id = tva.house_id
-             LEFT JOIN users u ON u.user_id = tva.registered_by_user_id
-             LEFT JOIN persons p ON p.person_id = u.person_id
-             WHERE tva.temp_visit_id IN ({$ph})
-               AND (
-                    (tva.status = 'ACTIVA' AND tva.valid_until > NOW())
-                    OR tva.valid_until >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-                    OR (tva.status = 'CANCELADA' AND tva.updated_at >= CURDATE())
-               )
-             ORDER BY
-                (tva.status = 'ACTIVA' AND tva.valid_until > NOW()) DESC,
-                tva.valid_until DESC"
-        );
-        $stmt->execute($ids);
+        // LEFT JOIN houses: no fallar si hay house_id huérfano.
+        // Sin JOIN a persons (solo username) para reducir superficie de error en prod.
+        // Filtro reciente por valid_until (no depende de updated_at).
+        $sql = "SELECT tva.assignment_id,
+                       tva.temp_visit_id,
+                       tva.house_id,
+                       tva.valid_from,
+                       tva.valid_until,
+                       tva.status,
+                       tva.registered_by_user_id,
+                       TIMESTAMPDIFF(MINUTE, NOW(), tva.valid_until) AS minutes_remaining,
+                       h.block_house,
+                       h.lot,
+                       h.apartment,
+                       u.username_system AS registered_by_username
+                FROM temporary_visit_assignments tva
+                LEFT JOIN houses h ON h.house_id = tva.house_id
+                LEFT JOIN users u ON u.user_id = tva.registered_by_user_id
+                WHERE tva.temp_visit_id IN ({$ph})
+                  AND (
+                       (tva.status = 'ACTIVA' AND tva.valid_until > NOW())
+                       OR tva.valid_until >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                  )
+                ORDER BY CASE
+                           WHEN tva.status = 'ACTIVA' AND tva.valid_until > NOW() THEN 0
+                           ELSE 1
+                         END ASC,
+                         tva.valid_until DESC
+                LIMIT 500";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_map('intval', $ids));
         $assignments = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         foreach ($assignments as $a) {
@@ -183,22 +205,24 @@ class ExternalVehicleController extends Controller {
             if (!isset($rows[$tid])) {
                 continue;
             }
+
+            $status = strtoupper(trim((string) ($a['status'] ?? '')));
+            $validUntilTs = strtotime((string) ($a['valid_until'] ?? '')) ?: 0;
+            $isActive = ($status === 'ACTIVA') && $validUntilTs > time();
+
             $block = trim((string) ($a['block_house'] ?? ''));
             $lot = trim((string) ($a['lot'] ?? ''));
             $apt = trim((string) ($a['apartment'] ?? ''));
-            $houseLabel = trim("Mz:{$block} Lt:{$lot}" . ($apt !== '' ? " Dpt:{$apt}" : ''));
-            $name = trim((string) ($a['registered_by_name'] ?? ''));
+            $houseLabel = $block !== '' || $lot !== ''
+                ? trim("Mz:{$block} Lt:{$lot}" . ($apt !== '' ? " Dpt:{$apt}" : ''))
+                : ('Casa #' . (int) $a['house_id']);
             $username = trim((string) ($a['registered_by_username'] ?? ''));
-            $registeredLabel = $name !== '' ? $name : ($username !== '' ? $username : null);
-            if ($registeredLabel === null && !empty($a['registered_by_user_id'])) {
-                $registeredLabel = '#' . (int) $a['registered_by_user_id'];
-            }
+            $registeredLabel = $username !== ''
+                ? $username
+                : (!empty($a['registered_by_user_id']) ? '#' . (int) $a['registered_by_user_id'] : null);
 
             $rawMinutes = $a['minutes_remaining'];
-            $isActive = ($a['status'] === 'ACTIVA')
-                && $rawMinutes !== null
-                && (int) $rawMinutes >= 0;
-            $minutesRemaining = ($rawMinutes !== null && (int) $rawMinutes >= 0)
+            $minutesRemaining = ($isActive && $rawMinutes !== null && (int) $rawMinutes >= 0)
                 ? (int) $rawMinutes
                 : null;
 
@@ -216,7 +240,7 @@ class ExternalVehicleController extends Controller {
                     ? (int) $a['registered_by_user_id']
                     : null,
                 'registered_by_label' => $registeredLabel,
-                'minutes_remaining' => $minutesRemaining !== null ? (int) $minutesRemaining : null,
+                'minutes_remaining' => $minutesRemaining,
                 'is_active' => $isActive,
             ];
         }
