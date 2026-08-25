@@ -505,6 +505,19 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     this.showViewPhotoDialog = true;
   }
 
+  openExternalVisitPhoto(ev: ExternalVehicle): void {
+    if (!ev.photo_url) {
+      return;
+    }
+    this.viewPhotoUrl = this.api.getPhotoUrl(ev.photo_url);
+    const plate = (ev.temp_visit_plate || '').trim();
+    const name = (ev.temp_visit_name || '').trim();
+    this.viewPhotoTitle = plate
+      ? `Visita externa ${plate}`
+      : (name ? `Visita externa — ${name}` : 'Visita externa');
+    this.showViewPhotoDialog = true;
+  }
+
   closeViewPhoto(): void {
     this.showViewPhotoDialog = false;
     this.viewPhotoUrl = null;

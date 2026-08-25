@@ -106,7 +106,7 @@
                         <thead>
                             <tr class="vc-thead-row">
                                 <th scope="col" class="vc-th w-10"></th>
-                                <th scope="col" class="vc-th w-12"></th>
+                                <th scope="col" class="vc-th w-12">Foto</th>
                                 <th scope="col" class="vc-th">Categoría</th>
                                 <th scope="col" class="vc-th">DNI conductor</th>
                                 <th scope="col" class="vc-th">Nombre conductor</th>
@@ -127,7 +127,10 @@
                                     <mat-icon class="!text-base !w-4 !h-4 align-middle">{{ isExternalRowOpen(ev) ? 'expand_less' : 'expand_more' }}</mat-icon>
                                 </td>
                                 <td class="vc-td">
-                                    <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300">
+                                    <div *ngIf="ev.photo_url" class="w-10 h-10 rounded-full overflow-hidden">
+                                        <img [src]="getPhotoUrl(ev.photo_url)" alt="Foto" class="w-full h-full object-cover">
+                                    </div>
+                                    <div *ngIf="!ev.photo_url" class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300">
                                         <mat-icon class="!text-lg !w-5 !h-5">{{ getExternalVehicleIcon(ev.temp_visit_type) }}</mat-icon>
                                     </div>
                                 </td>
@@ -147,11 +150,19 @@
                                 </td>
                                 <td class="vc-td uppercase">{{ev.status_system}}</td>
                                 <td class="vc-td text-right" (click)="$event.stopPropagation()">
+                                    <div class="inline-flex flex-wrap justify-end gap-1">
+                                    <button *ngIf="ev.photo_url" type="button" (click)="openExternalVisitPhoto(ev)" class="vc-action-btn vc-action-btn--view" title="Ver foto" aria-label="Ver foto">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
                                     <button *ngIf="canEditExternalVisits" type="button" (click)="editExternalVehicle(ev)" class="vc-action-btn vc-action-btn--edit" title="Editar" aria-label="Editar">
                                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr *ngIf="isExternalRowOpen(ev)" class="bg-gray-50/80 dark:bg-gray-900/40">
