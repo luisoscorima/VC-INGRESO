@@ -600,6 +600,7 @@ class AccessQrController
 
         $plate = normalize_license_plate((string) ($tv['temp_visit_plate'] ?? ''));
         $doc = trim((string) ($tv['temp_visit_doc'] ?? ''));
+        $normPhotos = normalize_temp_visit_photo_fields($tv);
 
         $vehiclePublic = [
             'vehicle_id' => null,
@@ -607,7 +608,17 @@ class AccessQrController
             'house_id' => $houseId,
             'brand' => $tv['temp_visit_type'] ?? null,
             'model' => $tv['temp_visit_name'] ?? null,
-            'photo_url' => resolveMediaUrl($tv['photo_url'] ?? null),
+            'photo_url' => resolveMediaUrl(
+                !empty($normPhotos['paths'][0])
+                    ? $normPhotos['paths'][0]
+                    : ($tv['photo_url'] ?? null)
+            ),
+            'photo_urls' => array_values(array_filter(array_map(
+                static function ($path) {
+                    return resolveMediaUrl($path);
+                },
+                $normPhotos['paths']
+            ))),
             'status_validated' => $tv['status_validated'] ?? null,
         ];
 

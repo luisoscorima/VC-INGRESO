@@ -438,10 +438,21 @@
                 <div class="min-w-0 w-full">
                     <label for="vehicles-externalDocNew" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Documento conductor <span class="text-gray-400 font-normal text-xs">(placa o documento)</span></label>
                     <div class="flex gap-2">
-                        <select [(ngModel)]="externalVehicleToAdd.temp_visit_doc_type" name="externalDocTypeNew" class="vc-field w-24">
+                        <select [(ngModel)]="externalVehicleToAdd.temp_visit_doc_type" name="externalDocTypeNew" class="vc-field w-24 shrink-0">
                             <option *ngFor="let type of externalDocumentTypes" [value]="type">{{ type }}</option>
                         </select>
-                        <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="externalDocNew" id="vehicles-externalDocNew" [attr.inputmode]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 8 : 12" class="vc-field w-full uppercase" placeholder="DNI / CE..."/>
+                        <div class="flex min-w-0 flex-1">
+                            <input [(ngModel)]="externalVehicleToAdd.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur()" type="text" name="externalDocNew" id="vehicles-externalDocNew" [attr.inputmode]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToAdd.temp_visit_doc_type === 'DNI' ? 8 : 12" class="vc-field w-full rounded-e-none uppercase" placeholder="DNI / CE..."/>
+                            <button
+                              type="button"
+                              class="inline-flex shrink-0 items-center justify-center rounded-e-md border border-l-0 border-gray-300 bg-gray-100 px-3 text-gray-700 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500"
+                              title="Buscar en RENIEC"
+                              aria-label="Buscar en RENIEC"
+                              [disabled]="lookingUpExternalReniec || externalVehicleToAdd.temp_visit_doc_type !== 'DNI'"
+                              (click)="lookupExternalVisitReniec('add')">
+                              <mat-icon class="!h-5 !w-5 !text-[20px]">{{ lookingUpExternalReniec ? 'hourglass_empty' : 'search' }}</mat-icon>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="min-w-0 w-full">
@@ -463,17 +474,37 @@
                     <input [(ngModel)]="externalVehicleToAdd.status_reason" type="text" name="externalStatus_reasonNew" id="vehicles-externalStatus_reasonNew" class="vc-field w-full" placeholder="Motivo..." />
                 </div>
                 <div class="min-w-0 w-full md:col-span-2">
+                    <p class="mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                      Fotos del vehículo
+                      <span class="text-gray-400 font-normal text-xs">(opcional, máx. {{ externalVisitMaxPhotos }})</span>
+                    </p>
+                    <div *ngIf="externalVehiclePhotoUrls('add').length" class="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      <div *ngFor="let url of externalVehiclePhotoUrls('add'); let i = index" class="relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600">
+                        <img [src]="getPhotoUrl(url)" alt="Foto {{ i + 1 }}" class="h-24 w-full object-cover" />
+                        <button
+                          type="button"
+                          class="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white"
+                          (click)="removeExternalVehiclePhoto('add', i)"
+                          [disabled]="uploadingNewExternalVehiclePhoto || compressingNewExternalVehiclePhoto">
+                          Quitar
+                        </button>
+                        <span class="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-[10px] text-white">{{ i + 1 }}/{{ externalVehiclePhotoUrls('add').length }}</span>
+                      </div>
+                    </div>
                     <app-photo-source-picker
-                      label="Foto del vehículo"
+                      *ngIf="canAddExternalVehiclePhoto('add')"
                       [optional]="true"
-                      [previewUrl]="externalVehicleToAdd.photo_url ? getPhotoUrl(externalVehicleToAdd.photo_url) : null"
-                      [showClear]="!!externalVehicleToAdd.photo_url"
+                      [compact]="true"
+                      [zoneTitle]="externalVehiclePhotoUrls('add').length ? 'Añadir otra foto' : 'Añadir imagen'"
+                      [cameraLabel]="externalVehiclePhotoUrls('add').length ? 'Tomar otra' : 'Tomar foto'"
                       [compressing]="compressingNewExternalVehiclePhoto"
                       [uploading]="uploadingNewExternalVehiclePhoto"
-                      [successText]="externalVehicleToAdd.photo_url ? 'Foto lista para guardar.' : ''"
+                      [successText]="externalVehiclePhotoUrls('add').length ? (externalVehiclePhotoUrls('add').length + ' foto(s) listas.') : ''"
                       (fileSelected)="onNewExternalVehiclePhotoPick($event)"
-                      (cleared)="clearExternalVehiclePhoto('add')"
                     />
+                    <p *ngIf="!canAddExternalVehiclePhoto('add')" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Límite de {{ externalVisitMaxPhotos }} fotos alcanzado.
+                    </p>
                 </div>
                 <div class="min-w-0 w-full md:col-span-2 rounded-md border border-dashed border-gray-300 dark:border-gray-500 p-3 bg-gray-50/80 dark:bg-gray-800/40">
                     <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">Autorizar ingreso (opcional)</h4>
@@ -549,10 +580,21 @@
                 <div class="min-w-0 w-full">
                     <label for="vehicles-externalDocEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Documento conductor <span class="text-gray-400 font-normal text-xs">(placa o documento)</span></label>
                     <div class="flex gap-2">
-                        <select [(ngModel)]="externalVehicleToEdit.temp_visit_doc_type" name="externalDocTypeEdit" class="vc-field w-24">
+                        <select [(ngModel)]="externalVehicleToEdit.temp_visit_doc_type" name="externalDocTypeEdit" class="vc-field w-24 shrink-0">
                             <option *ngFor="let type of externalDocumentTypes" [value]="type">{{ type }}</option>
                         </select>
-                        <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur(true)" type="text" name="externalDocEdit" id="vehicles-externalDocEdit" [attr.inputmode]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 8 : 12" class="vc-field w-full uppercase" placeholder="DNI / CE..."/>
+                        <div class="flex min-w-0 flex-1">
+                            <input [(ngModel)]="externalVehicleToEdit.temp_visit_doc" (blur)="lookupExternalVisitOnIdentifierBlur(true)" type="text" name="externalDocEdit" id="vehicles-externalDocEdit" [attr.inputmode]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 'numeric' : 'text'" [attr.maxlength]="externalVehicleToEdit.temp_visit_doc_type === 'DNI' ? 8 : 12" class="vc-field w-full rounded-e-none uppercase" placeholder="DNI / CE..."/>
+                            <button
+                              type="button"
+                              class="inline-flex shrink-0 items-center justify-center rounded-e-md border border-l-0 border-gray-300 bg-gray-100 px-3 text-gray-700 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500"
+                              title="Buscar en RENIEC"
+                              aria-label="Buscar en RENIEC"
+                              [disabled]="lookingUpExternalReniec || externalVehicleToEdit.temp_visit_doc_type !== 'DNI'"
+                              (click)="lookupExternalVisitReniec('edit')">
+                              <mat-icon class="!h-5 !w-5 !text-[20px]">{{ lookingUpExternalReniec ? 'hourglass_empty' : 'search' }}</mat-icon>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="min-w-0 w-full">
@@ -574,17 +616,37 @@
                     <input [(ngModel)]="externalVehicleToEdit.status_reason" type="text" name="externalStatus_reasonEdit" id="vehicles-externalStatus_reasonEdit" class="vc-field w-full" placeholder="Motivo..." />
                 </div>
                 <div class="min-w-0 w-full md:col-span-2">
+                    <p class="mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                      Fotos del vehículo
+                      <span class="text-gray-400 font-normal text-xs">(opcional, máx. {{ externalVisitMaxPhotos }})</span>
+                    </p>
+                    <div *ngIf="externalVehiclePhotoUrls('edit').length" class="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      <div *ngFor="let url of externalVehiclePhotoUrls('edit'); let i = index" class="relative overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600">
+                        <img [src]="getPhotoUrl(url)" alt="Foto {{ i + 1 }}" class="h-24 w-full object-cover" />
+                        <button
+                          type="button"
+                          class="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white"
+                          (click)="removeExternalVehiclePhoto('edit', i)"
+                          [disabled]="uploadingEditExternalVehiclePhoto || compressingEditExternalVehiclePhoto">
+                          Quitar
+                        </button>
+                        <span class="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-[10px] text-white">{{ i + 1 }}/{{ externalVehiclePhotoUrls('edit').length }}</span>
+                      </div>
+                    </div>
                     <app-photo-source-picker
-                      label="Foto del vehículo"
+                      *ngIf="canAddExternalVehiclePhoto('edit')"
                       [optional]="true"
-                      [previewUrl]="externalVehicleToEdit.photo_url ? getPhotoUrl(externalVehicleToEdit.photo_url) : null"
-                      [showClear]="!!externalVehicleToEdit.photo_url"
+                      [compact]="true"
+                      [zoneTitle]="externalVehiclePhotoUrls('edit').length ? 'Añadir otra foto' : 'Añadir imagen'"
+                      [cameraLabel]="externalVehiclePhotoUrls('edit').length ? 'Tomar otra' : 'Tomar foto'"
                       [compressing]="compressingEditExternalVehiclePhoto"
                       [uploading]="uploadingEditExternalVehiclePhoto"
-                      [successText]="externalVehicleToEdit.photo_url ? 'Foto cargada.' : ''"
+                      [successText]="externalVehiclePhotoUrls('edit').length ? (externalVehiclePhotoUrls('edit').length + ' foto(s) listas.') : ''"
                       (fileSelected)="onEditExternalVehiclePhotoPick($event)"
-                      (cleared)="clearExternalVehiclePhoto('edit')"
                     />
+                    <p *ngIf="!canAddExternalVehiclePhoto('edit')" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Límite de {{ externalVisitMaxPhotos }} fotos alcanzado.
+                    </p>
                 </div>
                 <div class="min-w-0 w-full md:col-span-2">
                     <label for="vehicles-externalNotesEdit" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Notas operario</label>

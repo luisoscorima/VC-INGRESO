@@ -29,11 +29,40 @@ export class ExternalVehicle {
     public duration_minutes?: number,
     public temp_visit_company?: string,
     public photo_url?: string,
+    /** Hasta EXTERNAL_VISIT_MAX_PHOTOS rutas/URLs. */
+    public photo_urls?: string[],
     public operator_notes?: string,
     /** Convocatorias (GET catálogo staff). */
     public assignments?: ExternalVisitCatalogAssignment[],
   ) { }
 
+}
+
+export const EXTERNAL_VISIT_MAX_PHOTOS = 5;
+
+export function normalizeExternalVisitPhotoUrls(
+  ev: Pick<ExternalVehicle, 'photo_url' | 'photo_urls'> | null | undefined
+): string[] {
+  const urls: string[] = [];
+  if (Array.isArray(ev?.photo_urls)) {
+    for (const u of ev!.photo_urls!) {
+      const t = String(u ?? '').trim();
+      if (t) {
+        urls.push(t);
+      }
+    }
+  }
+  const single = String(ev?.photo_url ?? '').trim();
+  if (single && !urls.includes(single)) {
+    urls.unshift(single);
+  }
+  return urls.slice(0, EXTERNAL_VISIT_MAX_PHOTOS);
+}
+
+export function syncExternalVisitPhotoFields(ev: ExternalVehicle): void {
+  const urls = normalizeExternalVisitPhotoUrls(ev);
+  ev.photo_urls = urls;
+  ev.photo_url = urls[0];
 }
 
 export const EXTERNAL_VISIT_DURATION_OPTIONS = [

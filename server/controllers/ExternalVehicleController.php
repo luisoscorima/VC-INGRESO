@@ -61,6 +61,7 @@ class ExternalVehicleController extends Controller {
 
     public function index($params = []) {
         $auth = requireAuth();
+        ensure_temp_visit_photo_urls_column($this->db);
         $this->expireAssignments();
 
         $houseId = (int) ($_GET['house_id'] ?? $params['house_id'] ?? 0);
@@ -104,7 +105,10 @@ class ExternalVehicleController extends Controller {
             );
             $stmt->execute([$houseId]);
             $rows = $stmt->fetchAll(\PDO::FETCH_OBJ);
-            Response::success($rows, 'Visitas externas activas obtenidas correctamente');
+            $decorated = array_map(static function ($row) {
+                return decorate_temp_visit_photos($row);
+            }, $rows);
+            Response::success($decorated, 'Visitas externas activas obtenidas correctamente');
             return;
         }
 
@@ -156,7 +160,7 @@ class ExternalVehicleController extends Controller {
                 $ids[] = $tid;
             }
             $row['assignments'] = [];
-            $rows[$tid > 0 ? $tid : ('x' . count($rows))] = $row;
+            $rows[$tid > 0 ? $tid : ('x' . count($rows))] = decorate_temp_visit_photos($row);
         }
 
         $ids = array_values(array_unique(array_filter($ids, static function ($id) {
@@ -277,11 +281,12 @@ class ExternalVehicleController extends Controller {
             return;
         }
 
-        Response::success(['found' => true, 'profile' => $profile], 'Perfil encontrado');
+        Response::success(['found' => true, 'profile' => decorate_temp_visit_photos($profile)], 'Perfil encontrado');
     }
 
     public function show($params = []) {
         $auth = requireAuth();
+        ensure_temp_visit_photo_urls_column($this->db);
         $id = $params['id'] ?? null;
 
         if (!$id) {
@@ -299,11 +304,26 @@ class ExternalVehicleController extends Controller {
             return;
         }
 
-        Response::success($visit);
+        Response::success(decorate_temp_visit_photos($visit));
+    }
+
+    /**
+     * @param array<string,mixed> $incoming
+     * @param array<string,mixed> $data
+     */
+    private function applyIncomingPhotos(array &$incoming, array $data): void
+    {
+        if (!array_key_exists('photo_url', $data) && !array_key_exists('photo_urls', $data)) {
+            return;
+        }
+        $norm = normalize_temp_visit_photo_fields($data);
+        $incoming['photo_url'] = $norm['photo_url'];
+        $incoming['photo_urls'] = $norm['photo_urls_json'];
     }
 
     public function store($params = []) {
         $auth = requireAuth();
+        ensure_temp_visit_photo_urls_column($this->db);
         $uid = $this->getAuthUserId($auth);
         if ($uid <= 0) {
             Response::error('Sesión inválida', 403);
@@ -397,6 +417,7 @@ class ExternalVehicleController extends Controller {
                 $incoming[$field] = $data[$field];
             }
         }
+        $this->applyIncomingPhotos($incoming, $data);
         if ($plateNorm !== '') {
             $incoming['temp_visit_plate'] = $plateNorm;
         } else {
@@ -452,7 +473,7 @@ class ExternalVehicleController extends Controller {
             }
 
             $visit = $this->findById($tempVisitId, 'temp_visit_id');
-            $payload = is_object($visit) ? (array) $visit : (array) $visit;
+            $payload = decorate_temp_visit_photos($visit);
 
             if ($catalogOnly) {
                 $this->db->commit();
@@ -490,6 +511,7 @@ class ExternalVehicleController extends Controller {
 
     public function updateExternalVehicle($params = []) {
         $auth = requireAuth();
+        ensure_temp_visit_photo_urls_column($this->db);
         $id = $params['id'] ?? null;
 
         if (!$id) {
@@ -529,6 +551,7 @@ class ExternalVehicleController extends Controller {
                 $filtered[$field] = $data[$field];
             }
         }
+        $this->applyIncomingPhotos($filtered, $data);
         if (array_key_exists('temp_visit_plate', $filtered)) {
             $rawPlate = trim((string) $filtered['temp_visit_plate']);
             if ($rawPlate === '') {
@@ -590,7 +613,7 @@ class ExternalVehicleController extends Controller {
         parent::update($id, $filtered, 'temp_visit_id');
         $visit = $this->findById($id, 'temp_visit_id');
 
-        Response::success($visit, 'Visita externa actualizada correctamente');
+        Response::success(decorate_temp_visit_photos($visit), 'Visita externa actualizada correctamente');
     }
 
     public function destroy($params = []) {

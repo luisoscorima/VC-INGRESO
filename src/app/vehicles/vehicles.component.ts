@@ -4,7 +4,7 @@ import { Vehicle } from '../vehicle';
 import { House } from '../house';
 import { initFlowbite } from 'flowbite';
 import { EntranceService } from '../entrance.service';
-import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS, EXTERNAL_VISIT_TYPE_VALUES, ExternalVisitCatalogAssignment } from '../externalVehicle';
+import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS, EXTERNAL_VISIT_MAX_PHOTOS, EXTERNAL_VISIT_TYPE_VALUES, ExternalVisitCatalogAssignment, normalizeExternalVisitPhotoUrls, syncExternalVisitPhotoFields } from '../externalVehicle';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../api.service';
 import { NavPermissionService } from '../nav-permission.service';
@@ -22,11 +22,13 @@ import {
 } from '../shared/license-plate';
 import {
   IDENTITY_DOCUMENT_TYPES,
+  canLookupReniec,
   identityDocumentError,
   isValidIdentityDocument,
   normalizeIdentityDocument,
 } from '../shared/identity-document';
 import { compressImageFile, MOBILE_PHOTO_COMPRESS } from '../shared/compress-image';
+import { UsersService } from '../users.service';
 
 type VehiclesPageSection = 'residents' | 'external';
 
@@ -64,6 +66,8 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   uploadingEditExternalVehiclePhoto = false;
   compressingNewExternalVehiclePhoto = false;
   compressingEditExternalVehiclePhoto = false;
+  readonly externalVisitMaxPhotos = EXTERNAL_VISIT_MAX_PHOTOS;
+  lookingUpExternalReniec = false;
 
   houses: House[] = [];
   
@@ -114,6 +118,7 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     private publicReg: PublicRegistrationService,
     private navPerm: NavPermissionService,
     private route: ActivatedRoute,
+    private usersService: UsersService,
   ){}
 
   get showResidentVehiclesTab(): boolean {
@@ -290,6 +295,11 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
       return;
     }
     const target = mode === 'add' ? this.externalVehicleToAdd : this.externalVehicleToEdit;
+    syncExternalVisitPhotoFields(target);
+    if ((target.photo_urls?.length ?? 0) >= this.externalVisitMaxPhotos) {
+      this.toastr.warning(`Máximo ${this.externalVisitMaxPhotos} fotos.`);
+      return;
+    }
     if (mode === 'add') {
       this.compressingNewExternalVehiclePhoto = true;
     } else {
@@ -319,7 +329,10 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
           this.uploadingEditExternalVehiclePhoto = false;
         }
         if (res.success && res.photo_url) {
-          target.photo_url = res.photo_url;
+          const urls = normalizeExternalVisitPhotoUrls(target);
+          urls.push(res.photo_url);
+          target.photo_urls = urls.slice(0, this.externalVisitMaxPhotos);
+          target.photo_url = target.photo_urls[0];
           this.toastr.success('Foto de la visita cargada.');
         } else {
           this.toastr.error(res.error || 'Error al subir la foto.');
@@ -336,9 +349,27 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
     });
   }
 
+  externalVehiclePhotoUrls(mode: 'add' | 'edit'): string[] {
+    const target = mode === 'add' ? this.externalVehicleToAdd : this.externalVehicleToEdit;
+    return normalizeExternalVisitPhotoUrls(target);
+  }
+
+  canAddExternalVehiclePhoto(mode: 'add' | 'edit'): boolean {
+    return this.externalVehiclePhotoUrls(mode).length < this.externalVisitMaxPhotos;
+  }
+
+  removeExternalVehiclePhoto(mode: 'add' | 'edit', index: number): void {
+    const target = mode === 'add' ? this.externalVehicleToAdd : this.externalVehicleToEdit;
+    const urls = normalizeExternalVisitPhotoUrls(target);
+    urls.splice(index, 1);
+    target.photo_urls = urls;
+    target.photo_url = urls[0];
+  }
+
   clearExternalVehiclePhoto(mode: 'add' | 'edit'): void {
     const target = mode === 'add' ? this.externalVehicleToAdd : this.externalVehicleToEdit;
     target.photo_url = undefined;
+    target.photo_urls = [];
   }
 
   newVehicle(){
@@ -662,16 +693,57 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
         if (p.temp_visit_type) target.temp_visit_type = p.temp_visit_type;
         if (p.temp_visit_plate && !plate) target.temp_visit_plate = p.temp_visit_plate;
         if (p.temp_visit_doc && !doc) target.temp_visit_doc = p.temp_visit_doc;
-        if (forEdit && p.photo_url) target.photo_url = p.photo_url;
-        if (!forEdit && p.photo_url) target.photo_url = p.photo_url;
+        if (p.photo_url || p.photo_urls) {
+          target.photo_url = p.photo_url;
+          target.photo_urls = p.photo_urls;
+          syncExternalVisitPhotoFields(target);
+        }
         if (forEdit && p.operator_notes) target.operator_notes = p.operator_notes;
         this.toastr.info('Datos reutilizados del registro global');
       },
     });
   }
 
+  lookupExternalVisitReniec(mode: 'add' | 'edit' = 'add'): void {
+    const target = mode === 'edit' ? this.externalVehicleToEdit : this.externalVehicleToAdd;
+    const type = target.temp_visit_doc_type || 'DNI';
+    const doc = normalizeIdentityDocument(type, target.temp_visit_doc || '');
+    target.temp_visit_doc = doc;
+    if (!canLookupReniec(type, doc)) {
+      this.toastr.warning('RENIEC solo aplica a DNI de 8 dígitos.');
+      return;
+    }
+    if (this.lookingUpExternalReniec) {
+      return;
+    }
+    this.lookingUpExternalReniec = true;
+    this.usersService.getUserFromReniec(doc).subscribe({
+      next: (res: any) => {
+        this.lookingUpExternalReniec = false;
+        if (res?.success && res?.data) {
+          const d = res.data;
+          const fullName = [d.nombres, d.apellido_paterno, d.apellido_materno]
+            .map((p: unknown) => String(p ?? '').trim())
+            .filter(Boolean)
+            .join(' ');
+          if (fullName) {
+            target.temp_visit_name = fullName;
+          }
+          this.toastr.success('Datos obtenidos desde RENIEC');
+          return;
+        }
+        this.toastr.warning(res?.error || 'No se encontró el DNI en RENIEC.');
+      },
+      error: (err) => {
+        this.lookingUpExternalReniec = false;
+        this.toastr.error(err?.error?.error || err?.message || 'Error consultando RENIEC.');
+      },
+    });
+  }
+
   editExternalVehicle(externalVehicle: ExternalVehicle) {
     this.externalVehicleToEdit = { ...externalVehicle } as ExternalVehicle;
+    syncExternalVisitPhotoFields(this.externalVehicleToEdit);
     const tid = (externalVehicle as any).temp_visit_id ?? (externalVehicle as any).id;
     if (tid) {
       (this.externalVehicleToEdit as any).id = tid;

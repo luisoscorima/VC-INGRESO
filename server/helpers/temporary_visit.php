@@ -67,6 +67,105 @@ function find_temp_visit_profile(\PDO $pdo, ?string $plate, ?string $doc, ?strin
     return $row ?: null;
 }
 
+/** Máximo de fotos de vehículo en padrón de visita externa. */
+const TEMP_VISIT_MAX_PHOTOS = 5;
+
+function ensure_temp_visit_photo_urls_column(\PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+        );
+        $stmt->execute(['temporary_visits', 'photo_urls']);
+        if ((int) $stmt->fetchColumn() > 0) {
+            return;
+        }
+        $pdo->exec(
+            "ALTER TABLE temporary_visits ADD COLUMN photo_urls JSON DEFAULT NULL COMMENT 'Array de rutas/URLs de fotos del vehículo'"
+        );
+    } catch (\Throwable $e) {
+        error_log('ensure_temp_visit_photo_urls_column: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Normaliza photo_url + photo_urls (máx. TEMP_VISIT_MAX_PHOTOS).
+ *
+ * @param array<string,mixed> $data
+ * @return array{photo_url:?string, photo_urls_json:?string, paths:list<string>}
+ */
+function normalize_temp_visit_photo_fields(array $data): array
+{
+    $paths = [];
+    if (isset($data['photo_urls']) && is_array($data['photo_urls'])) {
+        foreach ($data['photo_urls'] as $item) {
+            $t = trim((string) $item);
+            if ($t !== '') {
+                $paths[] = $t;
+            }
+        }
+    } elseif (isset($data['photo_urls']) && is_string($data['photo_urls'])) {
+        $decoded = json_decode($data['photo_urls'], true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $item) {
+                $t = trim((string) $item);
+                if ($t !== '') {
+                    $paths[] = $t;
+                }
+            }
+        }
+    }
+
+    $single = trim((string) ($data['photo_url'] ?? ''));
+    if ($single !== '' && !in_array($single, $paths, true)) {
+        array_unshift($paths, $single);
+    }
+
+    $paths = array_values(array_unique($paths));
+    if (count($paths) > TEMP_VISIT_MAX_PHOTOS) {
+        $paths = array_slice($paths, 0, TEMP_VISIT_MAX_PHOTOS);
+    }
+
+    if ($paths === []) {
+        return ['photo_url' => null, 'photo_urls_json' => null, 'paths' => []];
+    }
+
+    return [
+        'photo_url' => $paths[0],
+        'photo_urls_json' => json_encode($paths, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        'paths' => $paths,
+    ];
+}
+
+/**
+ * Expone photo_url / photo_urls resueltas para el cliente.
+ *
+ * @param array<string,mixed>|object $visit
+ * @return array<string,mixed>
+ */
+function decorate_temp_visit_photos($visit): array
+{
+    $row = is_object($visit) ? get_object_vars($visit) : (array) $visit;
+    $norm = normalize_temp_visit_photo_fields($row);
+    $resolved = [];
+    foreach ($norm['paths'] as $path) {
+        $url = function_exists('resolveMediaUrl') ? resolveMediaUrl($path) : $path;
+        if ($url !== null && $url !== '') {
+            $resolved[] = $url;
+        }
+    }
+    $row['photo_urls'] = $resolved;
+    $row['photo_url'] = $resolved[0] ?? null;
+
+    return $row;
+}
+
 /**
  * @param array<string,mixed> $existing
  * @param array<string,mixed> $incoming
@@ -74,10 +173,31 @@ function find_temp_visit_profile(\PDO $pdo, ?string $plate, ?string $doc, ?strin
  */
 function merge_temp_visit_profile_fields(array $existing, array $incoming): array
 {
-    $mergeFields = ['temp_visit_name', 'temp_visit_company', 'temp_visit_doc', 'temp_visit_doc_type', 'temp_visit_plate', 'temp_visit_cel', 'temp_visit_type', 'photo_url'];
+    $mergeFields = [
+        'temp_visit_name',
+        'temp_visit_company',
+        'temp_visit_doc',
+        'temp_visit_doc_type',
+        'temp_visit_plate',
+        'temp_visit_cel',
+        'temp_visit_type',
+        'photo_url',
+        'photo_urls',
+    ];
     $out = [];
     foreach ($mergeFields as $field) {
         if (!array_key_exists($field, $incoming)) {
+            continue;
+        }
+        if ($field === 'photo_urls') {
+            $out['photo_urls'] = $incoming['photo_urls'];
+            if (array_key_exists('photo_url', $incoming)) {
+                $out['photo_url'] = $incoming['photo_url'];
+            }
+            continue;
+        }
+        if ($field === 'photo_url' && array_key_exists('photo_urls', $incoming)) {
+            // photo_url se sincroniza junto con photo_urls.
             continue;
         }
         $newVal = trim((string) ($incoming[$field] ?? ''));
