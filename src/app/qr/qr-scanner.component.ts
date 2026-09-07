@@ -48,6 +48,11 @@ import {
   shouldShowOperatorDecision,
 } from '../shared/operator-decision';
 import { compressImageFile, MOBILE_PHOTO_COMPRESS } from '../shared/compress-image';
+import {
+  applyOperatorNoteChip,
+  getTopOperatorNotePhrases,
+  recordOperatorNotePhrase,
+} from '../shared/operator-note-suggestions';
 
 /** Preferencia: último punto elegido (persiste al actualizar la página). */
 const ACCESS_POINT_STORAGE_KEY = 'vc_scanner_access_point_id';
@@ -377,6 +382,27 @@ import {
 
               <div>
                 <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Nota (opcional)</label>
+                <div *ngIf="noteSuggestionPhrases.length" class="mb-1.5 flex flex-wrap gap-1.5">
+                  <button
+                    *ngFor="let phrase of noteSuggestionPhrases"
+                    type="button"
+                    class="rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors"
+                    [class.border-teal-500]="operatorNotes.trim() === phrase"
+                    [class.bg-teal-50]="operatorNotes.trim() === phrase"
+                    [class.text-teal-800]="operatorNotes.trim() === phrase"
+                    [class.dark:bg-teal-950]="operatorNotes.trim() === phrase"
+                    [class.dark:text-teal-100]="operatorNotes.trim() === phrase"
+                    [class.border-gray-300]="operatorNotes.trim() !== phrase"
+                    [class.bg-white]="operatorNotes.trim() !== phrase"
+                    [class.text-gray-700]="operatorNotes.trim() !== phrase"
+                    [class.dark:border-gray-600]="operatorNotes.trim() !== phrase"
+                    [class.dark:bg-gray-800]="operatorNotes.trim() !== phrase"
+                    [class.dark:text-gray-200]="operatorNotes.trim() !== phrase"
+                    [disabled]="!!operatorNotes.trim() && operatorNotes.trim() !== phrase"
+                    (click)="applyNoteSuggestion(phrase)">
+                    {{ phrase }}
+                  </button>
+                </div>
                 <textarea
                   [(ngModel)]="operatorNotes"
                   rows="2"
@@ -1053,6 +1079,8 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   loadingPoints = true;
   /** Notas opcionales del operario (se guardan en operator_notes, no en observation). */
   operatorNotes = '';
+  /** Chips de frases frecuentes para rellenar Nota en 1 tap. */
+  noteSuggestionPhrases: string[] = [];
 
   lastLogRef: number | null = null;
   lastScanStatus = '';
@@ -1248,6 +1276,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.cameraScannerEnabled) {
       this.checkBarcodeSupport();
     }
+    this.refreshNoteSuggestions();
     this.loadMovementMode();
     this.loadAccessPoints();
     this.loadDetailHouses();
@@ -1255,6 +1284,23 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', this.onVisibilityChange);
     }
+  }
+
+  applyNoteSuggestion(phrase: string): void {
+    this.operatorNotes = applyOperatorNoteChip(this.operatorNotes, phrase);
+  }
+
+  private refreshNoteSuggestions(): void {
+    this.noteSuggestionPhrases = getTopOperatorNotePhrases(8);
+  }
+
+  private rememberOperatorNotesIfAny(notes?: string | null): void {
+    const value = (notes ?? this.operatorNotes).trim();
+    if (!value) {
+      return;
+    }
+    recordOperatorNotePhrase(value);
+    this.refreshNoteSuggestions();
   }
 
   ngAfterViewInit(): void {
@@ -2098,6 +2144,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
           this.savingDetails = false;
           this.detailsHouseEditing = false;
           this.clearAllDetailPhotos();
+          this.rememberOperatorNotesIfAny();
           if (authRes && (authRes as { authorizeFailed?: boolean }).authorizeFailed) {
             this.toastr.warning(
               `Detalles guardados. ${(authRes as { message?: string }).message || 'No se pudo registrar el ingreso efectivo.'}`
@@ -2507,6 +2554,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
               this.applyLogRefFromScan(data, -tempId);
             }
             this.markIncidentReady(true);
+            this.rememberOperatorNotesIfAny(operatorNotes);
             this.operatorNotes = '';
             let msg = `Salida registrada — permaneció ${mins} min`;
             if (exceeded) {
@@ -2553,6 +2601,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
               };
               this.applyLogRefFromScan(data, -tempId);
             }
+            this.rememberOperatorNotesIfAny(operatorNotes);
             this.markIncidentReady(true);
           },
           error: (err) => {
@@ -2587,6 +2636,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
             this.applyLogRefFromScan(data, -tempId);
           }
           this.markIncidentReady(true);
+          this.rememberOperatorNotesIfAny(operatorNotes);
           this.operatorNotes = '';
         },
         error: (err) => {
@@ -2646,6 +2696,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
           this.applyLogRefFromScan(data, logId);
         }
         this.markIncidentReady(true);
+        this.rememberOperatorNotesIfAny(operatorNotes);
         this.operatorNotes = '';
 
         if (orphanExit && this.isExitMode()) {

@@ -1,5 +1,5 @@
-
-import { IdentityDocumentType } from './shared/identity-document';
+import { IdentityDocumentType, isValidIdentityDocument, normalizeIdentityDocument } from './shared/identity-document';
+import { isValidPeruvianLicensePlate, normalizePeruvianLicensePlate } from './shared/license-plate';
 
 export class ExternalVehicle {
   public temp_visit_doc_type: IdentityDocumentType = 'DNI';
@@ -65,6 +65,31 @@ export function syncExternalVisitPhotoFields(ev: ExternalVehicle): void {
   ev.photo_url = urls[0];
 }
 
+/**
+ * Query para lookup de padrón: solo si hay placa válida y/o documento válido.
+ * Evita 422 al escribir a medias (blur con "594", DNI de 4 dígitos, etc.).
+ */
+export function buildExternalVisitLookupQuery(
+  ev: Pick<ExternalVehicle, 'temp_visit_plate' | 'temp_visit_doc' | 'temp_visit_doc_type'>
+): { plate?: string; doc?: string; document_type?: IdentityDocumentType } | null {
+  const plateRaw = String(ev.temp_visit_plate ?? '').trim();
+  const docType = (ev.temp_visit_doc_type || 'DNI') as IdentityDocumentType;
+  const docRaw = String(ev.temp_visit_doc ?? '').trim();
+
+  const plateOk = plateRaw !== '' && isValidPeruvianLicensePlate(plateRaw);
+  const docOk = docRaw !== '' && isValidIdentityDocument(docType, docRaw);
+
+  if (!plateOk && !docOk) {
+    return null;
+  }
+
+  return {
+    plate: plateOk ? normalizePeruvianLicensePlate(plateRaw) : undefined,
+    doc: docOk ? normalizeIdentityDocument(docType, docRaw) : undefined,
+    document_type: docOk ? docType : undefined,
+  };
+}
+
 export const EXTERNAL_VISIT_DURATION_OPTIONS = [
   { label: '30 minutos', value: 30 },
   { label: '1 hora', value: 60 },
@@ -73,11 +98,14 @@ export const EXTERNAL_VISIT_DURATION_OPTIONS = [
 ] as const;
 
 export const EXTERNAL_VISIT_TYPE_VALUES = [
-  'DELIVERY',
-  'COLECTIVO',
   'TAXI',
+  'COLECTIVO',
   'MOTOTAXI',
   'MOTORIZADO',
+  'DELIVERY',
+  'VISITA',
+  'PROVEEDOR',
+  'MUDANZA',
 ] as const;
 
 export type ExternalVisitType = (typeof EXTERNAL_VISIT_TYPE_VALUES)[number];

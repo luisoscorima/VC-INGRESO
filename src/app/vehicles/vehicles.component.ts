@@ -4,7 +4,7 @@ import { Vehicle } from '../vehicle';
 import { House } from '../house';
 import { initFlowbite } from 'flowbite';
 import { EntranceService } from '../entrance.service';
-import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS, EXTERNAL_VISIT_MAX_PHOTOS, EXTERNAL_VISIT_TYPE_VALUES, ExternalVisitCatalogAssignment, normalizeExternalVisitPhotoUrls, syncExternalVisitPhotoFields } from '../externalVehicle';
+import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS, EXTERNAL_VISIT_MAX_PHOTOS, EXTERNAL_VISIT_TYPE_VALUES, ExternalVisitCatalogAssignment, buildExternalVisitLookupQuery, normalizeExternalVisitPhotoUrls, syncExternalVisitPhotoFields } from '../externalVehicle';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../api.service';
 import { NavPermissionService } from '../nav-permission.service';
@@ -72,11 +72,14 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
   houses: House[] = [];
   
   externalVehicleTypeIcons: { [key: string]: string } = {
-    'DELIVERY': 'local_shipping',
-    'COLECTIVO': 'directions_bus',
     'TAXI': 'directions_car',
+    'COLECTIVO': 'directions_bus',
     'MOTOTAXI': 'two_wheeler',
     'MOTORIZADO': 'two_wheeler',
+    'DELIVERY': 'local_shipping',
+    'VISITA': 'person',
+    'PROVEEDOR': 'store',
+    'MUDANZA': 'luggage',
   };
 
   externalVehicles: ExternalVehicle[] = [];
@@ -671,28 +674,25 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
 
   lookupExternalVisitOnIdentifierBlur(forEdit = false): void {
     const target = forEdit ? this.externalVehicleToEdit : this.externalVehicleToAdd;
-    const plate = (target.temp_visit_plate || '').trim();
-    const doc = (target.temp_visit_doc || '').trim();
-    if (!plate && !doc) {
+    const query = buildExternalVisitLookupQuery(target);
+    if (!query) {
       return;
     }
-    this.entranceService.lookupExternalVisit({
-      plate: plate || undefined,
-      doc: doc || undefined,
-      document_type: doc ? target.temp_visit_doc_type : undefined,
-    }).subscribe({
+    this.entranceService.lookupExternalVisit(query).subscribe({
       next: (res: any) => {
         const body = res?.data ?? res;
         if (!body?.found || !body?.profile) {
           return;
         }
         const p = body.profile;
+        const hadPlate = !!query.plate;
+        const hadDoc = !!query.doc;
         if (p.temp_visit_name) target.temp_visit_name = p.temp_visit_name;
         if (p.temp_visit_company) target.temp_visit_company = p.temp_visit_company;
         if (p.temp_visit_cel) target.temp_visit_cel = p.temp_visit_cel;
         if (p.temp_visit_type) target.temp_visit_type = p.temp_visit_type;
-        if (p.temp_visit_plate && !plate) target.temp_visit_plate = p.temp_visit_plate;
-        if (p.temp_visit_doc && !doc) target.temp_visit_doc = p.temp_visit_doc;
+        if (p.temp_visit_plate && !hadPlate) target.temp_visit_plate = p.temp_visit_plate;
+        if (p.temp_visit_doc && !hadDoc) target.temp_visit_doc = p.temp_visit_doc;
         if (p.photo_url || p.photo_urls) {
           target.photo_url = p.photo_url;
           target.photo_urls = p.photo_urls;
@@ -700,6 +700,9 @@ export class VehiclesComponent implements OnInit, AfterViewInit{
         }
         if (forEdit && p.operator_notes) target.operator_notes = p.operator_notes;
         this.toastr.info('Datos reutilizados del registro global');
+      },
+      error: () => {
+        /* incompleto / sin coincidencia: no ensuciar consola ni toast */
       },
     });
   }

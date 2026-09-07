@@ -6,7 +6,7 @@ import { EntranceService } from '../entrance.service';
 import { AuthService } from '../auth.service';
 import { UsersService } from '../users.service';
 import { ApiService } from '../api.service';
-import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS, EXTERNAL_VISIT_MAX_PHOTOS, EXTERNAL_VISIT_TYPE_VALUES, normalizeExternalVisitPhotoUrls, syncExternalVisitPhotoFields } from '../externalVehicle';
+import { ExternalVehicle, EXTERNAL_VISIT_DURATION_OPTIONS, EXTERNAL_VISIT_MAX_PHOTOS, EXTERNAL_VISIT_TYPE_VALUES, buildExternalVisitLookupQuery, normalizeExternalVisitPhotoUrls, syncExternalVisitPhotoFields } from '../externalVehicle';
 import { Vehicle } from '../vehicle';
 import { ToastrService } from 'ngx-toastr';
 import { environment } from '../../environments/environment';
@@ -501,17 +501,12 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
   }
 
   lookupExternalVisitOnIdentifierBlur(): void {
-    const plate = (this.externalVehicleToAdd.temp_visit_plate || '').trim();
-    const doc = (this.externalVehicleToAdd.temp_visit_doc || '').trim();
-    if (!plate && !doc) {
+    const query = buildExternalVisitLookupQuery(this.externalVehicleToAdd);
+    if (!query) {
       return;
     }
     this.externalLookupLoading = true;
-    this.entranceService.lookupExternalVisit({
-      plate: plate || undefined,
-      doc: doc || undefined,
-      document_type: doc ? this.externalVehicleToAdd.temp_visit_doc_type : undefined,
-    }).subscribe({
+    this.entranceService.lookupExternalVisit(query).subscribe({
       next: (res: any) => {
         this.externalLookupLoading = false;
         const body = res?.data ?? res;
@@ -519,6 +514,8 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
           return;
         }
         const p = body.profile;
+        const hadPlate = !!query.plate;
+        const hadDoc = !!query.doc;
         if (p.temp_visit_name) {
           this.externalVehicleToAdd.temp_visit_name = p.temp_visit_name;
         }
@@ -531,10 +528,10 @@ export class MyHouseComponent implements OnInit, AfterViewInit {
         if (p.temp_visit_type) {
           this.externalVehicleToAdd.temp_visit_type = p.temp_visit_type;
         }
-        if (p.temp_visit_plate && !plate) {
+        if (p.temp_visit_plate && !hadPlate) {
           this.externalVehicleToAdd.temp_visit_plate = p.temp_visit_plate;
         }
-        if (p.temp_visit_doc && !doc) {
+        if (p.temp_visit_doc && !hadDoc) {
           this.externalVehicleToAdd.temp_visit_doc = p.temp_visit_doc;
         }
         if (p.photo_url || p.photo_urls) {

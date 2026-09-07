@@ -26,6 +26,11 @@ import {
   formatHouseSummary,
   requiresHouseForAuthorizeEntry,
 } from '../shared/access-details.util';
+import {
+  applyOperatorNoteChip,
+  getTopOperatorNotePhrases,
+  recordOperatorNotePhrase,
+} from '../shared/operator-note-suggestions';
 import { catchError, of, switchMap } from 'rxjs';
 
 export const ACCESS_DETAILS_DIALOG_PANEL_CLASS = 'vc-incident-dialog';
@@ -147,6 +152,27 @@ interface PendingPhoto {
           <label class="vc-incident-dialog__label mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
             Nota (opcional)
           </label>
+          <div *ngIf="noteSuggestionPhrases.length" class="mb-1.5 flex flex-wrap gap-1.5">
+            <button
+              *ngFor="let phrase of noteSuggestionPhrases"
+              type="button"
+              class="rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors"
+              [class.border-teal-500]="operatorNotes.trim() === phrase"
+              [class.bg-teal-50]="operatorNotes.trim() === phrase"
+              [class.text-teal-800]="operatorNotes.trim() === phrase"
+              [class.dark:bg-teal-950]="operatorNotes.trim() === phrase"
+              [class.dark:text-teal-100]="operatorNotes.trim() === phrase"
+              [class.border-gray-300]="operatorNotes.trim() !== phrase"
+              [class.bg-white]="operatorNotes.trim() !== phrase"
+              [class.text-gray-700]="operatorNotes.trim() !== phrase"
+              [class.dark:border-gray-600]="operatorNotes.trim() !== phrase"
+              [class.dark:bg-gray-800]="operatorNotes.trim() !== phrase"
+              [class.dark:text-gray-200]="operatorNotes.trim() !== phrase"
+              [disabled]="saving || (!!operatorNotes.trim() && operatorNotes.trim() !== phrase)"
+              (click)="applyNoteSuggestion(phrase)">
+              {{ phrase }}
+            </button>
+          </div>
           <textarea
             [(ngModel)]="operatorNotes"
             rows="3"
@@ -215,6 +241,7 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
   readonly operatorDecisionOptions = OPERATOR_DECISION_OPTIONS;
 
   operatorNotes = '';
+  noteSuggestionPhrases: string[] = [];
   operatorDecision: OperatorDecision | '' = '';
   noHouse = false;
   houseEditing = false;
@@ -243,6 +270,7 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.noteSuggestionPhrases = getTopOperatorNotePhrases(8);
     this.operatorNotes = String(this.data.initialNotes ?? '').trim();
     this.effectiveEntryAt = String(this.data.effectiveEntryAt ?? '').trim() || null;
     const rawDecision = String(this.data.initialDecision ?? '').trim();
@@ -375,6 +403,10 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
     this.dialogRef.close(false);
   }
 
+  applyNoteSuggestion(phrase: string): void {
+    this.operatorNotes = applyOperatorNoteChip(this.operatorNotes, phrase);
+  }
+
   private loadHouses(): void {
     this.api.getRaw('api/v1/houses').subscribe({
       next: (res) => {
@@ -477,6 +509,7 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (authRes) => {
           this.saving = false;
+          recordOperatorNotePhrase(this.operatorNotes);
           if (authRes && (authRes as { authorizeFailed?: boolean }).authorizeFailed) {
             this.toastr.warning(
               `Detalles guardados. ${(authRes as { message?: string }).message || 'No se pudo registrar el ingreso efectivo.'}`
