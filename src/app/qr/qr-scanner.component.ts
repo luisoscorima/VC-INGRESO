@@ -113,8 +113,8 @@ import {
         [class.scanner-exit-mode]="movementMode === 'EGRESO'">
         <div class="border-b border-gray-200 px-4 py-4 text-center dark:border-gray-700">
           <h2 class="m-0 flex items-center justify-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
-            <mat-icon class="!h-7 !w-7 text-teal-600 dark:text-teal-400">qr_code_scanner</mat-icon>
-            Escáner / QR
+            <mat-icon class="!h-7 !w-7 text-teal-600 dark:text-teal-400">{{ cameraScannerEnabled ? 'qr_code_scanner' : 'badge' }}</mat-icon>
+            {{ cameraScannerEnabled ? 'Escáner / QR' : 'Lectura DNI / placa' }}
           </h2>
         </div>
         <div class="p-4">
@@ -223,6 +223,9 @@ import {
                 </svg>
               </button>
             </div>
+            <p *ngIf="manualInputHint as hint" class="mt-1 text-[11px] text-gray-500 dark:text-gray-400" role="status">
+              {{ hint }}
+            </p>
           </div>
 
           <div
@@ -301,7 +304,6 @@ import {
               (click)="detailsPanelOpen = !detailsPanelOpen">
               <span class="text-sm font-semibold text-gray-900 dark:text-white">
                 Detalles del acceso
-                <span class="ml-1 font-normal text-gray-400">(opcional)</span>
               </span>
               <mat-icon class="!h-5 !w-5 text-gray-500">{{ detailsPanelOpen ? 'expand_less' : 'expand_more' }}</mat-icon>
             </button>
@@ -398,7 +400,6 @@ import {
                     [class.dark:border-gray-600]="operatorNotes.trim() !== phrase"
                     [class.dark:bg-gray-800]="operatorNotes.trim() !== phrase"
                     [class.dark:text-gray-200]="operatorNotes.trim() !== phrase"
-                    [disabled]="!!operatorNotes.trim() && operatorNotes.trim() !== phrase"
                     (click)="applyNoteSuggestion(phrase)">
                     {{ phrase }}
                   </button>
@@ -535,7 +536,10 @@ import {
             Sin registros hoy en este punto.
           </p>
           <ul *ngIf="!loadingRecentHistory && recentHistoryRows.length" class="recent-history__list m-0 list-none p-0">
-            <li *ngFor="let row of recentHistoryRows; trackBy: trackRecentRow" class="recent-history__item">
+            <li
+              *ngFor="let row of recentHistoryRows; trackBy: trackRecentRow"
+              class="recent-history__item"
+              [class.recent-history__item--current]="isCurrentRecentRow(row)">
               <div class="recent-history__main">
                 <span class="recent-history__time">{{ recentRowTime(row) }}</span>
                 <span class="recent-history__name">{{ recentRowLabel(row) }}</span>
@@ -783,6 +787,16 @@ import {
       :host-context(.dark) .recent-history__item {
         border-color: #374151;
         background: rgba(17, 24, 39, 0.45);
+      }
+      .recent-history__item--current {
+        border-color: #5eead4;
+        background: #f0fdfa;
+        box-shadow: 0 0 0 1px rgba(13, 148, 136, 0.25);
+      }
+      :host-context(.dark) .recent-history__item--current {
+        border-color: #0d9488;
+        background: rgba(13, 148, 136, 0.18);
+        box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.2);
       }
       .recent-history__main {
         min-width: 0;
@@ -1290,6 +1304,43 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.operatorNotes = applyOperatorNoteChip(this.operatorNotes, phrase);
   }
 
+  /** Pista en vivo: DNI / placa / CE según lo digitado. */
+  get manualInputHint(): string | null {
+    const t = this.manualCode.trim();
+    if (!t) {
+      return null;
+    }
+    const plate = parsePeruvianLicensePlate(t);
+    if (plate.valid) {
+      return `Placa ${plate.canonical}`;
+    }
+    const docType = inferIdentityDocumentType(t);
+    if (docType === 'DNI') {
+      return 'DNI';
+    }
+    if (docType === 'CE') {
+      return 'Carnet de extranjería';
+    }
+    if (/^\d{1,7}$/.test(t)) {
+      return 'DNI incompleto…';
+    }
+    const compact = t.replace(/[ -]+/g, '');
+    if (/^[A-Za-z0-9]{1,5}$/.test(compact) && /[A-Za-z]/i.test(compact)) {
+      return 'Placa incompleta…';
+    }
+    if (/^[A-Za-z0-9]{1,8}$/.test(compact) && /[A-Za-z]/i.test(compact) && compact.length >= 6) {
+      return 'CE incompleto…';
+    }
+    return 'No reconocido';
+  }
+
+  isCurrentRecentRow(row: ScannerRecentRow): boolean {
+    if (this.lastLogRef == null) {
+      return false;
+    }
+    return Number(row['id'] ?? 0) === this.lastLogRef;
+  }
+
   private refreshNoteSuggestions(): void {
     this.noteSuggestionPhrases = getTopOperatorNotePhrases(8);
   }
@@ -1336,8 +1387,12 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   setMovementMode(mode: MovementMode): void {
+    const previous = this.movementMode;
     this.movementMode = mode;
     localStorage.setItem(MOVEMENT_MODE_STORAGE_KEY, mode);
+    if (mode === 'EGRESO' && previous === 'INGRESO') {
+      this.toastr.info('Modo Salida: los próximos registros serán salidas.', '', { timeOut: 2200 });
+    }
   }
 
   private loadMovementMode(): void {
@@ -1719,13 +1774,11 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const plate = parsePeruvianLicensePlate(t);
     if (plate.valid) {
-      this.manualCode = '';
       this.processInput(plate.canonical, 'PLATE');
       return;
     }
     const documentType = inferIdentityDocumentType(t);
     if (documentType) {
-      this.manualCode = '';
       this.processInput(normalizeIdentityDocument(documentType, t), 'DOCUMENT', documentType);
       return;
     }
@@ -1802,6 +1855,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private handleScanResult(data: AccessQrScanResult): void {
+    this.manualCode = '';
     if (data.pending_house_selection && data.active_assignments?.length) {
       this.pendingHouseSelection = true;
       this.pendingAssignments = data.active_assignments;
@@ -1954,18 +2008,16 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   onDetailsOperatorDecisionChange(value: OperatorDecision | ''): void {
     if (value === 'AUTORIZADO_POR_PROPIETARIO' && !this.attemptEffectiveEntryAt) {
       this.detailsPersonEnteredNow = true;
-      this.applyOwnerAuthorizedVisualFeedback();
       return;
     }
     this.restoreScanResultVisualFeedback();
     this.detailsPersonEnteredNow = false;
   }
 
-  /** Solo UI: el intento sigue denegado hasta guardar + «Persona ingresó ahora». */
+  /** Solo UI tras guardar: el intento sigue denegado hasta persistir + «Persona ingresó ahora». */
   private applyOwnerAuthorizedVisualFeedback(): void {
     this.resultTone = 'ok';
     this.resultHeadline = 'Autorizado por propietario';
-    this.toastr.success('Autorizado por propietario');
   }
 
   private restoreScanResultVisualFeedback(): void {
@@ -2151,6 +2203,9 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
             );
             this.refreshRecentHistory();
             return;
+          }
+          if (this.detailsOperatorDecision === 'AUTORIZADO_POR_PROPIETARIO') {
+            this.applyOwnerAuthorizedVisualFeedback();
           }
           const effectiveAt = String((authRes as { data?: { effective_entry_at?: string } })?.data?.effective_entry_at ?? '').trim();
           if (effectiveAt) {

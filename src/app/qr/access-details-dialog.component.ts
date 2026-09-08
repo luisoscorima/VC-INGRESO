@@ -70,7 +70,6 @@ interface PendingPhoto {
   template: `
     <h2 mat-dialog-title class="vc-incident-dialog__title">
       Detalles del acceso
-      <span class="ml-1 font-normal text-gray-400">(opcional)</span>
     </h2>
     <p *ngIf="data.rowLabel" class="mx-6 -mt-2 mb-0 text-xs text-gray-500 dark:text-gray-400">{{ data.rowLabel }}</p>
     <mat-dialog-content class="!pt-2">
@@ -168,7 +167,7 @@ interface PendingPhoto {
               [class.dark:border-gray-600]="operatorNotes.trim() !== phrase"
               [class.dark:bg-gray-800]="operatorNotes.trim() !== phrase"
               [class.dark:text-gray-200]="operatorNotes.trim() !== phrase"
-              [disabled]="saving || (!!operatorNotes.trim() && operatorNotes.trim() !== phrase)"
+              [disabled]="saving"
               (click)="applyNoteSuggestion(phrase)">
               {{ phrase }}
             </button>

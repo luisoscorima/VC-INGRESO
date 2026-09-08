@@ -116,11 +116,8 @@ export function recordOperatorNotePhrase(note: string | null | undefined): void 
 }
 
 /**
- * Tap en chip: si el campo está vacío → frase; si ya hay texto → no pisa.
+ * Tap en chip: siempre reemplaza la nota por la frase.
  */
-export function applyOperatorNoteChip(current: string | null | undefined, phrase: string): string {
-  if (String(current ?? '').trim()) {
-    return String(current ?? '');
-  }
+export function applyOperatorNoteChip(_current: string | null | undefined, phrase: string): string {
   return phrase;
 }
