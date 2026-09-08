@@ -532,6 +532,93 @@ export class HistoryComponent implements OnInit {
     return single ? [single] : [];
   }
 
+  photoOcrStatus(row: HistoryRow): string {
+    return String(row['photo_ocr_status'] ?? '').trim().toLowerCase();
+  }
+
+  photoOcrDoc(row: HistoryRow): string {
+    return String(row['photo_doc_number'] ?? '').trim();
+  }
+
+  photoOcrPlate(row: HistoryRow): string {
+    return String(row['photo_license_plate'] ?? '').trim();
+  }
+
+  photoOcrFirstNames(row: HistoryRow): string {
+    return String(row['photo_first_names'] ?? '').trim();
+  }
+
+  photoOcrLastNames(row: HistoryRow): string {
+    return String(row['photo_last_names'] ?? '').trim();
+  }
+
+  hasPhotoOcrData(row: HistoryRow): boolean {
+    return !!(
+      this.photoOcrDoc(row) ||
+      this.photoOcrPlate(row) ||
+      this.photoOcrFirstNames(row) ||
+      this.photoOcrLastNames(row)
+    );
+  }
+
+  photoOcrStatusLabel(row: HistoryRow): string {
+    switch (this.photoOcrStatus(row)) {
+      case 'pending':
+        return 'Pendiente';
+      case 'done':
+        return 'Completado';
+      case 'empty':
+        return 'Sin texto legible';
+      case 'error':
+        return 'Error';
+      default:
+        return this.hasPhotoOcrData(row) ? 'Completado' : 'Sin procesar';
+    }
+  }
+
+  viewPhotoOcr(row: HistoryRow, event?: Event): void {
+    event?.stopPropagation();
+    const entry = row['date_entry'] ? new Date(String(row['date_entry'])) : null;
+    const exit = row['date_exit'] ? new Date(String(row['date_exit'])) : null;
+    const fmt = (d: Date | null): string =>
+      d && !isNaN(d.getTime())
+        ? d.toLocaleString('es-PE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '';
+    this.dialog.open(DialogHistoryPhotoOcr, {
+      width: 'min(440px, 96vw)',
+      maxHeight: '90vh',
+      data: {
+        name: String(row['name'] ?? '').trim(),
+        doc: String(row['doc_number'] ?? '').trim(),
+        plate: this.displayPlate(row),
+        house: String(row['house_address'] ?? '').trim(),
+        accessPoint: String(row['access_point_name'] ?? '').trim(),
+        source: this.entrySourceLabel(row),
+        result: this.resultStatus(row),
+        decision: this.operatorDecisionText(row),
+        operatorNote: this.operatorNotesText(row),
+        operator: String(row['operator'] ?? '').trim(),
+        entryAt: fmt(entry),
+        exitAt: this.isEgressOnlyRow(row) ? fmt(entry) : fmt(exit),
+        movementLabel: this.isEgressOnlyRow(row) ? 'Egreso' : this.hasRecordedExit(row) ? 'Ingreso / egreso' : 'Ingreso',
+        status: this.photoOcrStatusLabel(row),
+        statusRaw: this.photoOcrStatus(row),
+        photoDoc: this.photoOcrDoc(row),
+        photoPlate: this.photoOcrPlate(row),
+        photoFirstNames: this.photoOcrFirstNames(row),
+        photoLastNames: this.photoOcrLastNames(row),
+        hasData: this.hasPhotoOcrData(row),
+        photoUrls: this.capturePhotoUrls(row),
+      },
+    });
+  }
+
   displayPlate(row: HistoryRow): string {
     return parseDisplayPlate(row);
   }
@@ -1163,6 +1250,28 @@ export class HistoryComponent implements OnInit {
     return lines.join('\n');
   }
 
+  tooltipPhotoOcr(row: HistoryRow): string {
+    const lines = [`OCR foto: ${this.photoOcrStatusLabel(row)}`];
+    if (!this.capturePhotoUrls(row).length) {
+      lines.push('Sin foto de garita');
+    }
+    if (this.photoOcrDoc(row)) {
+      lines.push(`DNI: ${this.photoOcrDoc(row)}`);
+    }
+    if (this.photoOcrPlate(row)) {
+      lines.push(`Placa: ${this.photoOcrPlate(row)}`);
+    }
+    const nameBits = [this.photoOcrLastNames(row), this.photoOcrFirstNames(row)].filter(Boolean);
+    if (nameBits.length) {
+      lines.push(nameBits.join(', '));
+    }
+    if (!this.hasPhotoOcrData(row) && !this.photoOcrStatus(row)) {
+      lines.push('Aún no hay resultado OCR');
+    }
+    lines.push('Clic para ver detalle');
+    return lines.join('\n');
+  }
+
   tooltipDay(row: HistoryRow): string {
     const count = this.sameDayCount(row);
     if (count <= 1) {
@@ -1170,6 +1279,108 @@ export class HistoryComponent implements OnInit {
     }
     return `${count} movimientos el mismo día (mismo documento)\nClic para ver timeline del día`;
   }
+}
+
+@Component({
+  selector: 'dialog-history-photo-ocr',
+  template: `
+    <h2 mat-dialog-title class="!text-lg !font-semibold">Contexto del acceso</h2>
+    <mat-dialog-content>
+      <div class="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-800/50">
+        <p *ngIf="data.name" class="m-0 text-sm font-semibold text-gray-900 dark:text-white">{{ data.name }}</p>
+        <p class="m-0 mt-1 text-gray-600 dark:text-gray-400">
+          <span *ngIf="data.doc">Doc. {{ data.doc }}</span>
+          <span *ngIf="data.plate && data.plate !== '—'"> · Placa {{ data.plate }}</span>
+          <span *ngIf="data.house"> · {{ data.house }}</span>
+        </p>
+        <p class="m-0 mt-1 text-gray-600 dark:text-gray-400">
+          <span *ngIf="data.accessPoint">{{ data.accessPoint }}</span>
+          <span *ngIf="data.source"> · {{ data.source }}</span>
+          <span *ngIf="data.operator"> · Op. {{ data.operator }}</span>
+        </p>
+        <p class="m-0 mt-1 text-gray-600 dark:text-gray-400">
+          <span *ngIf="data.movementLabel">{{ data.movementLabel }}</span>
+          <span *ngIf="data.entryAt"> · {{ data.entryAt }}</span>
+          <span *ngIf="data.exitAt && data.movementLabel !== 'Egreso'"> → {{ data.exitAt }}</span>
+        </p>
+        <p class="m-0 mt-1 text-gray-600 dark:text-gray-400">
+          <span *ngIf="data.result && data.result !== '—'">Resultado: {{ data.result }}</span>
+          <span *ngIf="data.decision"> · Decisión: {{ data.decision }}</span>
+        </p>
+        <p *ngIf="data.operatorNote" class="m-0 mt-2 whitespace-pre-wrap text-gray-700 dark:text-gray-300">
+          Nota: {{ data.operatorNote }}
+        </p>
+      </div>
+
+      <h3 class="m-0 mb-2 text-sm font-semibold text-gray-800 dark:text-gray-100">OCR de la foto</h3>
+      <p class="m-0 mb-3 text-xs text-gray-500 dark:text-gray-400">
+        Estado: <span class="font-semibold text-gray-800 dark:text-gray-200">{{ data.status }}</span>
+      </p>
+
+      <dl class="m-0 grid gap-2 text-sm">
+        <div class="flex gap-2">
+          <dt class="w-24 shrink-0 text-gray-500">DNI foto</dt>
+          <dd class="m-0 font-medium text-gray-900 dark:text-white">{{ data.photoDoc || '—' }}</dd>
+        </div>
+        <div class="flex gap-2">
+          <dt class="w-24 shrink-0 text-gray-500">Placa foto</dt>
+          <dd class="m-0 font-medium text-gray-900 dark:text-white">{{ data.photoPlate || '—' }}</dd>
+        </div>
+        <div class="flex gap-2">
+          <dt class="w-24 shrink-0 text-gray-500">Nombres</dt>
+          <dd class="m-0 font-medium text-gray-900 dark:text-white">{{ data.photoFirstNames || '—' }}</dd>
+        </div>
+        <div class="flex gap-2">
+          <dt class="w-24 shrink-0 text-gray-500">Apellidos</dt>
+          <dd class="m-0 font-medium text-gray-900 dark:text-white">{{ data.photoLastNames || '—' }}</dd>
+        </div>
+      </dl>
+
+      <p *ngIf="!data.hasData" class="mt-3 mb-0 text-xs text-amber-700 dark:text-amber-300">
+        {{ data.photoUrls?.length ? 'No hay texto útil detectado en la foto (pruebas OCR).' : 'Sin foto de garita: no hay OCR que mostrar; arriba está el contexto del ingreso.' }}
+      </p>
+
+      <div *ngIf="data.photoUrls?.length" class="mt-3 flex flex-wrap gap-2">
+        <img
+          *ngFor="let url of data.photoUrls"
+          [src]="url"
+          alt=""
+          class="max-h-36 rounded object-contain border border-gray-200 dark:border-gray-700" />
+      </div>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button type="button" mat-button (click)="dialogRef.close()">Cerrar</button>
+    </mat-dialog-actions>
+  `,
+})
+export class DialogHistoryPhotoOcr {
+  constructor(
+    public dialogRef: MatDialogRef<DialogHistoryPhotoOcr>,
+    @Inject(MAT_DIALOG_DATA)
+    public data: {
+      name: string;
+      doc: string;
+      plate: string;
+      house: string;
+      accessPoint: string;
+      source: string;
+      result: string;
+      decision: string;
+      operatorNote: string;
+      operator: string;
+      entryAt: string;
+      exitAt: string;
+      movementLabel: string;
+      status: string;
+      statusRaw: string;
+      photoDoc: string;
+      photoPlate: string;
+      photoFirstNames: string;
+      photoLastNames: string;
+      hasData: boolean;
+      photoUrls: string[];
+    }
+  ) {}
 }
 
 @Component({

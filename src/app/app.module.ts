@@ -18,7 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { MatTableModule } from '@angular/material/table';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { DialogHistoryDetail, DialogHistoryIncidents, HistoryComponent } from './history/history.component';
+import { DialogHistoryDetail, DialogHistoryIncidents, DialogHistoryPhotoOcr, HistoryComponent } from './history/history.component';
 import { MatDialogModule } from '@angular/material/dialog';
 import {MatSnackBarModule} from '@angular/material/snack-bar';
 import { MatDatepickerModule } from '@angular/material/datepicker';
@@ -82,6 +82,7 @@ import { errorInterceptor } from './error.interceptor';
         DialogDatos,
         DialogHistoryDetail,
         DialogHistoryIncidents,
+        DialogHistoryPhotoOcr,
         LoginComponent,
         LandingComponent,
         NavBarComponent,

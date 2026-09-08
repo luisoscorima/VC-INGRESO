@@ -379,13 +379,17 @@ class AccessLogController
 
             $identity = $this->resolveIdentitySnapshot($data);
             $operatorNotes = $this->sanitizeOperatorNotes($data['operator_notes'] ?? null);
+            self::ensureEffectiveEntryAtColumns($this->pdo);
+            $obsRaw = trim((string) ($data['observation'] ?? ''));
+            $isDeniedAttempt = $obsRaw !== '' && stripos($obsRaw, 'DENEGADO') !== false;
+            $effectiveEntryAt = $isDeniedAttempt ? null : date('Y-m-d H:i:s');
             $stmt = $this->pdo->prepare("
                 INSERT INTO {$this->table} 
                 (access_point_id, person_id, doc_number, vehicle_id, entity_kind,
                  display_name_snapshot, document_snapshot, document_type_snapshot, license_plate_snapshot,
                  identity_source, identity_resolved_at, type, observation, operator_notes, entry_source,
-                 created_by_user_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                 effective_entry_at, created_by_user_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
 
             $stmt->execute([
@@ -404,6 +408,7 @@ class AccessLogController
                 $data['observation'] ?? null,
                 $operatorNotes,
                 $entrySource,
+                $effectiveEntryAt,
                 $createdByUserId
             ]);
 
@@ -473,7 +478,11 @@ class AccessLogController
             $stmt = $this->pdo->prepare(
                 "UPDATE {$this->table}
                  SET updated_at = ?, observation = ?
-                 WHERE id = ? AND type = 'INGRESO' AND updated_at <= created_at"
+                 WHERE id = ? AND type = 'INGRESO'
+                   AND NOT (
+                     observation LIKE '%| SALIDA%'
+                     OR observation LIKE 'SALIDA%'
+                   )"
             );
             $stmt->execute([$now, $newObservation, $logId]);
 
@@ -618,21 +627,24 @@ class AccessLogController
             return null;
         }
 
+        // Sesión abierta = INGRESO sin marcador de SALIDA, con ingreso efectivo
+        // o sin DENEGADO. No usar updated_at <= created_at: autorizar desde intento
+        // (y cualquier UPDATE) dispara ON UPDATE CURRENT_TIMESTAMP y rompía el enlace.
         $sql = "SELECT id, created_at, updated_at, observation, effective_entry_at, person_id, vehicle_id, doc_number
                 FROM {$this->table}
                 WHERE type = 'INGRESO'
                   AND access_point_id = ?
-                  AND updated_at <= created_at
+                  AND NOT (
+                    observation LIKE '%| SALIDA%'
+                    OR observation LIKE 'SALIDA%'
+                  )
                   AND (
-                    observation IS NULL
+                    effective_entry_at IS NOT NULL
+                    OR observation IS NULL
                     OR observation NOT LIKE '%DENEGADO%'
-                    OR (
-                        operator_decision = 'AUTORIZADO_POR_PROPIETARIO'
-                        AND effective_entry_at IS NOT NULL
-                    )
                   )
                   AND ({$identitySql})
-                ORDER BY created_at DESC
+                ORDER BY COALESCE(effective_entry_at, created_at) DESC
                 LIMIT 1";
 
         $stmt = $this->pdo->prepare($sql);
