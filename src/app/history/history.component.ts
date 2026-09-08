@@ -31,6 +31,11 @@ import {
   isExpandableRowOpen,
   toggleExpandableRow,
 } from '../shared/expandable-row';
+import {
+  extractDocAndPlateFromPhotos,
+  PhotoOcrExtractResult,
+} from '../shared/photo-ocr';
+import { firstValueFrom } from 'rxjs';
 
 export interface HistoryAccessPointOption {
   id: number;
@@ -158,6 +163,8 @@ export class HistoryComponent implements OnInit {
   accessPointOptions: HistoryAccessPointOption[] = [];
 
   loading = false;
+  /** Ignora respuestas obsoletas si el usuario cambia filtros mientras carga. */
+  private historyRequestSeq = 0;
 
   /** Filas crudas del API */
   allRows: HistoryRow[] = [];
@@ -193,15 +200,36 @@ export class HistoryComponent implements OnInit {
   /** Staff: puede agregar o editar detalle de acceso (nota, decisión, fotos). */
   canEditAccessDetails = false;
 
+  /** Backfill OCR en curso (lote histórico). */
+  ocrBackfillRunning = false;
+  ocrBackfillCurrent = 0;
+  ocrBackfillTotal = 0;
+
   readonly hasAccessLogDetails = hasAccessLogDetails;
   readonly accessDetailsActionLabel = accessDetailsActionLabel;
 
   expandedHistoryRowId: ExpandableRowId = null;
-  historyPhotoOpen = false;
-  selectedHistoryPhotoUrl: string | null = null;
+
+  /** Vista detalle (nota + fotos semigrandes), estilo incidencias. */
+  accessMediaOpen = false;
+  accessMediaRow: HistoryRow | null = null;
+  accessMediaIndex = 0;
+
+  /** Visor ampliado con zoom + navegación. */
+  photoZoomOpen = false;
+  photoZoom = 1;
+  photoZoomUrls: string[] = [];
+  photoZoomIndex = 0;
+  photoZoomTitle = '';
+  private readonly zoomMin = 0.5;
+  private readonly zoomMax = 3;
+  private readonly zoomStep = 0.25;
 
   get historyTableColspan(): number {
     let cols = this.showDocColumn ? 13 : 12;
+    if (this.canEditAccessDetails) {
+      cols += 1; // columna OCR (ojo)
+    }
     if (this.hasExternalRows) {
       cols += 1;
     }
@@ -359,7 +387,8 @@ export class HistoryComponent implements OnInit {
     this.pageIndex = 0;
     this.expandedHistoryRowId = null;
     if (hadFilter !== this.hasLocalFilter) {
-      this.fetchHistory();
+      // El filtro local ya aplica sobre allRows; no bloquear la UI con overlay.
+      this.fetchHistory({ silent: true });
     }
   }
 
@@ -480,7 +509,7 @@ export class HistoryComponent implements OnInit {
   onSourceFilterChange(): void {
     this.pageIndex = 0;
     this.expandedHistoryRowId = null;
-    this.fetchHistory();
+    this.fetchHistory({ silent: true });
   }
 
   entrySourceLabel(row: HistoryRow): string {
@@ -561,6 +590,115 @@ export class HistoryComponent implements OnInit {
     );
   }
 
+  /** Filas del rango/filtro actual con foto y sin OCR procesado. */
+  rowsPendingPhotoOcr(): HistoryRow[] {
+    return this.filteredRows.filter((row) => this.needsPhotoOcrBackfill(row));
+  }
+
+  needsPhotoOcrBackfill(row: HistoryRow): boolean {
+    if (!this.capturePhotoUrls(row).length) {
+      return false;
+    }
+    const status = this.photoOcrStatus(row);
+    if (!status) {
+      return true;
+    }
+    // Reintentar solo errores; empty/done/pending no se reescriben en lote
+    return status === 'error';
+  }
+
+  get ocrBackfillPendingCount(): number {
+    return this.rowsPendingPhotoOcr().length;
+  }
+
+  applyPhotoOcrToRow(row: HistoryRow, result: PhotoOcrExtractResult): void {
+    row['photo_doc_number'] = result.photo_doc_number;
+    row['photo_license_plate'] = result.photo_license_plate;
+    row['photo_first_names'] = result.photo_first_names;
+    row['photo_last_names'] = result.photo_last_names;
+    row['photo_ocr_status'] = result.photo_ocr_status;
+  }
+
+  async runPhotoOcrForRow(row: HistoryRow): Promise<PhotoOcrExtractResult> {
+    const logRef = Number(row['id'] ?? 0);
+    const urls = this.capturePhotoUrls(row);
+    if (!logRef || !urls.length) {
+      return {
+        photo_doc_number: null,
+        photo_license_plate: null,
+        photo_first_names: null,
+        photo_last_names: null,
+        photo_ocr_status: 'empty',
+      };
+    }
+    const result = await extractDocAndPlateFromPhotos(urls);
+    await firstValueFrom(
+      this.accessLogService.patchPhotoOcr(logRef, {
+        photo_doc_number: result.photo_doc_number,
+        photo_license_plate: result.photo_license_plate,
+        photo_first_names: result.photo_first_names,
+        photo_last_names: result.photo_last_names,
+        photo_ocr_status: result.photo_ocr_status,
+      })
+    );
+    this.applyPhotoOcrToRow(row, result);
+    return result;
+  }
+
+  async startPhotoOcrBackfill(): Promise<void> {
+    if (!this.canEditAccessDetails || this.ocrBackfillRunning) {
+      return;
+    }
+    const pending = this.rowsPendingPhotoOcr();
+    if (!pending.length) {
+      this.toastr.info('No hay registros con foto pendientes de OCR en el filtro actual.');
+      return;
+    }
+    const maxBatch = 80;
+    const batch = pending.slice(0, maxBatch);
+    const confirmMsg =
+      pending.length > maxBatch
+        ? `Hay ${pending.length} pendientes; se procesarán los primeros ${maxBatch}.\nPuede tardar varios minutos; no cierres esta pestaña. ¿Continuar?`
+        : `¿Procesar OCR en ${batch.length} registro(s) con foto del filtro actual?\nPuede tardar varios minutos; no cierres esta pestaña.`;
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    this.ocrBackfillRunning = true;
+    this.ocrBackfillTotal = batch.length;
+    this.ocrBackfillCurrent = 0;
+    let done = 0;
+    let empty = 0;
+    let error = 0;
+
+    try {
+      for (const row of batch) {
+        this.ocrBackfillCurrent += 1;
+        try {
+          const result = await this.runPhotoOcrForRow(row);
+          if (result.photo_ocr_status === 'error') {
+            error += 1;
+          } else if (result.photo_ocr_status === 'empty') {
+            empty += 1;
+          } else {
+            done += 1;
+          }
+        } catch (err) {
+          console.warn('[photo-ocr] backfill row failed', err);
+          row['photo_ocr_status'] = 'error';
+          error += 1;
+        }
+      }
+      this.toastr.success(
+        `OCR histórico: ${done} con datos, ${empty} sin texto, ${error} error(es).`
+      );
+    } finally {
+      this.ocrBackfillRunning = false;
+      this.ocrBackfillCurrent = 0;
+      this.ocrBackfillTotal = 0;
+    }
+  }
+
   photoOcrStatusLabel(row: HistoryRow): string {
     switch (this.photoOcrStatus(row)) {
       case 'pending':
@@ -590,10 +728,11 @@ export class HistoryComponent implements OnInit {
             minute: '2-digit',
           })
         : '';
-    this.dialog.open(DialogHistoryPhotoOcr, {
+    const ref = this.dialog.open(DialogHistoryPhotoOcr, {
       width: 'min(440px, 96vw)',
       maxHeight: '90vh',
       data: {
+        logRef: Number(row['id'] ?? 0),
         name: String(row['name'] ?? '').trim(),
         doc: String(row['doc_number'] ?? '').trim(),
         plate: this.displayPlate(row),
@@ -615,7 +754,14 @@ export class HistoryComponent implements OnInit {
         photoLastNames: this.photoOcrLastNames(row),
         hasData: this.hasPhotoOcrData(row),
         photoUrls: this.capturePhotoUrls(row),
+        canProcess: this.canEditAccessDetails && this.capturePhotoUrls(row).length > 0,
+        openZoom: (urls: string[], index: number) => this.openPhotoZoom(urls, index, 'Foto de garita'),
       },
+    });
+    ref.afterClosed().subscribe((result: PhotoOcrExtractResult | undefined) => {
+      if (result) {
+        this.applyPhotoOcrToRow(row, result);
+      }
     });
   }
 
@@ -637,12 +783,107 @@ export class HistoryComponent implements OnInit {
   showHistoryPhoto(row: HistoryRow, event?: Event): void {
     event?.stopPropagation();
     const urls = this.capturePhotoUrls(row);
-    const url = urls[0];
-    if (!url) {
+    if (!urls.length && !this.operatorNotesText(row) && !this.operatorDecisionText(row)) {
       return;
     }
-    this.selectedHistoryPhotoUrl = url;
-    this.historyPhotoOpen = true;
+    this.accessMediaRow = row;
+    this.accessMediaIndex = 0;
+    this.accessMediaOpen = true;
+  }
+
+  closeAccessMedia(): void {
+    this.accessMediaOpen = false;
+    this.accessMediaRow = null;
+    this.accessMediaIndex = 0;
+  }
+
+  accessMediaUrls(): string[] {
+    return this.accessMediaRow ? this.capturePhotoUrls(this.accessMediaRow) : [];
+  }
+
+  accessMediaCurrentUrl(): string | null {
+    const urls = this.accessMediaUrls();
+    return urls[this.accessMediaIndex] ?? null;
+  }
+
+  accessMediaPrev(): void {
+    const n = this.accessMediaUrls().length;
+    if (n <= 1) {
+      return;
+    }
+    this.accessMediaIndex = (this.accessMediaIndex - 1 + n) % n;
+  }
+
+  accessMediaNext(): void {
+    const n = this.accessMediaUrls().length;
+    if (n <= 1) {
+      return;
+    }
+    this.accessMediaIndex = (this.accessMediaIndex + 1) % n;
+  }
+
+  openPhotoZoomFromAccessMedia(): void {
+    const urls = this.accessMediaUrls();
+    if (!urls.length) {
+      return;
+    }
+    this.openPhotoZoom(urls, this.accessMediaIndex, 'Foto de garita');
+  }
+
+  openPhotoZoom(urls: string[], index = 0, title = 'Foto de garita'): void {
+    if (!urls.length) {
+      return;
+    }
+    const i = Math.max(0, Math.min(index, urls.length - 1));
+    this.photoZoomUrls = urls;
+    this.photoZoomIndex = i;
+    this.photoZoomTitle = `${title} · ${i + 1}/${urls.length}`;
+    this.photoZoom = 1;
+    this.photoZoomOpen = true;
+  }
+
+  closePhotoZoom(): void {
+    this.photoZoomOpen = false;
+    this.photoZoomUrls = [];
+    this.photoZoomIndex = 0;
+    this.photoZoomTitle = '';
+    this.photoZoom = 1;
+  }
+
+  photoZoomCurrentUrl(): string | null {
+    return this.photoZoomUrls[this.photoZoomIndex] ?? null;
+  }
+
+  photoZoomPrev(): void {
+    const n = this.photoZoomUrls.length;
+    if (n <= 1) {
+      return;
+    }
+    this.photoZoomIndex = (this.photoZoomIndex - 1 + n) % n;
+    this.photoZoomTitle = `Foto de garita · ${this.photoZoomIndex + 1}/${n}`;
+    this.photoZoom = 1;
+  }
+
+  photoZoomNext(): void {
+    const n = this.photoZoomUrls.length;
+    if (n <= 1) {
+      return;
+    }
+    this.photoZoomIndex = (this.photoZoomIndex + 1) % n;
+    this.photoZoomTitle = `Foto de garita · ${this.photoZoomIndex + 1}/${n}`;
+    this.photoZoom = 1;
+  }
+
+  zoomIn(): void {
+    this.photoZoom = Math.min(this.zoomMax, Math.round((this.photoZoom + this.zoomStep) * 100) / 100);
+  }
+
+  zoomOut(): void {
+    this.photoZoom = Math.max(this.zoomMin, Math.round((this.photoZoom - this.zoomStep) * 100) / 100);
+  }
+
+  resetZoom(): void {
+    this.photoZoom = 1;
   }
 
   showPhotoUrl(url: string | null | undefined, event?: Event): void {
@@ -650,8 +891,7 @@ export class HistoryComponent implements OnInit {
     if (!url) {
       return;
     }
-    this.selectedHistoryPhotoUrl = url;
-    this.historyPhotoOpen = true;
+    this.openPhotoZoom([url], 0, 'Foto');
   }
 
   onDateRangeChange(): void {
@@ -698,13 +938,17 @@ export class HistoryComponent implements OnInit {
     return `${y}-${m}-${day}`;
   }
 
-  fetchHistory(): void {
+  fetchHistory(opts?: { silent?: boolean }): void {
     const fi = this.toYmd(this.fecha_inicial);
     const ff = this.toYmd(this.fecha_final);
     if (!fi || !ff) {
       return;
     }
-    this.loading = true;
+    const silent = !!opts?.silent && this.allRows.length > 0;
+    if (!silent) {
+      this.loading = true;
+    }
+    const requestSeq = ++this.historyRequestSeq;
     const ap =
       this.access_point != null && this.access_point > 0 ? String(this.access_point) : undefined;
 
@@ -715,12 +959,18 @@ export class HistoryComponent implements OnInit {
 
     this.accessLogService.getHistoryByRange(fi, ff, ap, { limit, offset }).subscribe({
       next: (raw: unknown) => {
+        if (requestSeq !== this.historyRequestSeq) {
+          return;
+        }
         const rows = this.unwrapHistoryRows(raw);
         this.allRows = rows;
         this.serverTotal = this.unwrapHistoryTotal(raw, rows);
         this.loading = false;
       },
       error: (err) => {
+        if (requestSeq !== this.historyRequestSeq) {
+          return;
+        }
         console.error('Error al obtener el historial:', err);
         this.loading = false;
         this.toastr.error('No se pudo cargar el historial.');
@@ -1228,7 +1478,7 @@ export class HistoryComponent implements OnInit {
       return 'Sin detalle de garita en este registro';
     }
     if (photos) {
-      lines.push('Clic en la miniatura para ampliar');
+      lines.push('Clic en la miniatura para ver nota y fotos');
     }
     return lines.join('\n');
   }
@@ -1336,28 +1586,70 @@ export class HistoryComponent implements OnInit {
         </div>
       </dl>
 
-      <p *ngIf="!data.hasData" class="mt-3 mb-0 text-xs text-amber-700 dark:text-amber-300">
+      <p *ngIf="!data.hasData && !processing" class="mt-3 mb-0 text-xs text-amber-700 dark:text-amber-300">
         {{ data.photoUrls?.length ? 'No hay texto útil detectado en la foto (pruebas OCR).' : 'Sin foto de garita: no hay OCR que mostrar; arriba está el contexto del ingreso.' }}
       </p>
 
-      <div *ngIf="data.photoUrls?.length" class="mt-3 flex flex-wrap gap-2">
-        <img
-          *ngFor="let url of data.photoUrls"
-          [src]="url"
-          alt=""
-          class="max-h-36 rounded object-contain border border-gray-200 dark:border-gray-700" />
+      <p *ngIf="processing" class="mt-3 mb-0 text-xs text-teal-700 dark:text-teal-300">
+        Procesando OCR… puede tardar unos segundos.
+      </p>
+
+      <div *ngIf="data.photoUrls?.length" class="mt-4">
+        <div class="history-media-carousel">
+          <button
+            *ngIf="data.photoUrls.length > 1"
+            type="button"
+            class="history-media-nav"
+            (click)="photoPrev()"
+            aria-label="Foto anterior">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+          <button
+            type="button"
+            class="history-media-frame"
+            title="Ampliar foto"
+            (click)="openCurrentZoom()">
+            <img [src]="data.photoUrls[photoIndex]" [alt]="'Foto ' + (photoIndex + 1)" />
+          </button>
+          <button
+            *ngIf="data.photoUrls.length > 1"
+            type="button"
+            class="history-media-nav"
+            (click)="photoNext()"
+            aria-label="Foto siguiente">
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </div>
+        <p *ngIf="data.photoUrls.length > 1" class="mt-2 mb-0 text-center text-xs text-gray-500">
+          {{ photoIndex + 1 }} / {{ data.photoUrls.length }} · clic para ampliar
+        </p>
       </div>
     </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button type="button" mat-button (click)="dialogRef.close()">Cerrar</button>
+    <mat-dialog-actions align="end" class="!gap-2">
+      <button
+        *ngIf="data.canProcess"
+        type="button"
+        mat-stroked-button
+        color="primary"
+        [disabled]="processing"
+        (click)="processNow()">
+        {{ data.hasData ? 'Completar / reprocesar' : 'Procesar ahora' }}
+      </button>
+      <button type="button" mat-button [disabled]="processing" (click)="dialogRef.close(lastResult)">Cerrar</button>
     </mat-dialog-actions>
   `,
+  styleUrls: ['./history.component.css'],
 })
 export class DialogHistoryPhotoOcr {
+  processing = false;
+  lastResult: PhotoOcrExtractResult | undefined;
+  photoIndex = 0;
+
   constructor(
     public dialogRef: MatDialogRef<DialogHistoryPhotoOcr>,
     @Inject(MAT_DIALOG_DATA)
     public data: {
+      logRef: number;
       name: string;
       doc: string;
       plate: string;
@@ -1379,8 +1671,87 @@ export class DialogHistoryPhotoOcr {
       photoLastNames: string;
       hasData: boolean;
       photoUrls: string[];
-    }
+      canProcess: boolean;
+      openZoom?: (urls: string[], index: number) => void;
+    },
+    private accessLogService: AccessLogService,
+    private toastr: ToastrService
   ) {}
+
+  photoPrev(): void {
+    const n = this.data.photoUrls?.length ?? 0;
+    if (n <= 1) {
+      return;
+    }
+    this.photoIndex = (this.photoIndex - 1 + n) % n;
+  }
+
+  photoNext(): void {
+    const n = this.data.photoUrls?.length ?? 0;
+    if (n <= 1) {
+      return;
+    }
+    this.photoIndex = (this.photoIndex + 1) % n;
+  }
+
+  openCurrentZoom(): void {
+    const urls = this.data.photoUrls ?? [];
+    if (!urls.length) {
+      return;
+    }
+    this.data.openZoom?.(urls, this.photoIndex);
+  }
+
+  async processNow(): Promise<void> {
+    if (this.processing || !this.data.canProcess || !this.data.logRef || !this.data.photoUrls?.length) {
+      return;
+    }
+    this.processing = true;
+    try {
+      const result = await extractDocAndPlateFromPhotos(this.data.photoUrls);
+      await firstValueFrom(
+        this.accessLogService.patchPhotoOcr(this.data.logRef, {
+          photo_doc_number: result.photo_doc_number,
+          photo_license_plate: result.photo_license_plate,
+          photo_first_names: result.photo_first_names,
+          photo_last_names: result.photo_last_names,
+          photo_ocr_status: result.photo_ocr_status,
+        })
+      );
+      this.lastResult = result;
+      this.data.photoDoc = result.photo_doc_number ?? '';
+      this.data.photoPlate = result.photo_license_plate ?? '';
+      this.data.photoFirstNames = result.photo_first_names ?? '';
+      this.data.photoLastNames = result.photo_last_names ?? '';
+      this.data.statusRaw = result.photo_ocr_status;
+      this.data.hasData = !!(
+        result.photo_doc_number ||
+        result.photo_license_plate ||
+        result.photo_first_names ||
+        result.photo_last_names
+      );
+      this.data.status =
+        result.photo_ocr_status === 'done'
+          ? 'Completado'
+          : result.photo_ocr_status === 'empty'
+            ? 'Sin texto legible'
+            : result.photo_ocr_status === 'error'
+              ? 'Error'
+              : result.photo_ocr_status;
+      if (this.data.hasData) {
+        this.toastr.success('OCR guardado');
+      } else if (result.photo_ocr_status === 'error') {
+        this.toastr.warning('OCR falló al leer la foto');
+      } else {
+        this.toastr.info('OCR sin texto útil en la foto');
+      }
+    } catch (err) {
+      console.warn('[photo-ocr] processNow failed', err);
+      this.toastr.error('No se pudo procesar el OCR');
+    } finally {
+      this.processing = false;
+    }
+  }
 }
 
 @Component({

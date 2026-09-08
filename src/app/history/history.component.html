@@ -80,6 +80,23 @@
         class="vc-btn-primary shrink-0 px-5 py-2.5">
         Exportar Excel
       </button>
+      <button
+        *ngIf="canEditAccessDetails"
+        type="button"
+        [disabled]="loading || ocrBackfillRunning || !ocrBackfillPendingCount"
+        (click)="startPhotoOcrBackfill()"
+        class="vc-btn-outline shrink-0 px-4 py-2.5"
+        [matTooltip]="ocrBackfillRunning
+          ? ('Procesando ' + ocrBackfillCurrent + ' / ' + ocrBackfillTotal)
+          : (ocrBackfillPendingCount
+              ? ('Procesar OCR en ' + ocrBackfillPendingCount + ' registro(s) con foto sin OCR (filtro actual)')
+              : 'No hay pendientes de OCR con foto en el filtro actual')"
+        matTooltipClass="history-cell-tooltip"
+        matTooltipTouchGestures="off"
+        matTooltipPosition="above">
+        <span *ngIf="!ocrBackfillRunning">OCR pendientes{{ ocrBackfillPendingCount ? ' (' + ocrBackfillPendingCount + ')' : '' }}</span>
+        <span *ngIf="ocrBackfillRunning">OCR {{ ocrBackfillCurrent }}/{{ ocrBackfillTotal }}…</span>
+      </button>
     </div>
 
     <div class="vc-table-wrap history-table-scroll" tabindex="0" role="region" aria-label="Historial de accesos. Desliza horizontalmente para ver más columnas.">
@@ -451,9 +468,109 @@
   </div>
 </div>
 
-<div *ngIf="historyPhotoOpen" class="history-photo-overlay" (click)="historyPhotoOpen = false">
-  <div class="history-photo-modal" (click)="$event.stopPropagation()">
-    <img *ngIf="selectedHistoryPhotoUrl" [src]="selectedHistoryPhotoUrl" alt="Vista ampliada" />
-    <button type="button" class="vc-btn-primary mt-3" (click)="historyPhotoOpen = false">Cerrar</button>
+<div *ngIf="accessMediaOpen && accessMediaRow" class="history-photo-overlay" (click)="closeAccessMedia()">
+  <div class="history-photo-modal history-photo-modal--detail" (click)="$event.stopPropagation()">
+    <div class="history-photo-header">
+      <h3 class="m-0 text-base font-semibold text-gray-900 dark:text-white">Detalle de garita</h3>
+      <button type="button" class="history-photo-close" (click)="closeAccessMedia()" aria-label="Cerrar">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <p *ngIf="accessMediaRow['name']" class="mt-1 mb-0 text-sm font-medium text-gray-800 dark:text-gray-100">
+      {{ accessMediaRow['name'] }}
+    </p>
+
+    <p *ngIf="operatorDecisionText(accessMediaRow) as dec" class="mt-2 mb-0">
+      <span class="history-decision-chip">{{ dec }}</span>
+    </p>
+
+    <p
+      *ngIf="operatorNotesText(accessMediaRow) as note"
+      class="mt-3 mb-0 whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-100">
+      {{ note }}
+    </p>
+    <p *ngIf="!operatorNotesText(accessMediaRow)" class="mt-3 mb-0 text-sm text-gray-500">Sin nota del operario.</p>
+
+    <div *ngIf="accessMediaUrls().length" class="mt-4">
+      <div class="history-media-carousel">
+        <button
+          *ngIf="accessMediaUrls().length > 1"
+          type="button"
+          class="history-media-nav"
+          (click)="accessMediaPrev()"
+          aria-label="Foto anterior">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <button
+          type="button"
+          class="history-media-frame"
+          title="Ampliar foto"
+          (click)="openPhotoZoomFromAccessMedia()">
+          <img *ngIf="accessMediaCurrentUrl() as url" [src]="url" [alt]="'Foto ' + (accessMediaIndex + 1)" />
+        </button>
+        <button
+          *ngIf="accessMediaUrls().length > 1"
+          type="button"
+          class="history-media-nav"
+          (click)="accessMediaNext()"
+          aria-label="Foto siguiente">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+      </div>
+      <p *ngIf="accessMediaUrls().length > 1" class="mt-2 mb-0 text-center text-xs text-gray-500 dark:text-gray-400">
+        {{ accessMediaIndex + 1 }} / {{ accessMediaUrls().length }} · clic en la foto para ampliar y hacer zoom
+      </p>
+      <p *ngIf="accessMediaUrls().length === 1" class="mt-2 mb-0 text-center text-xs text-gray-500 dark:text-gray-400">
+        Clic en la foto para ampliar y hacer zoom
+      </p>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="photoZoomOpen" class="history-photo-overlay history-photo-overlay--top" (click)="closePhotoZoom()">
+  <div class="history-photo-modal history-photo-modal--zoom" (click)="$event.stopPropagation()">
+    <div class="history-photo-header">
+      <h3 class="m-0 text-base font-semibold text-gray-900 dark:text-white">{{ photoZoomTitle }}</h3>
+      <div class="history-zoom-toolbar">
+        <button
+          *ngIf="photoZoomUrls.length > 1"
+          type="button"
+          class="history-zoom-btn"
+          (click)="photoZoomPrev()"
+          aria-label="Foto anterior">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+        <button type="button" class="history-zoom-btn" (click)="zoomOut()" aria-label="Alejar">
+          <mat-icon>zoom_out</mat-icon>
+        </button>
+        <span class="history-zoom-label">{{ photoZoom | number : '1.0-2' }}×</span>
+        <button type="button" class="history-zoom-btn" (click)="zoomIn()" aria-label="Acercar">
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+        <button type="button" class="history-zoom-btn" (click)="resetZoom()" aria-label="Restablecer zoom">
+          <mat-icon>restart_alt</mat-icon>
+        </button>
+        <button
+          *ngIf="photoZoomUrls.length > 1"
+          type="button"
+          class="history-zoom-btn"
+          (click)="photoZoomNext()"
+          aria-label="Foto siguiente">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+        <button type="button" class="history-photo-close" (click)="closePhotoZoom()" aria-label="Cerrar">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+    <div class="history-zoom-viewport">
+      <img
+        *ngIf="photoZoomCurrentUrl() as zUrl"
+        [src]="zUrl"
+        [alt]="photoZoomTitle"
+        class="history-zoom-img"
+        [style.transform]="'scale(' + photoZoom + ')'" />
+    </div>
   </div>
 </div>
