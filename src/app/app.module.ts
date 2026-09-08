@@ -23,6 +23,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import {MatSnackBarModule} from '@angular/material/snack-bar';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatNativeDateModule, MAT_DATE_LOCALE } from '@angular/material/core';
 import {MatSelectModule} from '@angular/material/select';
@@ -122,6 +123,7 @@ import { errorInterceptor } from './error.interceptor';
         MatDialogModule,
         MatSnackBarModule,
         MatCheckboxModule,
+        MatMenuModule,
         MatRadioModule,
         MatDatepickerModule,
         MatNativeDateModule,

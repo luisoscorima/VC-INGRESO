@@ -37,6 +37,45 @@ import {
 } from '../shared/photo-ocr';
 import { firstValueFrom } from 'rxjs';
 
+type HistoryTableCol =
+  | 'ocr'
+  | 'type'
+  | 'doc'
+  | 'name'
+  | 'plate'
+  | 'house'
+  | 'accessPoint'
+  | 'source'
+  | 'movement'
+  | 'permanence'
+  | 'result'
+  | 'decision'
+  | 'operator'
+  | 'detail'
+  | 'incident'
+  | 'day';
+
+const HISTORY_COLS_STORAGE_KEY = 'vc-history-visible-cols-v1';
+
+const HISTORY_COLUMN_DEFS: Array<{ id: HistoryTableCol; label: string; locked?: boolean }> = [
+  { id: 'ocr', label: 'OCR / ojo' },
+  { id: 'type', label: 'Tipo' },
+  { id: 'doc', label: 'Documento' },
+  { id: 'name', label: 'Datos', locked: true },
+  { id: 'plate', label: 'Placa' },
+  { id: 'house', label: 'Domicilio' },
+  { id: 'accessPoint', label: 'Punto de acceso' },
+  { id: 'source', label: 'Origen' },
+  { id: 'movement', label: 'Movimiento', locked: true },
+  { id: 'permanence', label: 'Permanencia' },
+  { id: 'result', label: 'Resultado' },
+  { id: 'decision', label: 'Decisión' },
+  { id: 'operator', label: 'Operario' },
+  { id: 'detail', label: 'Detalle' },
+  { id: 'incident', label: 'Incidencias' },
+  { id: 'day', label: 'Día' },
+];
+
 export interface HistoryAccessPointOption {
   id: number;
   label: string;
@@ -200,6 +239,26 @@ export class HistoryComponent implements OnInit {
   /** Staff: puede agregar o editar detalle de acceso (nota, decisión, fotos). */
   canEditAccessDetails = false;
 
+  /** Preferencia de columnas visibles (solo UI; Excel sigue completo). */
+  private columnVisibility: Record<HistoryTableCol, boolean> = {
+    ocr: true,
+    type: true,
+    doc: true,
+    name: true,
+    plate: true,
+    house: true,
+    accessPoint: true,
+    source: true,
+    movement: true,
+    permanence: true,
+    result: true,
+    decision: true,
+    operator: true,
+    detail: true,
+    incident: true,
+    day: true,
+  };
+
   /** Backfill OCR en curso (lote histórico). */
   ocrBackfillRunning = false;
   ocrBackfillCurrent = 0;
@@ -226,20 +285,87 @@ export class HistoryComponent implements OnInit {
   private readonly zoomStep = 0.25;
 
   get historyTableColspan(): number {
-    let cols = this.showDocColumn ? 13 : 12;
-    if (this.canEditAccessDetails) {
-      cols += 1; // columna OCR (ojo)
+    return HISTORY_COLUMN_DEFS.reduce((n, def) => n + (this.isColVisible(def.id) ? 1 : 0), 0);
+  }
+
+  /** Columnas ofrecidas en el selector (según permisos / datos). */
+  get selectableHistoryColumns(): Array<{ id: HistoryTableCol; label: string; locked?: boolean }> {
+    return HISTORY_COLUMN_DEFS.filter((def) => this.isColAvailable(def.id));
+  }
+
+  isColAvailable(id: HistoryTableCol): boolean {
+    switch (id) {
+      case 'ocr':
+        return this.canEditAccessDetails;
+      case 'doc':
+        return this.showDocColumn;
+      case 'permanence':
+        return this.hasExternalRows;
+      case 'incident':
+        return this.showIncidentsColumn || this.canCreateIncident;
+      case 'day':
+        return this.showDayColumn;
+      default:
+        return true;
     }
-    if (this.hasExternalRows) {
-      cols += 1;
+  }
+
+  isColVisible(id: HistoryTableCol): boolean {
+    if (!this.isColAvailable(id)) {
+      return false;
     }
-    if (this.showIncidentsColumn || this.canCreateIncident) {
-      cols += 1;
+    const def = HISTORY_COLUMN_DEFS.find((c) => c.id === id);
+    if (def?.locked) {
+      return true;
     }
-    if (this.showDayColumn) {
-      cols += 1;
+    return this.columnVisibility[id] !== false;
+  }
+
+  isColChecked(id: HistoryTableCol): boolean {
+    return this.columnVisibility[id] !== false;
+  }
+
+  toggleHistoryColumn(id: HistoryTableCol, checked: boolean): void {
+    const def = HISTORY_COLUMN_DEFS.find((c) => c.id === id);
+    if (!def || def.locked) {
+      return;
     }
-    return cols;
+    this.columnVisibility[id] = checked;
+    this.persistColumnVisibility();
+  }
+
+  showAllHistoryColumns(): void {
+    for (const def of HISTORY_COLUMN_DEFS) {
+      this.columnVisibility[def.id] = true;
+    }
+    this.persistColumnVisibility();
+  }
+
+  private loadColumnVisibility(): void {
+    try {
+      const raw = localStorage.getItem(HISTORY_COLS_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as Partial<Record<HistoryTableCol, boolean>>;
+      for (const def of HISTORY_COLUMN_DEFS) {
+        if (typeof parsed[def.id] === 'boolean') {
+          this.columnVisibility[def.id] = parsed[def.id] as boolean;
+        }
+      }
+      this.columnVisibility.name = true;
+      this.columnVisibility.movement = true;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private persistColumnVisibility(): void {
+    try {
+      localStorage.setItem(HISTORY_COLS_STORAGE_KEY, JSON.stringify(this.columnVisibility));
+    } catch {
+      /* ignore */
+    }
   }
 
   /** Columna Día: solo si hay al menos un documento con varios movimientos el mismo día. */
@@ -979,6 +1105,7 @@ export class HistoryComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.loadColumnVisibility();
     this.showDocColumn = this.auth.isStaff();
     this.canEditAccessDetails = this.auth.isStaff();
     this.navPerm.load().subscribe(() => {

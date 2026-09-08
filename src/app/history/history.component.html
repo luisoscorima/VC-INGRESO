@@ -81,6 +81,44 @@
         Exportar Excel
       </button>
       <button
+        type="button"
+        class="vc-btn-outline shrink-0 px-4 py-2.5 inline-flex items-center gap-1"
+        [matMenuTriggerFor]="historyColsMenu"
+        matTooltip="Elegir columnas visibles en la tabla (el Excel sigue exportando todo)"
+        matTooltipClass="history-cell-tooltip"
+        matTooltipTouchGestures="off"
+        matTooltipPosition="above">
+        <mat-icon class="!h-4 !w-4 !text-base !leading-none">view_column</mat-icon>
+        Columnas
+      </button>
+      <mat-menu #historyColsMenu="matMenu" xPosition="before">
+        <div
+          class="min-w-[14rem] max-h-[min(70vh,28rem)] overflow-auto px-3 py-2"
+          (click)="$event.stopPropagation()">
+          <p class="mb-2 mt-0 text-[0.7rem] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Columnas visibles
+          </p>
+          <label *ngFor="let col of selectableHistoryColumns" class="mb-0.5 block cursor-pointer">
+            <mat-checkbox
+              [checked]="isColChecked(col.id)"
+              [disabled]="!!col.locked"
+              (change)="toggleHistoryColumn(col.id, $event.checked)"
+              (click)="$event.stopPropagation()">
+              {{ col.label }}
+            </mat-checkbox>
+          </label>
+          <button
+            type="button"
+            class="mt-2 w-full rounded border border-slate-300 bg-slate-50 px-2 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-50 dark:border-slate-600 dark:bg-slate-900 dark:text-teal-300"
+            (click)="showAllHistoryColumns()">
+            Mostrar todas
+          </button>
+          <p class="mb-0 mt-2 text-[0.65rem] leading-snug text-slate-500 dark:text-slate-400">
+            El Excel exporta todas las columnas, sin importar esta selección.
+          </p>
+        </div>
+      </mat-menu>
+      <button
         *ngIf="canEditAccessDetails"
         type="button"
         [disabled]="loading || ocrBackfillRunning || !ocrBackfillPendingCount"
@@ -104,59 +142,117 @@
         <thead>
           <tr class="vc-thead-row">
             <th
-              *ngIf="canEditAccessDetails"
+              *ngIf="isColVisible('ocr')"
               scope="col"
               class="vc-th history-col-ocr"
               title="OCR de foto (pruebas)">
               <span class="sr-only">OCR</span>
               <mat-icon class="history-ocr-col-header-icon" aria-hidden="true">visibility</mat-icon>
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('type')">
+            <th
+              *ngIf="isColVisible('type')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
+              (click)="toggleSort('type')">
               Tipo {{ sortIndicator('type') }}
             </th>
-            <th *ngIf="showDocColumn" scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('doc_number')">
+            <th
+              *ngIf="isColVisible('doc')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
+              (click)="toggleSort('doc_number')">
               Documento {{ sortIndicator('doc_number') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600 history-col-datos" (click)="toggleSort('name')">
+            <th
+              *ngIf="isColVisible('name')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600 history-col-datos"
+              (click)="toggleSort('name')">
               Datos {{ sortIndicator('name') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('display_plate')">
+            <th
+              *ngIf="isColVisible('plate')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
+              (click)="toggleSort('display_plate')">
               Placa {{ sortIndicator('display_plate') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('house_address')">
+            <th
+              *ngIf="isColVisible('house')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
+              (click)="toggleSort('house_address')">
               Domicilio {{ sortIndicator('house_address') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('access_point_name')">
+            <th
+              *ngIf="isColVisible('accessPoint')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
+              (click)="toggleSort('access_point_name')">
               Punto de acceso {{ sortIndicator('access_point_name') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('entry_source')">
+            <th
+              *ngIf="isColVisible('source')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
+              (click)="toggleSort('entry_source')">
               Origen {{ sortIndicator('entry_source') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600 history-col-movement" (click)="toggleSort('date_entry')">
+            <th
+              *ngIf="isColVisible('movement')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600 history-col-movement"
+              (click)="toggleSort('date_entry')">
               Movimiento {{ sortIndicator('date_entry') }}
             </th>
             <th
-              *ngIf="hasExternalRows"
+              *ngIf="isColVisible('permanence')"
               scope="col"
               class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
               (click)="toggleSort('permanence_minutes')">
               Permanencia {{ sortIndicator('permanence_minutes') }}
             </th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('result_status')">
+            <th
+              *ngIf="isColVisible('result')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
+              (click)="toggleSort('result_status')">
               Resultado {{ sortIndicator('result_status') }}
             </th>
-            <th scope="col" class="vc-th" title="Decisión humana del operario; no modifica el resultado del scan">Decisión</th>
-            <th scope="col" class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600" (click)="toggleSort('operator')">
+            <th
+              *ngIf="isColVisible('decision')"
+              scope="col"
+              class="vc-th"
+              title="Decisión humana del operario; no modifica el resultado del scan">
+              Decisión
+            </th>
+            <th
+              *ngIf="isColVisible('operator')"
+              scope="col"
+              class="vc-th cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-600"
+              (click)="toggleSort('operator')">
               Operario {{ sortIndicator('operator') }}
             </th>
-            <th scope="col" class="vc-th history-col-detail" title="Nota, fotos y detalle de garita">Detalle</th>
-            <th scope="col" class="vc-th history-col-incident" *ngIf="showIncidentsColumn || canCreateIncident" title="Reportes de incidencia ligados al registro">Incid.</th>
-            <th scope="col" class="vc-th history-col-day" *ngIf="showDayColumn">Día</th>
+            <th
+              *ngIf="isColVisible('detail')"
+              scope="col"
+              class="vc-th history-col-detail"
+              title="Nota, fotos y detalle de garita">
+              Detalle
+            </th>
+            <th
+              *ngIf="isColVisible('incident')"
+              scope="col"
+              class="vc-th history-col-incident"
+              title="Reportes de incidencia ligados al registro">
+              Incid.
+            </th>
+            <th *ngIf="isColVisible('day')" scope="col" class="vc-th history-col-day">Día</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let a of pagedRows" class="vc-tbody-row border-b bg-white dark:bg-gray-900/40">
-            <td *ngIf="canEditAccessDetails" class="vc-td history-col-ocr">
+            <td *ngIf="isColVisible('ocr')" class="vc-td history-col-ocr">
               <button
                 type="button"
                 class="history-ocr-eye-btn"
@@ -171,6 +267,7 @@
               </button>
             </td>
             <td
+              *ngIf="isColVisible('type')"
               class="vc-td"
               [matTooltip]="tooltipType(a)"
               matTooltipClass="history-cell-tooltip"
@@ -180,7 +277,7 @@
               <mat-icon *ngIf="!isVehicleRow(a)" class="text-slate-600 dark:text-slate-300">person</mat-icon>
             </td>
             <th
-              *ngIf="showDocColumn"
+              *ngIf="isColVisible('doc')"
               scope="row"
               class="vc-td whitespace-nowrap font-medium"
               [matTooltip]="tooltipDocument(a)"
@@ -190,6 +287,7 @@
               {{ a.doc_number }}
             </th>
             <td
+              *ngIf="isColVisible('name')"
               class="vc-td history-col-datos"
               [matTooltip]="tooltipDatos(a)"
               matTooltipClass="history-cell-tooltip"
@@ -198,6 +296,7 @@
               <span class="history-datos-text">{{ a.name }}</span>
             </td>
             <td
+              *ngIf="isColVisible('plate')"
               class="vc-td whitespace-nowrap font-semibold tracking-wide"
               [matTooltip]="tooltipPlate(a)"
               matTooltipClass="history-cell-tooltip"
@@ -206,6 +305,7 @@
               {{ displayPlate(a) }}
             </td>
             <td
+              *ngIf="isColVisible('house')"
               class="vc-td"
               [matTooltip]="tooltipHouse(a)"
               matTooltipClass="history-cell-tooltip"
@@ -214,6 +314,7 @@
               {{ a.house_address }}
             </td>
             <td
+              *ngIf="isColVisible('accessPoint')"
               class="vc-td max-w-[200px] truncate"
               [matTooltip]="tooltipAccessPoint(a)"
               matTooltipClass="history-cell-tooltip"
@@ -222,6 +323,7 @@
               {{ a.access_point_name || '—' }}
             </td>
             <td
+              *ngIf="isColVisible('source')"
               class="vc-td"
               [matTooltip]="tooltipSource(a)"
               matTooltipClass="history-cell-tooltip"
@@ -232,6 +334,7 @@
               </span>
             </td>
             <td
+              *ngIf="isColVisible('movement')"
               class="vc-td history-col-movement"
               [matTooltip]="tooltipMovement(a)"
               matTooltipClass="history-cell-tooltip"
@@ -260,7 +363,7 @@
               </div>
             </td>
             <td
-              *ngIf="hasExternalRows"
+              *ngIf="isColVisible('permanence')"
               class="vc-td whitespace-nowrap text-sm"
               [matTooltip]="tooltipPermanence(a)"
               matTooltipClass="history-cell-tooltip"
@@ -272,6 +375,7 @@
               <span *ngIf="!isExternalRow(a)">—</span>
             </td>
             <td
+              *ngIf="isColVisible('result')"
               class="vc-td"
               [matTooltip]="tooltipResult(a)"
               matTooltipClass="history-cell-tooltip"
@@ -288,6 +392,7 @@
               </div>
             </td>
             <td
+              *ngIf="isColVisible('decision')"
               class="vc-td history-col-decision"
               [matTooltip]="tooltipDecision(a)"
               matTooltipClass="history-cell-tooltip"
@@ -297,6 +402,7 @@
               <ng-template #noDecision><span class="text-gray-400">—</span></ng-template>
             </td>
             <td
+              *ngIf="isColVisible('operator')"
               class="vc-td"
               [matTooltip]="tooltipOperator(a)"
               matTooltipClass="history-cell-tooltip"
@@ -304,7 +410,7 @@
               matTooltipPosition="above">
               {{ a.operator }}
             </td>
-            <td class="vc-td history-col-detail">
+            <td *ngIf="isColVisible('detail')" class="vc-td history-col-detail">
               <div class="history-detail-cell">
                 <span
                   *ngIf="detailPreviewText(a) as detailText"
@@ -358,7 +464,7 @@
                   matTooltipPosition="above">—</span>
               </div>
             </td>
-            <td class="vc-td history-col-incident" *ngIf="showIncidentsColumn || canCreateIncident">
+            <td class="vc-td history-col-incident" *ngIf="isColVisible('incident')">
               <div class="flex flex-col items-start gap-1">
                 <button
                   *ngIf="rowIncidentCount(a) > 0"
@@ -406,7 +512,7 @@
                   matTooltipPosition="above">—</span>
               </div>
             </td>
-            <td class="vc-td text-right history-col-day" *ngIf="showDayColumn">
+            <td class="vc-td text-right history-col-day" *ngIf="isColVisible('day')">
               <button
                 *ngIf="canOpenDayDetail(a)"
                 type="button"
