@@ -49,7 +49,8 @@
               "pdfjs-dist",
               "qrcode",
               "@zxing/library",
-              "@zxing/browser"
+              "@zxing/browser",
+              "tesseract.js"
             ]
           },
           "configurations": {

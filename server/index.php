@@ -751,6 +751,11 @@ if (str_starts_with($uri, '/api/v1/')) {
             exit;
         }
 
+        if (preg_match('#^access-logs/photo-ocr/(-?\d+)$#', $path, $ocrMatches) && ($method === 'PATCH' || $method === 'POST')) {
+            $controller->patchPhotoOcr((int) $ocrMatches[1]);
+            exit;
+        }
+
         // access-logs/:id
         if (preg_match('#^access-logs(?:/(\d+))?#', $path, $matches)) {
             $id = $matches[1] ?? null;
@@ -933,6 +938,7 @@ echo json_encode([
             'POST /api/v1/access-logs/temporary/exit' => 'Registrar salida visita externa',
             'PATCH /api/v1/access-logs/details/:logRef' => 'Completar detalles post-scan',
             'POST /api/v1/access-logs/authorize-from-attempt' => 'Ingreso autorizado desde intento denegado',
+            'POST /api/v1/access-logs/photo-ocr/:logRef' => 'Guardar DNI/placa detectados en foto (OCR)',
             
             // Pets (Mascotas)
             'GET /api/v1/pets' => 'Listar todas las mascotas',

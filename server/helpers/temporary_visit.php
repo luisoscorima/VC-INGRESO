@@ -354,19 +354,92 @@ function resolve_temp_visit_assignment_for_entry(
 }
 
 /**
+ * Sesión abierta de visita externa.
+ * Si $houseId > 0 intenta esa casa primero; si no hay match, cualquier casa
+ * (la salida no debe fallar por desajuste de domicilio / asignación vencida).
+ *
  * @return array<string,mixed>|null
  */
 function fetch_open_temp_access_log(\PDO $pdo, int $tempVisitId, int $houseId = 0): ?array
 {
-    $sql = 'SELECT * FROM temporary_access_logs
-            WHERE temp_visit_id = ? AND temp_exit_time IS NULL';
-    $params = [$tempVisitId];
-    if ($houseId > 0) {
-        $sql .= ' AND house_id = ?';
-        $params[] = $houseId;
+    if ($tempVisitId <= 0) {
+        return null;
     }
-    $sql .= ' ORDER BY temp_entry_time DESC LIMIT 1';
 
+    if ($houseId > 0) {
+        $stmt = $pdo->prepare(
+            'SELECT * FROM temporary_access_logs
+             WHERE temp_visit_id = ? AND house_id = ? AND temp_exit_time IS NULL
+             ORDER BY temp_entry_time DESC LIMIT 1'
+        );
+        $stmt->execute([$tempVisitId, $houseId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($row) {
+            return $row;
+        }
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT * FROM temporary_access_logs
+         WHERE temp_visit_id = ? AND temp_exit_time IS NULL
+         ORDER BY temp_entry_time DESC LIMIT 1'
+    );
+    $stmt->execute([$tempVisitId]);
+    $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+    return $row ?: null;
+}
+
+/**
+ * Busca sesión abierta por identidad (placa/DNI) cuando el temp_visit_id del scan
+ * no coincide con el del ingreso (perfiles duplicados o lookup por placa vs DNI).
+ *
+ * @return array<string,mixed>|null
+ */
+function fetch_open_temp_access_log_by_identity(\PDO $pdo, int $tempVisitId): ?array
+{
+    if ($tempVisitId <= 0) {
+        return null;
+    }
+
+    $profileStmt = $pdo->prepare(
+        'SELECT temp_visit_plate, temp_visit_doc, temp_visit_doc_type
+         FROM temporary_visits WHERE temp_visit_id = ? LIMIT 1'
+    );
+    $profileStmt->execute([$tempVisitId]);
+    $profile = $profileStmt->fetch(\PDO::FETCH_ASSOC);
+    if (!$profile) {
+        return null;
+    }
+
+    $plate = normalize_license_plate((string) ($profile['temp_visit_plate'] ?? ''));
+    $docType = normalize_identity_document_type($profile['temp_visit_doc_type'] ?? '');
+    $doc = $docType !== ''
+        ? normalize_temp_visit_doc((string) ($profile['temp_visit_doc'] ?? ''), $docType)
+        : normalize_untyped_identity_document((string) ($profile['temp_visit_doc'] ?? ''));
+
+    $clauses = [];
+    $params = [];
+    if ($plate !== '' && validate_license_plate($plate)) {
+        $clauses[] = "(tal.license_plate_snapshot = ? OR tv.temp_visit_plate = ?)";
+        $params[] = $plate;
+        $params[] = $plate;
+    }
+    if ($doc !== '') {
+        $clauses[] = '(UPPER(TRIM(COALESCE(tal.document_snapshot, tv.temp_visit_doc, \'\'))) = ?)';
+        $params[] = $doc;
+    }
+    if ($clauses === []) {
+        return null;
+    }
+
+    $sql = 'SELECT tal.*
+            FROM temporary_access_logs tal
+            LEFT JOIN temporary_visits tv ON tv.temp_visit_id = tal.temp_visit_id
+            WHERE tal.temp_exit_time IS NULL
+              AND (' . implode(' OR ', $clauses) . ')
+            ORDER BY tal.temp_entry_time DESC
+            LIMIT 1';
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $row = $stmt->fetch(\PDO::FETCH_ASSOC);

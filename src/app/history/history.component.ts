@@ -447,6 +447,10 @@ export class HistoryComponent implements OnInit {
       DECISION: this.operatorDecisionText(r) || '—',
       NOTAS_SISTEMA: this.resultNotes(r).join(' · '),
       NOTAS_OPERARIO: String(r['operator_notes'] ?? '').trim(),
+      DNI_FOTO: String(r['photo_doc_number'] ?? '').trim(),
+      PLACA_FOTO: String(r['photo_license_plate'] ?? '').trim(),
+      NOMBRES_FOTO: String(r['photo_first_names'] ?? '').trim(),
+      APELLIDOS_FOTO: String(r['photo_last_names'] ?? '').trim(),
       OPERARIO: r['operator'],
       DETALLE: this.detailPreviewText(r)
         ? `${this.detailPreviewText(r)}${this.capturePhotoUrls(r).length ? ` · ${this.capturePhotoUrls(r).length} foto(s)` : ''}`

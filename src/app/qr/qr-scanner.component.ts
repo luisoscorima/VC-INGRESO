@@ -53,6 +53,7 @@ import {
   getTopOperatorNotePhrases,
   recordOperatorNotePhrase,
 } from '../shared/operator-note-suggestions';
+import { schedulePhotoOcr } from '../shared/photo-ocr';
 
 /** Preferencia: último punto elegido (persiste al actualizar la página). */
 const ACCESS_POINT_STORAGE_KEY = 'vc_scanner_access_point_id';
@@ -1856,7 +1857,8 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private handleScanResult(data: AccessQrScanResult): void {
     this.manualCode = '';
-    if (data.pending_house_selection && data.active_assignments?.length) {
+    // En salida no pedir casa: se cierra la sesión abierta de la visita.
+    if (data.pending_house_selection && data.active_assignments?.length && !this.isExitMode()) {
       this.pendingHouseSelection = true;
       this.pendingAssignments = data.active_assignments;
       this.pendingTempVisitId = data.temp_visit_id ?? null;
@@ -2176,6 +2178,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.savingDetails = true;
+    const ocrPhotoFiles = this.detailPhotos.map((ph) => ph.file);
     this.accessLogService
       .patchAccessDetails(logRef, this.buildDetailsFormData())
       .pipe(
@@ -2197,6 +2200,7 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
           this.detailsHouseEditing = false;
           this.clearAllDetailPhotos();
           this.rememberOperatorNotesIfAny();
+          this.enqueuePhotoOcr(logRef, ocrPhotoFiles);
           if (authRes && (authRes as { authorizeFailed?: boolean }).authorizeFailed) {
             this.toastr.warning(
               `Detalles guardados. ${(authRes as { message?: string }).message || 'No se pudo registrar el ingreso efectivo.'}`
@@ -2224,6 +2228,26 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
           this.toastr.error(err?.error?.error || err?.message || 'No se pudieron guardar los detalles');
         },
       });
+  }
+
+  /** OCR en idle tras guardar; no bloquea ni muestra spinner. */
+  private enqueuePhotoOcr(logRef: number, files: File[]): void {
+    if (!logRef || !files.length) {
+      return;
+    }
+    schedulePhotoOcr(files, (result) => {
+      this.accessLogService
+        .patchPhotoOcr(logRef, {
+          photo_doc_number: result.photo_doc_number,
+          photo_license_plate: result.photo_license_plate,
+          photo_first_names: result.photo_first_names,
+          photo_last_names: result.photo_last_names,
+          photo_ocr_status: result.photo_ocr_status,
+        })
+        .subscribe({
+          error: (err) => console.warn('[photo-ocr] patch failed', err),
+        });
+    });
   }
 
   private applyLogRefFromScan(data: AccessQrScanResult, logRef: number): void {
@@ -2588,10 +2612,11 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
     if (data.temp_visit_id) {
       const houseId = data.house_id ?? data.vehicle?.house_id ?? null;
       if (this.isExitMode()) {
+        // No filtrar por house_id: la sesión abierta puede ser de otra casa
+        // (asignación vencida, override en garita o multi-casa).
         const body: Record<string, unknown> = {
           access_point_id: apId,
           temp_visit_id: data.temp_visit_id,
-          house_id: houseId,
         };
         if (operatorNotes) {
           body['operator_notes'] = operatorNotes;

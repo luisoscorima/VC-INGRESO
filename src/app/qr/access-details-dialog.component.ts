@@ -31,6 +31,7 @@ import {
   getTopOperatorNotePhrases,
   recordOperatorNotePhrase,
 } from '../shared/operator-note-suggestions';
+import { schedulePhotoOcr } from '../shared/photo-ocr';
 import { catchError, of, switchMap } from 'rxjs';
 
 export const ACCESS_DETAILS_DIALOG_PANEL_CLASS = 'vc-incident-dialog';
@@ -490,14 +491,16 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
     }
 
     this.saving = true;
+    const logRef = this.data.logRef;
+    const ocrPhotoFiles = this.photos.map((ph) => ph.file);
     this.accessLogService
-      .patchAccessDetails(this.data.logRef, this.buildFormData())
+      .patchAccessDetails(logRef, this.buildFormData())
       .pipe(
         switchMap(() => {
           if (!shouldAuthorize) {
             return of(null);
           }
-          return this.accessLogService.authorizeFromAttempt(this.data.logRef, houseId).pipe(
+          return this.accessLogService.authorizeFromAttempt(logRef, houseId).pipe(
             catchError((err: Error) => {
               const msg = err?.message || 'No se pudo registrar el ingreso efectivo.';
               return of({ authorizeFailed: true, message: msg });
@@ -509,6 +512,7 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
         next: (authRes) => {
           this.saving = false;
           recordOperatorNotePhrase(this.operatorNotes);
+          this.enqueuePhotoOcr(logRef, ocrPhotoFiles);
           if (authRes && (authRes as { authorizeFailed?: boolean }).authorizeFailed) {
             this.toastr.warning(
               `Detalles guardados. ${(authRes as { message?: string }).message || 'No se pudo registrar el ingreso efectivo.'}`
@@ -533,6 +537,25 @@ export class AccessDetailsDialogComponent implements OnInit, OnDestroy {
           this.toastr.error(err?.error?.error || err?.message || 'No se pudieron guardar los detalles');
         },
       });
+  }
+
+  private enqueuePhotoOcr(logRef: number, files: File[]): void {
+    if (!logRef || !files.length) {
+      return;
+    }
+    schedulePhotoOcr(files, (result) => {
+      this.accessLogService
+        .patchPhotoOcr(logRef, {
+          photo_doc_number: result.photo_doc_number,
+          photo_license_plate: result.photo_license_plate,
+          photo_first_names: result.photo_first_names,
+          photo_last_names: result.photo_last_names,
+          photo_ocr_status: result.photo_ocr_status,
+        })
+        .subscribe({
+          error: (err) => console.warn('[photo-ocr] patch failed', err),
+        });
+    });
   }
 
   private clearAllPhotos(): void {

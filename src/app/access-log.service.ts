@@ -128,6 +128,20 @@ export class AccessLogService {
     return this.http.patch(`${this.baseUrl}/api/v1/access-logs/details/${logRef}`, body);
   }
 
+  /** Persiste DNI/placa derivados de OCR en foto (async post-guardado). */
+  patchPhotoOcr(
+    logRef: number,
+    body: {
+      photo_doc_number?: string | null;
+      photo_license_plate?: string | null;
+      photo_first_names?: string | null;
+      photo_last_names?: string | null;
+      photo_ocr_status?: 'pending' | 'done' | 'empty' | 'error';
+    }
+  ): Observable<any> {
+    return this.api.post(`api/v1/access-logs/photo-ocr/${logRef}`, body);
+  }
+
   authorizeFromAttempt(logRef: number, houseId?: number | null): Observable<any> {
     const payload: Record<string, unknown> = { log_ref: logRef };
     if (houseId != null && houseId > 0) {

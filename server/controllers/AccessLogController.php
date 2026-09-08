@@ -41,6 +41,7 @@ class AccessLogController
         self::ensureOperatorNotesColumns($this->pdo);
         self::ensureOperatorDecisionColumns($this->pdo);
         self::ensurePhotoUrlsColumns($this->pdo);
+        self::ensurePhotoOcrColumns($this->pdo);
         self::ensureAuthorizedLogIdColumns($this->pdo);
         self::ensureEffectiveEntryAtColumns($this->pdo);
     }
@@ -84,6 +85,41 @@ class AccessLogController
             $stmt->execute([$table, 'photo_urls']);
             if ((int) $stmt->fetchColumn() === 0) {
                 $pdo->exec("ALTER TABLE {$table} ADD COLUMN photo_urls JSON DEFAULT NULL COMMENT 'Array de rutas/URLs de fotos garita'");
+            }
+        }
+    }
+
+    private static function ensurePhotoOcrColumns(\PDO $pdo): void
+    {
+        foreach (['access_logs', 'temporary_access_logs'] as $table) {
+            try {
+                if (!self::tableHasColumn($pdo, $table, 'photo_doc_number')) {
+                    $pdo->exec(
+                        "ALTER TABLE {$table} ADD COLUMN photo_doc_number VARCHAR(20) DEFAULT NULL COMMENT 'DNI detectado en foto de garita'"
+                    );
+                }
+                if (!self::tableHasColumn($pdo, $table, 'photo_license_plate')) {
+                    $pdo->exec(
+                        "ALTER TABLE {$table} ADD COLUMN photo_license_plate VARCHAR(15) DEFAULT NULL COMMENT 'Placa detectada en foto de garita'"
+                    );
+                }
+                if (!self::tableHasColumn($pdo, $table, 'photo_ocr_status')) {
+                    $pdo->exec(
+                        "ALTER TABLE {$table} ADD COLUMN photo_ocr_status VARCHAR(16) DEFAULT NULL COMMENT 'pending|done|empty|error'"
+                    );
+                }
+                if (!self::tableHasColumn($pdo, $table, 'photo_first_names')) {
+                    $pdo->exec(
+                        "ALTER TABLE {$table} ADD COLUMN photo_first_names VARCHAR(120) DEFAULT NULL COMMENT 'Nombres detectados en foto'"
+                    );
+                }
+                if (!self::tableHasColumn($pdo, $table, 'photo_last_names')) {
+                    $pdo->exec(
+                        "ALTER TABLE {$table} ADD COLUMN photo_last_names VARCHAR(120) DEFAULT NULL COMMENT 'Apellidos detectados en foto'"
+                    );
+                }
+            } catch (\Throwable $e) {
+                error_log('[access_logs] ensure photo OCR columns on ' . $table . ': ' . $e->getMessage());
             }
         }
     }
@@ -798,13 +834,14 @@ class AccessLogController
             $snapshotName = trim((string) ($profile['temp_visit_name'] ?? ''));
             $entityKind = $snapshotPlate !== '' ? 'VEHICLE' : 'PERSON';
             $operatorNotes = $this->sanitizeOperatorNotes($data['operator_notes'] ?? null);
+            self::ensureEffectiveEntryAtColumns($this->pdo);
             $stmt = $this->pdo->prepare(
                 "INSERT INTO temporary_access_logs
                  (temp_visit_id, entity_kind, display_name_snapshot, document_snapshot, document_type_snapshot,
                   license_plate_snapshot, identity_source, identity_resolved_at,
                   assignment_id, assignment_valid_until, authorized_duration_minutes, stay_deadline,
-                  temp_entry_time, access_point_id, status_validated, entry_source, house_id, operator_notes, created_by_user_id)
-                 VALUES (?, ?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                  temp_entry_time, effective_entry_at, access_point_id, status_validated, entry_source, house_id, operator_notes, created_by_user_id)
+                 VALUES (?, ?, ?, ?, ?, ?, 'LOCAL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             $stmt->execute([
                 $tempVisitId,
@@ -818,6 +855,7 @@ class AccessLogController
                 $assignmentValidUntil !== '' ? $assignmentValidUntil : null,
                 $authorizedMinutes,
                 $stayDeadline,
+                $now,
                 $now,
                 $accessPointId,
                 $statusValidated !== '' ? $statusValidated : 'PERMITIDO',
@@ -891,6 +929,26 @@ class AccessLogController
 
         $open = fetch_open_temp_access_log($this->pdo, $tempVisitId, $houseId);
         if (!$open) {
+            // Perfil duplicado / ingreso con otra llave (placa vs DNI): buscar por identidad.
+            $open = fetch_open_temp_access_log_by_identity($this->pdo, $tempVisitId);
+        }
+        if (!$open) {
+            $hintStmt = $this->pdo->prepare(
+                'SELECT temp_access_log_id, status_validated, effective_entry_at, temp_entry_time, temp_exit_time
+                 FROM temporary_access_logs
+                 WHERE temp_visit_id = ?
+                 ORDER BY temp_entry_time DESC
+                 LIMIT 1'
+            );
+            $hintStmt->execute([$tempVisitId]);
+            $last = $hintStmt->fetch(\PDO::FETCH_ASSOC);
+            if ($last && $this->isDeniedTemporaryAttempt($last)) {
+                Response::json([
+                    'success' => false,
+                    'error' => 'Hay un intento de ingreso sin autorizar. Abra detalles, registre la decisión y autorice el ingreso antes de registrar la salida.',
+                ], 422);
+                return;
+            }
             Response::json(['success' => false, 'error' => 'No hay entrada abierta para esta visita'], 422);
             return;
         }
@@ -1288,6 +1346,11 @@ class AccessLogController
                 {$s('al.observation')} AS observation_raw,
                 {$s('al.operator_notes')} AS operator_notes,
                 {$s('al.operator_decision')} AS operator_decision,
+                {$s('al.photo_doc_number')} AS photo_doc_number,
+                {$s('al.photo_license_plate')} AS photo_license_plate,
+                {$s('al.photo_first_names')} AS photo_first_names,
+                {$s('al.photo_last_names')} AS photo_last_names,
+                {$s('al.photo_ocr_status')} AS photo_ocr_status,
                 al.authorized_log_id,
                 al.effective_entry_at,
                 {$s('al.entry_source')} AS entry_source,
@@ -1398,6 +1461,11 @@ class AccessLogController
                 {$s('CAST(NULL AS CHAR(1))')} AS observation_raw,
                 {$s('tal.operator_notes')} AS operator_notes,
                 {$s('tal.operator_decision')} AS operator_decision,
+                {$s('tal.photo_doc_number')} AS photo_doc_number,
+                {$s('tal.photo_license_plate')} AS photo_license_plate,
+                {$s('tal.photo_first_names')} AS photo_first_names,
+                {$s('tal.photo_last_names')} AS photo_last_names,
+                {$s('tal.photo_ocr_status')} AS photo_ocr_status,
                 tal.authorized_log_id,
                 tal.effective_entry_at,
                 {$s('tal.entry_source')} AS entry_source,
@@ -2094,6 +2162,171 @@ class AccessLogController
         } catch (\PDOException $e) {
             Response::json(['success' => false, 'error' => 'Error al actualizar: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * PATCH / POST /api/v1/access-logs/photo-ocr/:logRef
+     * Persiste DNI/placa derivados de OCR en foto (no pisa campos oficiales).
+     */
+    public function patchPhotoOcr(int $logRef): void
+    {
+        $auth = requireAuth();
+        if (!isStaffRole($auth)) {
+            Response::json(['success' => false, 'error' => 'Solo personal autorizado'], 403);
+            return;
+        }
+
+        if ($logRef === 0) {
+            Response::json(['success' => false, 'error' => 'log_ref inválido'], 400);
+            return;
+        }
+
+        self::ensurePhotoOcrColumns($this->pdo);
+
+        $isTemp = $logRef < 0;
+        $rowId = abs($logRef);
+        $table = $isTemp ? 'temporary_access_logs' : 'access_logs';
+        $idCol = $isTemp ? 'temp_access_log_id' : 'id';
+
+        $stmt = $this->pdo->prepare("SELECT * FROM {$table} WHERE {$idCol} = ? LIMIT 1");
+        $stmt->execute([$rowId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!$row) {
+            Response::json(['success' => false, 'error' => 'Registro no encontrado'], 404);
+            return;
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true) ?: [];
+        $statusRaw = strtolower(trim((string) ($input['photo_ocr_status'] ?? 'done')));
+        $allowedStatus = ['pending', 'done', 'empty', 'error'];
+        if (!in_array($statusRaw, $allowedStatus, true)) {
+            $statusRaw = 'done';
+        }
+
+        $ocrDoc = $this->sanitizePhotoOcrDoc($input['photo_doc_number'] ?? null);
+        $ocrPlate = $this->sanitizePhotoOcrPlate($input['photo_license_plate'] ?? null);
+        $ocrFirst = $this->sanitizePhotoOcrName($input['photo_first_names'] ?? null);
+        $ocrLast = $this->sanitizePhotoOcrName($input['photo_last_names'] ?? null);
+
+        $officialDoc = $this->officialDocFromAccessRow($row, $isTemp);
+        $officialPlate = $this->officialPlateFromAccessRow($row, $isTemp);
+
+        // Solo persistir derivado si aporta dato nuevo respecto a lo ya tipado/oficial.
+        if ($ocrDoc !== null && $officialDoc !== '' && strcasecmp($ocrDoc, $officialDoc) === 0) {
+            $ocrDoc = null;
+        }
+        if ($ocrPlate !== null && $officialPlate !== '' && strcasecmp($ocrPlate, $officialPlate) === 0) {
+            $ocrPlate = null;
+        }
+
+        if ($ocrDoc === null && $ocrPlate === null && $ocrFirst === null && $ocrLast === null && $statusRaw === 'done') {
+            $statusRaw = 'empty';
+        }
+
+        $updates = ['photo_ocr_status = ?'];
+        $params = [$statusRaw];
+
+        // Rellenar derivados vacíos; no pisar un OCR previo distinto salvo que venga vacío→nuevo.
+        $existingPhotoDoc = trim((string) ($row['photo_doc_number'] ?? ''));
+        $existingPhotoPlate = trim((string) ($row['photo_license_plate'] ?? ''));
+        $existingFirst = trim((string) ($row['photo_first_names'] ?? ''));
+        $existingLast = trim((string) ($row['photo_last_names'] ?? ''));
+
+        if ($ocrDoc !== null && $existingPhotoDoc === '') {
+            $updates[] = 'photo_doc_number = ?';
+            $params[] = $ocrDoc;
+        }
+        if ($ocrPlate !== null && $existingPhotoPlate === '') {
+            $updates[] = 'photo_license_plate = ?';
+            $params[] = $ocrPlate;
+        }
+        if ($ocrFirst !== null && $existingFirst === '') {
+            $updates[] = 'photo_first_names = ?';
+            $params[] = $ocrFirst;
+        }
+        if ($ocrLast !== null && $existingLast === '') {
+            $updates[] = 'photo_last_names = ?';
+            $params[] = $ocrLast;
+        }
+
+        try {
+            $params[] = $rowId;
+            $sql = "UPDATE {$table} SET " . implode(', ', $updates) . " WHERE {$idCol} = ?";
+            $upd = $this->pdo->prepare($sql);
+            $upd->execute($params);
+
+            $stmt->execute([$rowId]);
+            $updated = $stmt->fetch(\PDO::FETCH_ASSOC) ?: $row;
+
+            Response::json([
+                'success' => true,
+                'data' => [
+                    'log_ref' => $logRef,
+                    'photo_doc_number' => $updated['photo_doc_number'] ?? null,
+                    'photo_license_plate' => $updated['photo_license_plate'] ?? null,
+                    'photo_first_names' => $updated['photo_first_names'] ?? null,
+                    'photo_last_names' => $updated['photo_last_names'] ?? null,
+                    'photo_ocr_status' => $updated['photo_ocr_status'] ?? null,
+                ],
+            ], 200);
+        } catch (\PDOException $e) {
+            Response::json(['success' => false, 'error' => 'Error al guardar OCR: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function sanitizePhotoOcrDoc($raw): ?string
+    {
+        $text = preg_replace('/\D+/', '', trim((string) ($raw ?? '')));
+        if ($text === null || $text === '') {
+            return null;
+        }
+        return preg_match('/^\d{8}$/', $text) ? $text : null;
+    }
+
+    private function sanitizePhotoOcrPlate($raw): ?string
+    {
+        $canonical = strtoupper(preg_replace('/[^A-Z0-9]/i', '', (string) ($raw ?? '')) ?? '');
+        if ($canonical === '') {
+            return null;
+        }
+        return preg_match('/^[A-Z0-9]{6}$/', $canonical) ? $canonical : null;
+    }
+
+    private function sanitizePhotoOcrName($raw): ?string
+    {
+        $text = trim(strip_tags((string) ($raw ?? '')));
+        $text = preg_replace('/\s+/u', ' ', $text) ?? '';
+        $text = mb_strtoupper($text, 'UTF-8');
+        $text = preg_replace('/[^A-ZÁÉÍÓÚÑÜ\s]/u', '', $text) ?? '';
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+        if ($text === '' || mb_strlen($text) < 2) {
+            return null;
+        }
+        return mb_substr($text, 0, 120);
+    }
+
+    private function officialDocFromAccessRow(array $row, bool $isTemp): string
+    {
+        $candidates = [
+            $row['document_snapshot'] ?? null,
+            $row['doc_number'] ?? null,
+        ];
+        foreach ($candidates as $c) {
+            $t = trim((string) ($c ?? ''));
+            if ($t !== '') {
+                return $t;
+            }
+        }
+        return '';
+    }
+
+    private function officialPlateFromAccessRow(array $row, bool $isTemp): string
+    {
+        $t = trim((string) ($row['license_plate_snapshot'] ?? ''));
+        if ($t !== '') {
+            return strtoupper(preg_replace('/[^A-Z0-9]/i', '', $t) ?? '');
+        }
+        return '';
     }
 
     /**
