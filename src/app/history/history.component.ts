@@ -651,7 +651,10 @@ export class HistoryComponent implements OnInit {
     const ymd = todayYmdInAppTimeZone();
     const [y, m, d] = ymd.split('-').map((n) => Number(n));
     const today = new Date(y, m - 1, d);
-    this.fecha_inicial = today;
+    // Últimos 7 días inclusive (hoy y 6 anteriores).
+    const from = new Date(today);
+    from.setDate(from.getDate() - 6);
+    this.fecha_inicial = from;
     this.fecha_final = today;
 
     this.entranceService.getAllAccessPoints({ includeInactive: true }).subscribe({
