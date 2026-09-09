@@ -239,6 +239,15 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
     return u || '—';
   }
 
+  /** Solo tiene sentido si permite_reserva; si no, no mostrar el default de BD. */
+  permiteReservaOn(p: AccessPointRow): boolean {
+    return p.permite_reserva === 1 || p.permite_reserva === true;
+  }
+
+  modoReservaCell(p: AccessPointRow): string {
+    return this.permiteReservaOn(p) ? this.modoReservaLabel(p.modo_reserva) : '—';
+  }
+
   maxSimLabel(v: number | null | undefined): string {
     if (v == null) {
       return '1';
@@ -250,6 +259,10 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
     return String(n);
   }
 
+  maxSimCell(p: AccessPointRow): string {
+    return this.permiteReservaOn(p) ? this.maxSimLabel(p.max_reservas_simultaneas) : '—';
+  }
+
   timeDisplay(v: string | null | undefined): string {
     if (!v) {
       return '—';
@@ -258,7 +271,7 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
   }
 
   horarioCell(p: AccessPointRow): string {
-    if (!this.isFranja(p)) {
+    if (!this.permiteReservaOn(p) || !this.isFranja(p)) {
       return '—';
     }
     return `${this.timeDisplay(p.hora_apertura)}–${this.timeDisplay(p.hora_cierre)}`;

@@ -51,8 +51,8 @@
             <td class="vc-td">{{ typeLabel(p.type) }}</td>
             <td class="vc-td">{{ p.location || '—' }}</td>
             <td class="vc-td">{{ siNo(p.permite_reserva) }}</td>
-            <td class="vc-td">{{ modoReservaLabel(p.modo_reserva) }}</td>
-            <td class="vc-td">{{ maxSimLabel(p.max_reservas_simultaneas) }}</td>
+            <td class="vc-td">{{ modoReservaCell(p) }}</td>
+            <td class="vc-td">{{ maxSimCell(p) }}</td>
             <td class="vc-td">{{ horarioCell(p) }}</td>
             <td class="vc-td">{{ siNo(p.permite_registro) }}</td>
             <td class="vc-td">{{ isActiveLabel(p.is_active) }}</td>
