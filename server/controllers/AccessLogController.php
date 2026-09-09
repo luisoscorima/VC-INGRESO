@@ -359,7 +359,7 @@ class AccessLogController
 
         $accessPointId = (int) $data['access_point_id'];
         if (!$this->findActiveAccessPoint($accessPointId)) {
-            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo, no habilitado para registro o no encontrado'], 422);
             return;
         }
 
@@ -796,7 +796,7 @@ class AccessLogController
         }
 
         if (!$this->findActiveAccessPoint($accessPointId)) {
-            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo, no habilitado para registro o no encontrado'], 422);
             return;
         }
 
@@ -935,7 +935,7 @@ class AccessLogController
         }
 
         if (!$this->findActiveAccessPoint($accessPointId)) {
-            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo, no habilitado para registro o no encontrado'], 422);
             return;
         }
 
@@ -1022,6 +1022,7 @@ class AccessLogController
      * GET /api/v1/access-logs/access-points
      * Puntos de acceso operativos (garita, escáner, filtros). Por defecto solo activos.
      * Query opcional: include_inactive=1 para incluir inactivos (p. ej. filtros históricos).
+     * Query opcional: for_registro=1 para solo puntos con permite_registro (escáner /codigo-qr).
      */
     public function accessPoints()
     {
@@ -1029,10 +1030,19 @@ class AccessLogController
 
         $includeInactive = isset($_GET['include_inactive'])
             && in_array(strtolower(trim((string) $_GET['include_inactive'])), ['1', 'true', 'yes'], true);
+        $forRegistro = isset($_GET['for_registro'])
+            && in_array(strtolower(trim((string) $_GET['for_registro'])), ['1', 'true', 'yes'], true);
 
         $sql = 'SELECT * FROM access_points';
+        $where = [];
         if (!$includeInactive) {
-            $sql .= ' WHERE COALESCE(is_active, 1) = 1';
+            $where[] = 'COALESCE(is_active, 1) = 1';
+        }
+        if ($forRegistro) {
+            $where[] = 'COALESCE(permite_registro, 0) = 1';
+        }
+        if ($where) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
         }
         $sql .= ' ORDER BY name';
 
@@ -1049,7 +1059,9 @@ class AccessLogController
             return null;
         }
         $stmt = $this->pdo->prepare(
-            'SELECT * FROM access_points WHERE id = ? AND COALESCE(is_active, 1) = 1 LIMIT 1'
+            'SELECT * FROM access_points'
+            . ' WHERE id = ? AND COALESCE(is_active, 1) = 1 AND COALESCE(permite_registro, 0) = 1'
+            . ' LIMIT 1'
         );
         $stmt->execute([$accessPointId]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -1950,7 +1962,7 @@ class AccessLogController
         }
 
         if (!$this->findActiveAccessPoint($accessPointId)) {
-            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo, no habilitado para registro o no encontrado'], 422);
             return;
         }
 
@@ -2537,7 +2549,7 @@ class AccessLogController
         }
 
         if (!$this->findActiveAccessPoint($accessPointId)) {
-            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo o no encontrado'], 422);
+            Response::json(['success' => false, 'error' => 'Punto de acceso inactivo, no habilitado para registro o no encontrado'], 422);
             return;
         }
 

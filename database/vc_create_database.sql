@@ -97,6 +97,13 @@ CREATE TABLE `access_points` (
     `is_active` TINYINT(1) NOT NULL DEFAULT 1,
     `controla_aforo` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=obliga max_capacity y current_capacity',
     `permite_reserva` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=admite reservas en el módulo',
+    `permite_registro` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=usable en escáner / registro de acceso',
+    `modo_reserva` ENUM('DIA_COMPLETO', 'FRANJA_HORARIA') NOT NULL DEFAULT 'DIA_COMPLETO'
+        COMMENT 'Solo aplica si permite_reserva=1',
+    `max_reservas_simultaneas` INT UNSIGNED NOT NULL DEFAULT 1
+        COMMENT '0=sin tope de solapes; 1=exclusivo; N=hasta N solapadas',
+    `hora_apertura` TIME DEFAULT NULL COMMENT 'Inicio permitido (FRANJA); NULL=08:00',
+    `hora_cierre` TIME DEFAULT NULL COMMENT 'Fin permitido (FRANJA); NULL=22:00',
     `max_capacity` INT UNSIGNED DEFAULT NULL COMMENT 'Solo si controla_aforo=1',
     `current_capacity` INT UNSIGNED DEFAULT NULL COMMENT 'Ocupación; NULL si no controla aforo',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -105,7 +112,8 @@ CREATE TABLE `access_points` (
     UNIQUE KEY `uk_name` (`name`),
     KEY `idx_type` (`type`),
     KEY `idx_is_active` (`is_active`),
-    KEY `idx_permite_reserva` (`permite_reserva`)
+    KEY `idx_permite_reserva` (`permite_reserva`),
+    KEY `idx_permite_registro` (`permite_registro`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Puntos de acceso y áreas reservables';
 
 CREATE TABLE `access_cameras` (
@@ -738,11 +746,16 @@ CREATE TABLE IF NOT EXISTS `role_nav_permissions` (
 -- =============================================================================
 -- DATOS INICIALES (puntos de acceso para reservas y API)
 -- =============================================================================
-INSERT INTO `access_points` (`name`, `type`, `location`, `is_active`, `controla_aforo`, `permite_reserva`, `max_capacity`, `current_capacity`) VALUES
-('Garita Principal', 'ENTRADA', 'Entrada principal del condominio', 1, 0, 0, NULL, NULL),
-('Entrada Peatonal', 'ENTRADA', 'Puerta principal peatonal', 1, 0, 0, NULL, NULL),
-('Piscina', 'AREA_COMUN', 'Área de piscina', 1, 1, 1, 50, 0),
-('Casa Club', 'AREA_COMUN', 'Edificio de eventos', 1, 1, 1, 200, 0)
+INSERT INTO `access_points` (
+    `name`, `type`, `location`, `is_active`, `controla_aforo`, `permite_reserva`, `permite_registro`,
+    `modo_reserva`, `max_reservas_simultaneas`, `hora_apertura`, `hora_cierre`,
+    `max_capacity`, `current_capacity`
+) VALUES
+('Garita Principal', 'ENTRADA', 'Entrada principal del condominio', 1, 0, 0, 1, 'DIA_COMPLETO', 1, NULL, NULL, NULL, NULL),
+('Entrada Peatonal', 'ENTRADA', 'Puerta principal peatonal', 1, 0, 0, 1, 'DIA_COMPLETO', 1, NULL, NULL, NULL, NULL),
+('Piscina', 'AREA_COMUN', 'Área de piscina', 1, 1, 1, 0, 'FRANJA_HORARIA', 0, '08:00:00', '20:00:00', 50, 0),
+('Casa Club', 'AREA_COMUN', 'Edificio de eventos', 1, 1, 1, 0, 'DIA_COMPLETO', 1, NULL, NULL, 200, 0),
+('Grass Sintético', 'AREA_LIMITADA', 'Losas deportivas', 1, 0, 1, 0, 'FRANJA_HORARIA', 1, '08:00:00', '22:00:00', NULL, NULL)
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
 
 INSERT INTO `nav_modules` (`module_key`, `label`, `route`, `section`, `sort_order`, `is_enabled`) VALUES

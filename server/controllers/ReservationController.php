@@ -2,8 +2,10 @@
 /**
  * ReservationController - Controlador de Reservaciones
  *
- * Maneja las reservaciones de la Casa Club y áreas comunes.
- * Política de ventana fija: día D desde las 08:00 hasta día D+1 08:00 (día lógico 8–8).
+ * Maneja las reservaciones de áreas comunes.
+ * DIA_COMPLETO: ventana fija día D 08:00 → D+1 08:00.
+ * FRANJA_HORARIA: el usuario elige inicio/fin dentro de hora_apertura–hora_cierre.
+ * Solapes: max_reservas_simultaneas (0 = sin tope).
  */
 
 namespace Controllers;
@@ -268,7 +270,13 @@ class ReservationController
             }
         }
 
-        $resolved = $this->resolveEightToEightWindow($data);
+        $ap = $this->fetchReservableAccessPoint((int) $data['access_point_id']);
+        if ($ap === null) {
+            Response::json(['success' => false, 'error' => 'Punto de acceso no encontrado, inactivo o sin reservas'], 400);
+            return;
+        }
+
+        $resolved = $this->resolveReservationWindow($data, $ap);
         if ($resolved['error'] !== null) {
             Response::json(['success' => false, 'error' => $resolved['error']], 400);
             return;
@@ -299,7 +307,8 @@ class ReservationController
             (int) $data['access_point_id'],
             (string) $data['reservation_date'],
             (string) $data['end_date'],
-            null
+            null,
+            $ap
         );
         if ($err !== null) {
             Response::json(['success' => false, 'error' => $err], 400);
@@ -416,9 +425,17 @@ class ReservationController
             array_key_exists('reservation_day', $data)
             || array_key_exists('reservation_date', $data)
             || array_key_exists('end_date', $data)
+            || array_key_exists('start_time', $data)
+            || array_key_exists('end_time', $data)
         ) {
             $mergedForResolve = array_merge($reservation, $data);
-            $resolved = $this->resolveEightToEightWindow($mergedForResolve);
+            $apId = (int) ($mergedForResolve['access_point_id'] ?? $reservation['access_point_id']);
+            $ap = $this->fetchReservableAccessPoint($apId);
+            if ($ap === null) {
+                Response::json(['success' => false, 'error' => 'Punto de acceso no encontrado, inactivo o sin reservas'], 400);
+                return;
+            }
+            $resolved = $this->resolveReservationWindow($mergedForResolve, $ap);
             if ($resolved['error'] !== null) {
                 Response::json(['success' => false, 'error' => $resolved['error']], 400);
                 return;
@@ -450,13 +467,20 @@ class ReservationController
             isset($data['house_id']) || isset($data['access_point_id'])
             || isset($data['reservation_date']) || isset($data['end_date'])
             || isset($data['reservation_day'])
+            || isset($data['start_time']) || isset($data['end_time'])
         ) {
+            $apForRules = $this->fetchReservableAccessPoint($mergedAp);
+            if ($apForRules === null) {
+                Response::json(['success' => false, 'error' => 'Punto de acceso no encontrado, inactivo o sin reservas'], 400);
+                return;
+            }
             $err = $this->validateReservationBusinessRules(
                 $mergedHouse,
                 $mergedAp,
                 $mergedStart,
                 $mergedEnd,
-                (int) $id
+                (int) $id,
+                $apForRules
             );
             if ($err !== null) {
                 Response::json(['success' => false, 'error' => $err], 400);
@@ -635,7 +659,8 @@ class ReservationController
 
     /**
      * GET /api/v1/reservations/availability
-     * Indica si el día lógico 8–8 que contiene `date` está libre para reservar en el área.
+     * DIA_COMPLETO: indica si la ventana 8–8 del día tiene cupo.
+     * FRANJA_HORARIA: con start_time/end_time opcional; sin ellos solo informa el modo.
      */
     public function availability()
     {
@@ -653,49 +678,67 @@ class ReservationController
             return;
         }
 
-        $stmtAp = $this->pdo->prepare(
-            "SELECT id, permite_reserva, is_active FROM {$this->accessPointsTable} WHERE id = ? LIMIT 1"
-        );
-        $stmtAp->execute([(int) $accessPointId]);
-        $apRow = $stmtAp->fetch(\PDO::FETCH_ASSOC);
-        if (!$apRow) {
-            Response::json(['success' => false, 'error' => 'Punto de acceso no encontrado'], 404);
-            return;
-        }
-        if ((int) ($apRow['is_active'] ?? 0) !== 1) {
-            Response::json(['success' => false, 'error' => 'El punto de acceso no está activo'], 400);
-            return;
-        }
-        if ((int) ($apRow['permite_reserva'] ?? 0) !== 1) {
-            Response::json(['success' => false, 'error' => 'Este punto de acceso no admite reservaciones'], 400);
+        $ap = $this->fetchReservableAccessPoint((int) $accessPointId);
+        if ($ap === null) {
+            Response::json(['success' => false, 'error' => 'Punto de acceso no encontrado, inactivo o sin reservas'], 404);
             return;
         }
 
-        $resolved = $this->windowStringsFromDayYmd((string) $date);
-        if ($resolved['error'] !== null) {
-            Response::json(['success' => false, 'error' => $resolved['error']], 400);
-            return;
-        }
-        $winStart = $resolved['start'];
-        $winEnd = $resolved['end'];
+        $modo = strtoupper((string) ($ap['modo_reserva'] ?? 'DIA_COMPLETO'));
+        $maxSim = (int) ($ap['max_reservas_simultaneas'] ?? 1);
 
-        $placeholders = implode(',', array_fill(0, count(self::BLOCKING_STATUSES), '?'));
-        $stmt = $this->pdo->prepare("
-            SELECT COUNT(*) FROM {$this->table}
-            WHERE access_point_id = ?
-            AND status IN ({$placeholders})
-            AND reservation_date = ?
-        ");
-        $params = array_merge([(int) $accessPointId], self::BLOCKING_STATUSES, [$winStart]);
-        $stmt->execute($params);
-        $blocked = (int) $stmt->fetchColumn() > 0;
+        if ($modo === 'FRANJA_HORARIA') {
+            $startTime = isset($_GET['start_time']) ? trim((string) $_GET['start_time']) : '';
+            $endTime = isset($_GET['end_time']) ? trim((string) $_GET['end_time']) : '';
+            if ($startTime === '' || $endTime === '') {
+                Response::json([
+                    'success' => true,
+                    'data' => [
+                        'date' => $date,
+                        'access_point_id' => (int) $accessPointId,
+                        'modo_reserva' => $modo,
+                        'max_reservas_simultaneas' => $maxSim,
+                        'hora_apertura' => $ap['hora_apertura'] ?? '08:00:00',
+                        'hora_cierre' => $ap['hora_cierre'] ?? '22:00:00',
+                        'available' => null,
+                        'message' => 'Indique start_time y end_time para consultar cupo de franja',
+                    ],
+                ]);
+                return;
+            }
+            $resolved = $this->resolveFranjaWindow([
+                'reservation_day' => $date,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+            ], $ap);
+            if ($resolved['error'] !== null) {
+                Response::json(['success' => false, 'error' => $resolved['error']], 400);
+                return;
+            }
+            $winStart = $resolved['start'];
+            $winEnd = $resolved['end'];
+        } else {
+            $resolved = $this->windowStringsFromDayYmd((string) $date);
+            if ($resolved['error'] !== null) {
+                Response::json(['success' => false, 'error' => $resolved['error']], 400);
+                return;
+            }
+            $winStart = $resolved['start'];
+            $winEnd = $resolved['end'];
+        }
+
+        $overlapCount = $this->countOverlappingReservations((int) $accessPointId, $winStart, $winEnd, null);
+        $available = $maxSim === 0 || $overlapCount < $maxSim;
 
         Response::json([
             'success' => true,
             'data' => [
                 'date' => $date,
                 'access_point_id' => (int) $accessPointId,
-                'available' => !$blocked,
+                'modo_reserva' => $modo,
+                'max_reservas_simultaneas' => $maxSim,
+                'overlapping_count' => $overlapCount,
+                'available' => $available,
                 'logical_window_start' => $winStart,
                 'logical_window_end' => $winEnd,
             ],
@@ -732,6 +775,120 @@ class ReservationController
         }
 
         return canAccessHouse($this->pdo, $auth, $hid);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function fetchReservableAccessPoint(int $accessPointId): ?array
+    {
+        if ($accessPointId <= 0) {
+            return null;
+        }
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM {$this->accessPointsTable}
+             WHERE id = ? AND COALESCE(is_active, 1) = 1 AND COALESCE(permite_reserva, 0) = 1
+             LIMIT 1"
+        );
+        $stmt->execute([$accessPointId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
+    /**
+     * @param array<string, mixed> $ap
+     * @return array{start: string, end: string, error: ?string}
+     */
+    private function resolveReservationWindow(array $data, array $ap): array
+    {
+        $modo = strtoupper((string) ($ap['modo_reserva'] ?? 'DIA_COMPLETO'));
+        if ($modo === 'FRANJA_HORARIA') {
+            return $this->resolveFranjaWindow($data, $ap);
+        }
+
+        return $this->resolveEightToEightWindow($data);
+    }
+
+    /**
+     * @param array<string, mixed> $ap
+     * @return array{start: string, end: string, error: ?string}
+     */
+    private function resolveFranjaWindow(array $data, array $ap): array
+    {
+        $day = '';
+        if (!empty($data['reservation_day'])) {
+            $day = trim((string) $data['reservation_day']);
+        } elseif (!empty($data['reservation_date'])) {
+            $raw = trim((string) $data['reservation_date']);
+            $day = strlen($raw) >= 10 ? substr($raw, 0, 10) : $raw;
+        }
+        if ($day === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+            return ['start' => '', 'end' => '', 'error' => 'Indique reservation_day (YYYY-MM-DD) para franja horaria'];
+        }
+
+        $startTime = isset($data['start_time']) ? trim((string) $data['start_time']) : '';
+        $endTime = isset($data['end_time']) ? trim((string) $data['end_time']) : '';
+
+        if ($startTime === '' && !empty($data['reservation_date'])) {
+            $rd = trim((string) $data['reservation_date']);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}[ T](\d{2}:\d{2}(?::\d{2})?)/', $rd, $m)) {
+                $startTime = $m[1];
+            }
+        }
+        if ($endTime === '' && !empty($data['end_date'])) {
+            $ed = trim((string) $data['end_date']);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}[ T](\d{2}:\d{2}(?::\d{2})?)/', $ed, $m)) {
+                $endTime = $m[1];
+            }
+        }
+
+        $startNorm = $this->normalizeTimeHm($startTime);
+        $endNorm = $this->normalizeTimeHm($endTime);
+        if ($startNorm === null || $endNorm === null) {
+            return ['start' => '', 'end' => '', 'error' => 'Indique start_time y end_time (HH:MM) válidos'];
+        }
+
+        $apertura = $this->normalizeTimeHm((string) ($ap['hora_apertura'] ?? '08:00:00')) ?? '08:00:00';
+        $cierre = $this->normalizeTimeHm((string) ($ap['hora_cierre'] ?? '22:00:00')) ?? '22:00:00';
+
+        if ($startNorm < $apertura || $endNorm > $cierre) {
+            $aShort = substr($apertura, 0, 5);
+            $cShort = substr($cierre, 0, 5);
+
+            return [
+                'start' => '',
+                'end' => '',
+                'error' => "La franja debe estar entre {$aShort} y {$cShort}",
+            ];
+        }
+        if ($endNorm <= $startNorm) {
+            return ['start' => '', 'end' => '', 'error' => 'La hora de fin debe ser posterior a la de inicio'];
+        }
+
+        return [
+            'start' => $day . ' ' . $startNorm,
+            'end' => $day . ' ' . $endNorm,
+            'error' => null,
+        ];
+    }
+
+    private function normalizeTimeHm(string $raw): ?string
+    {
+        $s = trim($raw);
+        if ($s === '') {
+            return null;
+        }
+        if (preg_match('/^\d{2}:\d{2}$/', $s)) {
+            $s .= ':00';
+        }
+        if (!preg_match('/^\d{2}:\d{2}:\d{2}$/', $s)) {
+            return null;
+        }
+        $parts = array_map('intval', explode(':', $s));
+        if ($parts[0] > 23 || $parts[1] > 59 || $parts[2] > 59) {
+            return null;
+        }
+
+        return sprintf('%02d:%02d:%02d', $parts[0], $parts[1], $parts[2]);
     }
 
     /**
@@ -784,34 +941,53 @@ class ReservationController
         return $out;
     }
 
+    private function countOverlappingReservations(
+        int $accessPointId,
+        string $startStr,
+        string $endStr,
+        $excludeReservationId
+    ): int {
+        $placeholders = implode(',', array_fill(0, count(self::BLOCKING_STATUSES), '?'));
+        $sql = "
+            SELECT COUNT(*) FROM {$this->table}
+            WHERE access_point_id = ?
+            AND status IN ({$placeholders})
+            AND reservation_date < ?
+            AND end_date > ?
+        ";
+        $params = array_merge([(int) $accessPointId], self::BLOCKING_STATUSES, [$endStr, $startStr]);
+        if ($excludeReservationId !== null && $excludeReservationId !== '') {
+            $sql .= ' AND id != ?';
+            $params[] = (int) $excludeReservationId;
+        }
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn();
+    }
+
     /**
-     * Ventana 8–8 exacta, tope mensual por casa y una reserva bloqueante por área y día lógico.
+     * Tope mensual por casa + ventana según modo + cupo de solapes.
      *
-     * @param int|null $excludeReservationId id al editar
+     * @param array<string, mixed>|null $ap
+     * @param int|null $excludeReservationId
      */
     private function validateReservationBusinessRules(
         int $houseId,
         int $accessPointId,
         string $reservationDateStr,
         string $endDateStr,
-        $excludeReservationId
+        $excludeReservationId,
+        ?array $ap = null
     ): ?string {
         if ($accessPointId <= 0) {
-            return 'Área de acceso no válida';
+            return 'Punto de acceso inválido';
         }
-        $stmtAp = $this->pdo->prepare(
-            "SELECT id, permite_reserva, is_active FROM {$this->accessPointsTable} WHERE id = ? LIMIT 1"
-        );
-        $stmtAp->execute([$accessPointId]);
-        $apRow = $stmtAp->fetch(\PDO::FETCH_ASSOC);
-        if (!$apRow) {
-            return 'Área de acceso no encontrada';
+        if ($ap === null) {
+            $ap = $this->fetchReservableAccessPoint($accessPointId);
         }
-        if ((int) ($apRow['is_active'] ?? 0) !== 1) {
-            return 'El punto de acceso no está activo';
-        }
-        if ((int) ($apRow['permite_reserva'] ?? 0) !== 1) {
-            return 'Este punto de acceso no admite reservaciones';
+        if ($ap === null) {
+            return 'Punto de acceso no encontrado, inactivo o sin reservas';
         }
 
         try {
@@ -825,14 +1001,17 @@ class ReservationController
             return 'La fecha de fin debe ser posterior al inicio';
         }
 
-        $expected = clone $start;
-        $expected->modify('+1 day');
-        $h = (int) RESERVATION_DAY_START_HOUR;
-        if ((int) $start->format('H') !== $h || (int) $start->format('i') !== 0 || (int) $start->format('s') !== 0) {
-            return 'La reserva debe comenzar a las ' . $h . ':00 del día elegido';
-        }
-        if ($end->format('Y-m-d H:i:s') !== $expected->format('Y-m-d H:i:s')) {
-            return 'La reserva debe cubrir exactamente 24 horas hasta las ' . $h . ':00 del día siguiente';
+        $modo = strtoupper((string) ($ap['modo_reserva'] ?? 'DIA_COMPLETO'));
+        if ($modo === 'DIA_COMPLETO') {
+            $expected = clone $start;
+            $expected->modify('+1 day');
+            $h = (int) RESERVATION_DAY_START_HOUR;
+            if ((int) $start->format('H') !== $h || (int) $start->format('i') !== 0 || (int) $start->format('s') !== 0) {
+                return 'La reserva debe comenzar a las ' . $h . ':00 del día elegido';
+            }
+            if ($end->format('Y-m-d H:i:s') !== $expected->format('Y-m-d H:i:s')) {
+                return 'La reserva debe cubrir exactamente 24 horas hasta las ' . $h . ':00 del día siguiente';
+            }
         }
 
         $year = (int) $start->format('Y');
@@ -873,21 +1052,25 @@ class ReservationController
             return null;
         }
 
-        $overlapSql = "
-            SELECT COUNT(*) FROM {$this->table}
-            WHERE access_point_id = ?
-            AND status IN ('PENDIENTE', 'CONFIRMADA')
-            AND reservation_date = ?
-        ";
-        $overlapParams = [$accessPointId, $reservationDateStr];
-        if ($excludeReservationId !== null && $excludeReservationId !== '') {
-            $overlapSql .= ' AND id != ?';
-            $overlapParams[] = (int) $excludeReservationId;
+        $maxSim = (int) ($ap['max_reservas_simultaneas'] ?? 1);
+        if ($maxSim === 0) {
+            return null;
         }
-        $stmtO = $this->pdo->prepare($overlapSql);
-        $stmtO->execute($overlapParams);
-        if ((int) $stmtO->fetchColumn() > 0) {
-            return 'Ya existe una reserva pendiente o confirmada en esta área para ese día (política 8:00 a 8:00)';
+
+        $overlapCount = $this->countOverlappingReservations(
+            $accessPointId,
+            $reservationDateStr,
+            $endDateStr,
+            $excludeReservationId
+        );
+        if ($overlapCount >= $maxSim) {
+            if ($maxSim === 1) {
+                return $modo === 'DIA_COMPLETO'
+                    ? 'Ya existe una reserva pendiente o confirmada en esta área para ese día'
+                    : 'Ese horario ya está reservado en exclusiva para esta área';
+            }
+
+            return "Se alcanzó el máximo de reservas solapadas en este horario ({$maxSim})";
         }
 
         return null;

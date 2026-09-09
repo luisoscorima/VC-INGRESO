@@ -1467,14 +1467,17 @@ export class QrScannerComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadAccessPoints(): void {
     this.loadingPoints = true;
     this.api
-      .get<AccessPointOption[]>('api/v1/access-logs/access-points')
+      .get<AccessPointOption[]>('api/v1/access-logs/access-points', { for_registro: 1 })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
           this.loadingPoints = false;
           const rows = (res.data ?? []) as AccessPointOption[];
           this.accessPoints = rows
-            .filter((r: any) => Number(r?.is_active ?? 1) === 1)
+            .filter(
+              (r: any) =>
+                Number(r?.is_active ?? 1) === 1 && Number(r?.permite_registro ?? 0) === 1
+            )
             .map((r: any) => ({
               id: Number(r.id),
               name: String(r.name ?? 'Punto'),

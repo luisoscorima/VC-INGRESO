@@ -6,8 +6,11 @@ export interface Reservation {
   access_point_id: number;
   person_id?: number;
   house_id?: number;
-  /** Día lógico YYYY-MM-DD (servidor deriva ventana 8:00–8:00). */
+  /** Día lógico YYYY-MM-DD (servidor deriva ventana según modo del área). */
   reservation_day?: string;
+  /** Franja: HH:MM (solo FRANJA_HORARIA). */
+  start_time?: string;
+  end_time?: string;
   reservation_date: string;
   end_date?: string;
   status: 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'RECHAZADA' | 'COMPLETADA';

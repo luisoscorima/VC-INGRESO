@@ -13,6 +13,11 @@ export interface AccessPointRow {
   is_active: number | boolean;
   controla_aforo?: number | boolean;
   permite_reserva?: number | boolean;
+  permite_registro?: number | boolean;
+  modo_reserva?: 'DIA_COMPLETO' | 'FRANJA_HORARIA' | string;
+  max_reservas_simultaneas?: number | null;
+  hora_apertura?: string | null;
+  hora_cierre?: string | null;
   max_capacity?: number | null;
   current_capacity?: number | null;
 }
@@ -29,6 +34,10 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
   pointToEdit: AccessPointRow = this.emptyPoint();
 
   types: string[] = ['ENTRADA', 'AREA_COMUN', 'AREA_LIMITADA'];
+  modosReserva: { value: string; label: string }[] = [
+    { value: 'DIA_COMPLETO', label: 'Día completo (8:00–8:00)' },
+    { value: 'FRANJA_HORARIA', label: 'Franja horaria' },
+  ];
 
   searchTerm = '';
   currentPage = 1;
@@ -36,7 +45,7 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
   pageSizeOptions: number[] = [10, 25, 50, 100];
 
   expandedRowId: ExpandableRowId = null;
-  readonly tableColspan = 10;
+  readonly tableColspan = 14;
 
   constructor(
     private entranceService: EntranceService,
@@ -60,6 +69,11 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
       is_active: 1,
       controla_aforo: 0,
       permite_reserva: 0,
+      permite_registro: 1,
+      modo_reserva: 'DIA_COMPLETO',
+      max_reservas_simultaneas: 1,
+      hora_apertura: null,
+      hora_cierre: null,
       max_capacity: null,
       current_capacity: null,
     };
@@ -89,6 +103,12 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
       is_active: row.is_active === 1 || row.is_active === true ? 1 : 0,
       controla_aforo: row.controla_aforo === 1 || row.controla_aforo === true ? 1 : 0,
       permite_reserva: row.permite_reserva === 1 || row.permite_reserva === true ? 1 : 0,
+      permite_registro: row.permite_registro === 1 || row.permite_registro === true ? 1 : 0,
+      modo_reserva: (row.modo_reserva as string) || 'DIA_COMPLETO',
+      max_reservas_simultaneas:
+        row.max_reservas_simultaneas == null ? 1 : Number(row.max_reservas_simultaneas),
+      hora_apertura: this.timeInputValue(row.hora_apertura),
+      hora_cierre: this.timeInputValue(row.hora_cierre),
     };
     document.getElementById('access-points-edit-button')?.click();
   }
@@ -113,6 +133,11 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
       is_active: this.pointToAdd.is_active === 1 || this.pointToAdd.is_active === true,
       controla_aforo: controla,
       permite_reserva: this.pointToAdd.permite_reserva === 1 || this.pointToAdd.permite_reserva === true,
+      permite_registro: this.pointToAdd.permite_registro === 1 || this.pointToAdd.permite_registro === true,
+      modo_reserva: this.pointToAdd.modo_reserva || 'DIA_COMPLETO',
+      max_reservas_simultaneas: this.normalizeMaxSim(this.pointToAdd.max_reservas_simultaneas),
+      hora_apertura: this.payloadTime(this.pointToAdd.hora_apertura),
+      hora_cierre: this.payloadTime(this.pointToAdd.hora_cierre),
       max_capacity: controla ? this.normalizeMaxCapacity(this.pointToAdd.max_capacity) : null,
       current_capacity: controla ? this.normalizeOccupancy(this.pointToAdd.current_capacity) : null,
     };
@@ -154,6 +179,11 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
       is_active: this.pointToEdit.is_active === 1 || this.pointToEdit.is_active === true,
       controla_aforo: controla,
       permite_reserva: this.pointToEdit.permite_reserva === 1 || this.pointToEdit.permite_reserva === true,
+      permite_registro: this.pointToEdit.permite_registro === 1 || this.pointToEdit.permite_registro === true,
+      modo_reserva: this.pointToEdit.modo_reserva || 'DIA_COMPLETO',
+      max_reservas_simultaneas: this.normalizeMaxSim(this.pointToEdit.max_reservas_simultaneas),
+      hora_apertura: this.payloadTime(this.pointToEdit.hora_apertura),
+      hora_cierre: this.payloadTime(this.pointToEdit.hora_cierre),
       max_capacity: controla ? this.normalizeMaxCapacity(this.pointToEdit.max_capacity) : null,
       current_capacity: controla ? this.normalizeOccupancy(this.pointToEdit.current_capacity) : null,
     };
@@ -194,6 +224,78 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
       AREA_LIMITADA: 'Área limitada',
     };
     return map[u] || u || '—';
+  }
+
+  modoReservaLabel(m: string | undefined): string {
+    const u = String(m ?? '')
+      .trim()
+      .toUpperCase();
+    if (u === 'FRANJA_HORARIA') {
+      return 'Franja';
+    }
+    if (u === 'DIA_COMPLETO') {
+      return 'Día completo';
+    }
+    return u || '—';
+  }
+
+  maxSimLabel(v: number | null | undefined): string {
+    if (v == null) {
+      return '1';
+    }
+    const n = Number(v);
+    if (n === 0) {
+      return 'Sin tope';
+    }
+    return String(n);
+  }
+
+  timeDisplay(v: string | null | undefined): string {
+    if (!v) {
+      return '—';
+    }
+    return String(v).substring(0, 5);
+  }
+
+  horarioCell(p: AccessPointRow): string {
+    if (!this.isFranja(p)) {
+      return '—';
+    }
+    return `${this.timeDisplay(p.hora_apertura)}–${this.timeDisplay(p.hora_cierre)}`;
+  }
+
+  isFranja(point: AccessPointRow): boolean {
+    return String(point.modo_reserva ?? '').toUpperCase() === 'FRANJA_HORARIA';
+  }
+
+  onModoReservaChangeAdd(modo: string): void {
+    this.pointToAdd.modo_reserva = modo;
+    if (modo === 'FRANJA_HORARIA') {
+      if (!this.pointToAdd.hora_apertura) {
+        this.pointToAdd.hora_apertura = '08:00';
+      }
+      if (!this.pointToAdd.hora_cierre) {
+        this.pointToAdd.hora_cierre = '22:00';
+      }
+    } else {
+      this.pointToAdd.hora_apertura = null;
+      this.pointToAdd.hora_cierre = null;
+    }
+  }
+
+  onModoReservaChangeEdit(modo: string): void {
+    this.pointToEdit.modo_reserva = modo;
+    if (modo === 'FRANJA_HORARIA') {
+      if (!this.pointToEdit.hora_apertura) {
+        this.pointToEdit.hora_apertura = '08:00';
+      }
+      if (!this.pointToEdit.hora_cierre) {
+        this.pointToEdit.hora_cierre = '22:00';
+      }
+    } else {
+      this.pointToEdit.hora_apertura = null;
+      this.pointToEdit.hora_cierre = null;
+    }
   }
 
   onControlaAforoChangeAdd(checked: boolean): void {
@@ -282,5 +384,38 @@ export class AccessPointsComponent implements OnInit, AfterViewInit {
       return null;
     }
     return Math.floor(n);
+  }
+
+  private normalizeMaxSim(v: number | string | null | undefined): number {
+    if (v === null || v === undefined || v === '') {
+      return 1;
+    }
+    const n = Number(v);
+    if (Number.isNaN(n) || n < 0) {
+      return 1;
+    }
+    return Math.floor(n);
+  }
+
+  private timeInputValue(v: string | null | undefined): string | null {
+    if (!v) {
+      return null;
+    }
+    const s = String(v).trim();
+    return s.length >= 5 ? s.substring(0, 5) : s;
+  }
+
+  private payloadTime(v: string | null | undefined): string | null {
+    if (!v) {
+      return null;
+    }
+    const s = String(v).trim();
+    if (/^\d{2}:\d{2}$/.test(s)) {
+      return `${s}:00`;
+    }
+    if (/^\d{2}:\d{2}:\d{2}$/.test(s)) {
+      return s;
+    }
+    return null;
   }
 }

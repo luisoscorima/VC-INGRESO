@@ -2,8 +2,8 @@
   <div class="vc-page-inner vc-card bg-white dark:bg-gray-800/90 p-4 sm:p-6">
     <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-1">Puntos de acceso</h2>
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-      Tipos: entrada, área común o área limitada. Marque si controla aforo (personas dentro) y si admite reservas en el módulo.
-      No se eliminan registros desde esta pantalla.
+      Tipos: entrada, área común o área limitada. Marque si controla aforo, si admite reservas, el modo de reserva (día completo o franja) y si es usable en el escáner.
+      Máx. simultáneas: 0 = sin tope de solapes; 1 = exclusivo. No se eliminan registros desde esta pantalla.
     </p>
 
     <div class="mb-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -31,6 +31,10 @@
             <th scope="col" class="vc-th">Tipo</th>
             <th scope="col" class="vc-th">Ubicación</th>
             <th scope="col" class="vc-th">Reserva</th>
+            <th scope="col" class="vc-th">Modo</th>
+            <th scope="col" class="vc-th">Solapes</th>
+            <th scope="col" class="vc-th">Horario</th>
+            <th scope="col" class="vc-th">Escáner</th>
             <th scope="col" class="vc-th">Estado</th>
             <th scope="col" class="vc-th">Aforo</th>
             <th scope="col" class="vc-th">Aforo máx.</th>
@@ -47,6 +51,10 @@
             <td class="vc-td">{{ typeLabel(p.type) }}</td>
             <td class="vc-td">{{ p.location || '—' }}</td>
             <td class="vc-td">{{ siNo(p.permite_reserva) }}</td>
+            <td class="vc-td">{{ modoReservaLabel(p.modo_reserva) }}</td>
+            <td class="vc-td">{{ maxSimLabel(p.max_reservas_simultaneas) }}</td>
+            <td class="vc-td">{{ horarioCell(p) }}</td>
+            <td class="vc-td">{{ siNo(p.permite_registro) }}</td>
             <td class="vc-td">{{ isActiveLabel(p.is_active) }}</td>
             <td class="vc-td">{{ siNo(p.controla_aforo) }}</td>
             <td class="vc-td">{{ p.max_capacity ?? '—' }}</td>
@@ -179,6 +187,51 @@
             class="rounded border-gray-300"
           />
           <label for="ap-new-reserva" class="text-sm text-gray-900 dark:text-white">Permite reservas</label>
+        </div>
+        <div *ngIf="pointToAdd.permite_reserva === 1 || pointToAdd.permite_reserva === true" class="space-y-3 pl-1 border-l-2 border-teal-500/40">
+          <div>
+            <label for="ap-new-modo" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Modo de reserva</label>
+            <select
+              id="ap-new-modo"
+              [ngModel]="pointToAdd.modo_reserva"
+              (ngModelChange)="onModoReservaChangeAdd($event)"
+              class="vc-field w-full"
+            >
+              <option *ngFor="let m of modosReserva" [ngValue]="m.value">{{ m.label }}</option>
+            </select>
+          </div>
+          <div>
+            <label for="ap-new-maxsim" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Máx. reservas simultáneas</label>
+            <input
+              id="ap-new-maxsim"
+              [(ngModel)]="pointToAdd.max_reservas_simultaneas"
+              type="number"
+              min="0"
+              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+            />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">0 = sin tope (p. ej. piscina). 1 = exclusivo (p. ej. grass / casa club).</p>
+          </div>
+          <div *ngIf="isFranja(pointToAdd)" class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="ap-new-apertura" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apertura</label>
+              <input id="ap-new-apertura" type="time" [(ngModel)]="pointToAdd.hora_apertura" class="vc-field w-full" />
+            </div>
+            <div>
+              <label for="ap-new-cierre" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Cierre</label>
+              <input id="ap-new-cierre" type="time" [(ngModel)]="pointToAdd.hora_cierre" class="vc-field w-full" />
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input
+            id="ap-new-registro"
+            type="checkbox"
+            name="apNewRegistro"
+            [ngModel]="pointToAdd.permite_registro === 1 || pointToAdd.permite_registro === true"
+            (ngModelChange)="pointToAdd.permite_registro = $event ? 1 : 0"
+            class="rounded border-gray-300"
+          />
+          <label for="ap-new-registro" class="text-sm text-gray-900 dark:text-white">Usable en escáner / registro de acceso</label>
         </div>
         <div *ngIf="pointToAdd.controla_aforo === 1 || pointToAdd.controla_aforo === true">
           <label for="ap-new-max" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Aforo máximo *</label>
@@ -317,6 +370,51 @@
             class="rounded border-gray-300"
           />
           <label for="ap-edit-reserva" class="text-sm text-gray-900 dark:text-white">Permite reservas</label>
+        </div>
+        <div *ngIf="pointToEdit.permite_reserva === 1 || pointToEdit.permite_reserva === true" class="space-y-3 pl-1 border-l-2 border-teal-500/40">
+          <div>
+            <label for="ap-edit-modo" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Modo de reserva</label>
+            <select
+              id="ap-edit-modo"
+              [ngModel]="pointToEdit.modo_reserva"
+              (ngModelChange)="onModoReservaChangeEdit($event)"
+              class="vc-field w-full"
+            >
+              <option *ngFor="let m of modosReserva" [ngValue]="m.value">{{ m.label }}</option>
+            </select>
+          </div>
+          <div>
+            <label for="ap-edit-maxsim" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Máx. reservas simultáneas</label>
+            <input
+              id="ap-edit-maxsim"
+              [(ngModel)]="pointToEdit.max_reservas_simultaneas"
+              type="number"
+              min="0"
+              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:text-white"
+            />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">0 = sin tope. 1 = exclusivo.</p>
+          </div>
+          <div *ngIf="isFranja(pointToEdit)" class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="ap-edit-apertura" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Apertura</label>
+              <input id="ap-edit-apertura" type="time" [(ngModel)]="pointToEdit.hora_apertura" class="vc-field w-full" />
+            </div>
+            <div>
+              <label for="ap-edit-cierre" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Cierre</label>
+              <input id="ap-edit-cierre" type="time" [(ngModel)]="pointToEdit.hora_cierre" class="vc-field w-full" />
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input
+            id="ap-edit-registro"
+            type="checkbox"
+            name="apEditRegistro"
+            [ngModel]="pointToEdit.permite_registro === 1 || pointToEdit.permite_registro === true"
+            (ngModelChange)="pointToEdit.permite_registro = $event ? 1 : 0"
+            class="rounded border-gray-300"
+          />
+          <label for="ap-edit-registro" class="text-sm text-gray-900 dark:text-white">Usable en escáner / registro de acceso</label>
         </div>
         <div *ngIf="pointToEdit.controla_aforo === 1 || pointToEdit.controla_aforo === true">
           <label for="ap-edit-max" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Aforo máximo *</label>

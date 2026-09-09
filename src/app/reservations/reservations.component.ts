@@ -49,8 +49,11 @@ export class ReservationsComponent implements OnInit {
 
   formAccessPointId: number | null = null;
   formHouseId: number | null = null;
-  /** Día lógico de reserva (YYYY-MM-DD); servidor aplica ventana 8:00–8:00. */
+  /** Día lógico de reserva (YYYY-MM-DD). */
   formReservationDay = '';
+  /** Franja horaria (HH:MM), solo si el área es FRANJA_HORARIA. */
+  formStartTime = '09:00';
+  formEndTime = '10:00';
   formGuests = 1;
   formObservation = '';
   formPhone = '';
@@ -360,6 +363,7 @@ export class ReservationsComponent implements OnInit {
     } else {
       this.formAccessPointId = this.areas.length ? this.areaId(this.areas[0]) : null;
     }
+    this.applyDefaultTimesForSelectedArea();
 
     const u = this.auth.getUser();
     if (this.isAdmin) {
@@ -380,6 +384,8 @@ export class ReservationsComponent implements OnInit {
     this.formAccessPointId = r.access_point_id;
     this.formHouseId = r.house_id ?? null;
     this.formReservationDay = (r.reservation_date || '').substring(0, 10);
+    this.formStartTime = this.extractHm(r.reservation_date) || '09:00';
+    this.formEndTime = this.extractHm(r.end_date) || '10:00';
     this.formGuests = r.num_guests ?? 1;
     this.formObservation = r.observation ?? '';
     this.formPhone = r.contact_phone ?? '';
@@ -403,6 +409,16 @@ export class ReservationsComponent implements OnInit {
       this.toastr.warning('Fecha no válida (use AAAA-MM-DD).');
       return;
     }
+    if (this.selectedAreaIsFranja) {
+      if (!this.formStartTime || !this.formEndTime) {
+        this.toastr.warning('Indica hora de inicio y fin.');
+        return;
+      }
+      if (this.formEndTime <= this.formStartTime) {
+        this.toastr.warning('La hora de fin debe ser posterior a la de inicio.');
+        return;
+      }
+    }
 
     const u = this.auth.getUser();
     const houseId = this.isAdmin
@@ -421,6 +437,10 @@ export class ReservationsComponent implements OnInit {
       observation: this.formObservation?.trim() || undefined,
       contact_phone: this.formPhone?.trim() || undefined,
     };
+    if (this.selectedAreaIsFranja) {
+      payload.start_time = this.formStartTime;
+      payload.end_time = this.formEndTime;
+    }
     const pid = (u as { person_id?: number })?.person_id;
     if (pid && pid > 0) {
       payload.person_id = pid;
@@ -557,6 +577,64 @@ export class ReservationsComponent implements OnInit {
 
   areaName(a: AccessPoint): string {
     return (a as { name?: string }).name || 'Área';
+  }
+
+  selectedArea(): AccessPoint | undefined {
+    if (this.formAccessPointId == null) {
+      return undefined;
+    }
+    return this.areas.find((a) => this.areaId(a) === this.formAccessPointId);
+  }
+
+  get selectedAreaIsFranja(): boolean {
+    const a = this.selectedArea();
+    return String((a as { modo_reserva?: string } | undefined)?.modo_reserva ?? '')
+      .toUpperCase() === 'FRANJA_HORARIA';
+  }
+
+  get selectedAreaHorarioHint(): string {
+    const a = this.selectedArea() as
+      | { hora_apertura?: string; hora_cierre?: string; max_reservas_simultaneas?: number }
+      | undefined;
+    if (!a) {
+      return '';
+    }
+    const ap = (a.hora_apertura || '08:00:00').substring(0, 5);
+    const ci = (a.hora_cierre || '22:00:00').substring(0, 5);
+    const max = a.max_reservas_simultaneas;
+    const cupo =
+      max === 0 ? 'sin tope de solapes' : max === 1 ? 'uso exclusivo en la franja' : `hasta ${max} solapes`;
+    return `Horario permitido: ${ap}–${ci} (${cupo}).`;
+  }
+
+  onFormAreaChange(): void {
+    this.applyDefaultTimesForSelectedArea();
+  }
+
+  private applyDefaultTimesForSelectedArea(): void {
+    const a = this.selectedArea() as
+      | { hora_apertura?: string; hora_cierre?: string }
+      | undefined;
+    if (!a || !this.selectedAreaIsFranja) {
+      return;
+    }
+    const ap = (a.hora_apertura || '08:00:00').substring(0, 5);
+    const ci = (a.hora_cierre || '22:00:00').substring(0, 5);
+    this.formStartTime = ap;
+    // Default 1h slot, capped at cierre
+    const [h, m] = ap.split(':').map(Number);
+    let endH = h + 1;
+    let endM = m;
+    const endStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+    this.formEndTime = endStr <= ci ? endStr : ci;
+  }
+
+  private extractHm(dt: string | undefined | null): string | null {
+    if (!dt) {
+      return null;
+    }
+    const m = String(dt).match(/[T ](\d{2}:\d{2})/);
+    return m ? m[1] : null;
   }
 
   /** Etiqueta en selector: nombre + tipo. */

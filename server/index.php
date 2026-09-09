@@ -954,7 +954,7 @@ echo json_encode([
             'GET /api/v1/access-logs' => 'Listar logs de acceso',
             'GET /api/v1/access-logs/:id' => 'Obtener log por ID',
             'POST /api/v1/access-logs' => 'Crear registro de acceso',
-            'GET /api/v1/access-logs/access-points' => 'Listar puntos de acceso',
+            'GET /api/v1/access-logs/access-points' => 'Listar puntos de acceso (?for_registro=1 escáner)',
 
             // Cámaras LPR
             'GET /api/v1/access-cameras' => 'Listar cámaras LPR',

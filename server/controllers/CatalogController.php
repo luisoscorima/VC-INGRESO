@@ -60,24 +60,20 @@ class CatalogController
         Response::success($payload, 'Resumen dashboard');
     }
 
-    /**
-     * GET /api/v1/catalog/areas - Lista de áreas (access_points)
-     */
-    public static function areas(): void
+    private static function accessPointSelectColumns(): string
     {
-        requireAuth();
-        $pdo = getDbConnection();
-        $stmt = $pdo->query(
-            'SELECT id, name, type, location, is_active, controla_aforo, permite_reserva, max_capacity, current_capacity '
-            . 'FROM access_points ORDER BY name'
-        );
-        $rows = $stmt->fetchAll(\PDO::FETCH_OBJ);
-        Response::json($rows);
+        return 'id, name, type, location, is_active, controla_aforo, permite_reserva, permite_registro, '
+            . 'modo_reserva, max_reservas_simultaneas, hora_apertura, hora_cierre, max_capacity, current_capacity';
     }
 
     private static function allowedAccessPointTypes(): array
     {
         return ['ENTRADA', 'AREA_COMUN', 'AREA_LIMITADA'];
+    }
+
+    private static function allowedModosReserva(): array
+    {
+        return ['DIA_COMPLETO', 'FRANJA_HORARIA'];
     }
 
     /**
@@ -100,9 +96,101 @@ class CatalogController
         return in_array($s, ['1', 'true', 'yes', 'on'], true) ? 1 : 0;
     }
 
+    /** @param mixed $v */
+    private static function normalizeTimeOrNull($v): ?string
+    {
+        if ($v === null || $v === '') {
+            return null;
+        }
+        $s = trim((string) $v);
+        if (preg_match('/^\d{2}:\d{2}$/', $s)) {
+            $s .= ':00';
+        }
+        if (!preg_match('/^\d{2}:\d{2}:\d{2}$/', $s)) {
+            return null;
+        }
+        $parts = array_map('intval', explode(':', $s));
+        if ($parts[0] > 23 || $parts[1] > 59 || $parts[2] > 59) {
+            return null;
+        }
+
+        return sprintf('%02d:%02d:%02d', $parts[0], $parts[1], $parts[2]);
+    }
+
+    /** @return array{modo: string, max_sim: int, apertura: ?string, cierre: ?string, error: ?string} */
+    private static function parseReservaScheduleFields(array $data, ?array $existing = null): array
+    {
+        $modoDefault = $existing['modo_reserva'] ?? 'DIA_COMPLETO';
+        $modo = array_key_exists('modo_reserva', $data)
+            ? strtoupper(trim((string) $data['modo_reserva']))
+            : strtoupper((string) $modoDefault);
+        if (!in_array($modo, self::allowedModosReserva(), true)) {
+            $modo = 'DIA_COMPLETO';
+        }
+
+        $maxDefault = isset($existing['max_reservas_simultaneas']) ? (int) $existing['max_reservas_simultaneas'] : 1;
+        if (array_key_exists('max_reservas_simultaneas', $data)) {
+            $raw = $data['max_reservas_simultaneas'];
+            $maxSim = ($raw === '' || $raw === null) ? 1 : max(0, (int) $raw);
+        } else {
+            $maxSim = max(0, $maxDefault);
+        }
+
+        $apertura = $existing['hora_apertura'] ?? null;
+        $cierre = $existing['hora_cierre'] ?? null;
+        if (array_key_exists('hora_apertura', $data)) {
+            $apertura = self::normalizeTimeOrNull($data['hora_apertura']);
+        }
+        if (array_key_exists('hora_cierre', $data)) {
+            $cierre = self::normalizeTimeOrNull($data['hora_cierre']);
+        }
+
+        if ($modo === 'FRANJA_HORARIA') {
+            if ($apertura === null) {
+                $apertura = '08:00:00';
+            }
+            if ($cierre === null) {
+                $cierre = '22:00:00';
+            }
+            if ($apertura >= $cierre) {
+                return [
+                    'modo' => $modo,
+                    'max_sim' => $maxSim,
+                    'apertura' => $apertura,
+                    'cierre' => $cierre,
+                    'error' => 'En franja horaria, la hora de apertura debe ser anterior al cierre',
+                ];
+            }
+        } else {
+            $apertura = null;
+            $cierre = null;
+        }
+
+        return [
+            'modo' => $modo,
+            'max_sim' => $maxSim,
+            'apertura' => $apertura,
+            'cierre' => $cierre,
+            'error' => null,
+        ];
+    }
+
+    /**
+     * GET /api/v1/catalog/areas - Lista de áreas (access_points)
+     */
+    public static function areas(): void
+    {
+        requireAuth();
+        $pdo = getDbConnection();
+        $stmt = $pdo->query(
+            'SELECT ' . self::accessPointSelectColumns() . ' FROM access_points ORDER BY name'
+        );
+        $rows = $stmt->fetchAll(\PDO::FETCH_OBJ);
+        Response::json($rows);
+    }
+
     /**
      * POST /api/v1/catalog/access-points — Crear punto de acceso (solo ADMIN).
-     * Body JSON: name (req), type?, location?, is_active?, controla_aforo?, permite_reserva?, max_capacity?, current_capacity?
      */
     public static function accessPointsStore(): void
     {
@@ -132,6 +220,13 @@ class CatalogController
         $is_active = isset($data['is_active']) ? ((bool) $data['is_active'] ? 1 : 0) : 1;
         $controla_aforo = self::parseBoolFlag($data, 'controla_aforo', false);
         $permite_reserva = self::parseBoolFlag($data, 'permite_reserva', false);
+        $permite_registro = self::parseBoolFlag($data, 'permite_registro', false);
+
+        $schedule = self::parseReservaScheduleFields($data, null);
+        if ($schedule['error'] !== null) {
+            Response::error($schedule['error'], 400);
+            return;
+        }
 
         $max_capacity = null;
         $current_capacity = null;
@@ -159,8 +254,9 @@ class CatalogController
         $pdo = getDbConnection();
         try {
             $stmt = $pdo->prepare(
-                'INSERT INTO access_points (name, type, location, is_active, controla_aforo, permite_reserva, max_capacity, current_capacity) '
-                . 'VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO access_points (name, type, location, is_active, controla_aforo, permite_reserva, permite_registro, '
+                . 'modo_reserva, max_reservas_simultaneas, hora_apertura, hora_cierre, max_capacity, current_capacity) '
+                . 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $name,
@@ -169,13 +265,17 @@ class CatalogController
                 $is_active,
                 $controla_aforo,
                 $permite_reserva,
+                $permite_registro,
+                $schedule['modo'],
+                $schedule['max_sim'],
+                $schedule['apertura'],
+                $schedule['cierre'],
                 $max_capacity,
                 $current_capacity,
             ]);
             $id = (int) $pdo->lastInsertId();
             $rowStmt = $pdo->prepare(
-                'SELECT id, name, type, location, is_active, controla_aforo, permite_reserva, max_capacity, current_capacity '
-                . 'FROM access_points WHERE id = ?'
+                'SELECT ' . self::accessPointSelectColumns() . ' FROM access_points WHERE id = ?'
             );
             $rowStmt->execute([$id]);
             $row = $rowStmt->fetch(\PDO::FETCH_ASSOC);
@@ -225,7 +325,11 @@ class CatalogController
             return;
         }
 
-        $updatableKeys = ['name', 'type', 'location', 'is_active', 'controla_aforo', 'permite_reserva', 'max_capacity', 'current_capacity'];
+        $updatableKeys = [
+            'name', 'type', 'location', 'is_active', 'controla_aforo', 'permite_reserva', 'permite_registro',
+            'modo_reserva', 'max_reservas_simultaneas', 'hora_apertura', 'hora_cierre',
+            'max_capacity', 'current_capacity',
+        ];
         $hasAny = false;
         foreach ($updatableKeys as $k) {
             if (array_key_exists($k, $data)) {
@@ -266,6 +370,9 @@ class CatalogController
         if (array_key_exists('permite_reserva', $data)) {
             $merged['permite_reserva'] = self::parseBoolFlag($data, 'permite_reserva', false);
         }
+        if (array_key_exists('permite_registro', $data)) {
+            $merged['permite_registro'] = self::parseBoolFlag($data, 'permite_registro', false);
+        }
         if (array_key_exists('max_capacity', $data)) {
             $mv = $data['max_capacity'];
             if ($mv === '' || $mv === null) {
@@ -282,6 +389,16 @@ class CatalogController
                 $merged['current_capacity'] = max(0, (int) $cv);
             }
         }
+
+        $schedule = self::parseReservaScheduleFields($data, $merged);
+        if ($schedule['error'] !== null) {
+            Response::error($schedule['error'], 400);
+            return;
+        }
+        $merged['modo_reserva'] = $schedule['modo'];
+        $merged['max_reservas_simultaneas'] = $schedule['max_sim'];
+        $merged['hora_apertura'] = $schedule['apertura'];
+        $merged['hora_cierre'] = $schedule['cierre'];
 
         if ((int) $merged['controla_aforo'] === 0) {
             $merged['max_capacity'] = null;
@@ -305,7 +422,9 @@ class CatalogController
             }
         }
 
-        $sql = 'UPDATE access_points SET name = ?, type = ?, location = ?, is_active = ?, controla_aforo = ?, permite_reserva = ?, max_capacity = ?, current_capacity = ? WHERE id = ?';
+        $sql = 'UPDATE access_points SET name = ?, type = ?, location = ?, is_active = ?, controla_aforo = ?, '
+            . 'permite_reserva = ?, permite_registro = ?, modo_reserva = ?, max_reservas_simultaneas = ?, '
+            . 'hora_apertura = ?, hora_cierre = ?, max_capacity = ?, current_capacity = ? WHERE id = ?';
         $values = [
             $merged['name'],
             $merged['type'],
@@ -313,6 +432,11 @@ class CatalogController
             (int) $merged['is_active'],
             (int) $merged['controla_aforo'],
             (int) $merged['permite_reserva'],
+            (int) ($merged['permite_registro'] ?? 0),
+            $merged['modo_reserva'],
+            (int) $merged['max_reservas_simultaneas'],
+            $merged['hora_apertura'],
+            $merged['hora_cierre'],
             $merged['max_capacity'],
             $merged['current_capacity'],
             $apid,
@@ -320,8 +444,7 @@ class CatalogController
         try {
             $pdo->prepare($sql)->execute($values);
             $rowStmt = $pdo->prepare(
-                'SELECT id, name, type, location, is_active, controla_aforo, permite_reserva, max_capacity, current_capacity '
-                . 'FROM access_points WHERE id = ?'
+                'SELECT ' . self::accessPointSelectColumns() . ' FROM access_points WHERE id = ?'
             );
             $rowStmt->execute([$apid]);
             $row = $rowStmt->fetch(\PDO::FETCH_ASSOC);
