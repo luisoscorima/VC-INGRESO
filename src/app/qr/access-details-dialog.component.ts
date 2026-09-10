@@ -203,9 +203,10 @@ interface PendingPhoto {
           </div>
           <app-photo-source-picker
             *ngIf="canAddPhoto"
-            [showGallery]="false"
-            [zoneTitle]="photos.length ? 'Añadir otra foto' : 'Tomar foto'"
+            [showGallery]="true"
+            [zoneTitle]="photos.length ? 'Añadir otra foto' : 'Añadir foto'"
             [cameraLabel]="photos.length ? 'Tomar otra' : 'Tomar foto'"
+            [galleryLabel]="photos.length ? 'Subir otra' : 'Subir foto'"
             [compressing]="compressingPhoto"
             [disabled]="saving"
             (fileSelected)="onPhotoSelected($event)"

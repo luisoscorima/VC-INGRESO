@@ -440,9 +440,10 @@ import {
                 <app-photo-source-picker
                   *ngIf="canAddDetailPhoto"
                   [compact]="true"
-                  [showGallery]="false"
-                  [zoneTitle]="detailPhotos.length ? 'Añadir otra foto' : 'Tomar foto'"
+                  [showGallery]="true"
+                  [zoneTitle]="detailPhotos.length ? 'Añadir otra foto' : 'Añadir foto'"
                   [cameraLabel]="detailPhotos.length ? 'Tomar otra' : 'Tomar foto'"
+                  [galleryLabel]="detailPhotos.length ? 'Subir otra' : 'Subir foto'"
                   [compressing]="compressingDetailPhotos"
                   [disabled]="savingDetails"
                   (fileSelected)="onDetailPhotoSelected($event)"
